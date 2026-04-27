@@ -1,0 +1,14 @@
+{
+  "name": "airio",
+  "private": true,
+  "workspaces": ["site", "dashboard"],
+  "scripts": {
+    "dev": "concurrently \"cd dashboard && bun run dev\" \"cd site && bun run dev\"",
+    "build": "cd dashboard && bun run build && cd ../site && bun run build",
+    "lint": "cd dashboard && bun run lint && cd ../site && bun run lint",
+    "convex:dev": "npx convex dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

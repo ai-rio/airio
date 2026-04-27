@@ -4,8 +4,8 @@ When working on Convex code, **always read `convex/_generated/ai/guidelines.md` 
 
 ## Repo Structure
 
-- `site/` — marketing LP at ai.rio.br (Next.js, port 3001)
-- `dashboard/` — app at app.ai.rio.br (Next.js, port 3000)
+- `site/` — marketing LP at ai.rio.br (Next.js, port 3003)
+- `dashboard/` — app at app.ai.rio.br (Next.js, port 3002)
 - `convex/` — backend (DB, auth, actions, billing)
 
 ## Commands
@@ -15,10 +15,10 @@ When working on Convex code, **always read `convex/_generated/ai/guidelines.md` 
 npx convex dev
 
 # Dashboard
-cd dashboard && bun run dev   # :3000
+cd dashboard && bun run dev   # :3002
 
 # Site
-cd site && bun run dev        # :3001
+cd site && bun run dev        # :3003
 ```
 
 ## Stack

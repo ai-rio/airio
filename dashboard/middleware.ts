@@ -1,6 +1,8 @@
 import { convexAuthNextjsMiddleware } from '@convex-dev/auth/nextjs/server'
 import { type NextFetchEvent, type NextRequest, NextResponse } from 'next/server'
 
+const DEV_BYPASS_COOKIE = 'airio_dev_bypass'
+
 const authMiddleware = convexAuthNextjsMiddleware(
   async (request, { convexAuth }) => {
     const isProtected =
@@ -21,6 +23,12 @@ const authMiddleware = convexAuthNextjsMiddleware(
 )
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    request.cookies.get(DEV_BYPASS_COOKIE)?.value === '1'
+  ) {
+    return NextResponse.next()
+  }
   return authMiddleware(request, event)
 }
 

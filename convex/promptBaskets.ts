@@ -1,4 +1,4 @@
-import { mutationGeneric, queryGeneric } from 'convex/server';
+import { internalQueryGeneric, mutationGeneric, queryGeneric } from 'convex/server';
 import { v } from 'convex/values';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,9 +49,7 @@ export const update = mutationGeneric({
     if (!site) throw new Error('Site não encontrado');
     if (site.userId !== userId) throw new Error('Não autorizado');
     const { basketId, ...rest } = args;
-    const patch = Object.fromEntries(
-      Object.entries(rest).filter(([, val]) => val !== undefined)
-    );
+    const patch = Object.fromEntries(Object.entries(rest).filter(([, val]) => val !== undefined));
     await anyDb(ctx).patch(basketId, patch);
   },
 });
@@ -75,6 +73,16 @@ export const getById = queryGeneric({
   args: { basketId: v.id('promptBaskets') },
   handler: async (ctx, args) => {
     return await anyDb(ctx).get(args.basketId);
+  },
+});
+
+export const internalListBySite = internalQueryGeneric({
+  args: { siteId: v.id('sites') },
+  handler: async (ctx, args) => {
+    return await anyDb(ctx)
+      .query('promptBaskets')
+      .withIndex('by_site', (q: any) => q.eq('siteId', args.siteId))
+      .collect();
   },
 });
 

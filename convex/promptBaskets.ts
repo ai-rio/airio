@@ -72,7 +72,14 @@ export const listBySite = queryGeneric({
 export const getById = queryGeneric({
   args: { basketId: v.id('promptBaskets') },
   handler: async (ctx, args) => {
-    return await anyDb(ctx).get(args.basketId);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Não autorizado');
+    const userId = identity.subject.split('|')[0];
+    const basket = await anyDb(ctx).get(args.basketId);
+    if (!basket) return null;
+    const site = await anyDb(ctx).get(basket.siteId);
+    if (!site || site.userId !== userId) throw new Error('Não autorizado');
+    return basket;
   },
 });
 

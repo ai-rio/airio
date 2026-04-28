@@ -91,7 +91,7 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
   const [error, setError] = useState<string | null>(null);
 
   const runAudit = useAction(api.actions.audit.runAudit);
-  const audits = useQuery(api.audits.listByUser, convexAuth ? {} : 'skip');
+  const audits = useQuery(api.audits.listByUser, isAuthenticated ? {} : 'skip');
   const balance = useQuery(api.users.getMyCreditsBalance, convexAuth ? {} : 'skip');
 
   const deltaMap = useMemo(() => {

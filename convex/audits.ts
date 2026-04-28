@@ -52,8 +52,24 @@ export const listByUser = queryGeneric({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) return []
-    const userId = identity.subject.split('|')[0]
+    let userId: string
+
+    if (identity) {
+      userId = identity.subject.split('|')[0]
+    } else if (
+      process.env.AUTH_EMAIL_MOCK === '1' ||
+      process.env.CONVEX_DEPLOYMENT?.startsWith('dev:')
+    ) {
+      const devUser = await anyDb(ctx)
+        .query('users')
+        .withIndex('email', (q: any) => q.eq('email', 'dev@localhost'))
+        .unique()
+      if (!devUser) return []
+      userId = devUser._id
+    } else {
+      return []
+    }
+
     return await anyDb(ctx)
       .query('audits')
       .withIndex('by_user_and_created', (q: any) => q.eq('userId', userId))

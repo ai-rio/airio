@@ -1,6 +1,7 @@
 'use node';
 
 import { internalActionGeneric, anyApi } from 'convex/server';
+import { internal } from '../_generated/api';
 import { ConvexError, v } from 'convex/values';
 import { runAeoAnalysis } from '../lib/aeoAnalyzer.js';
 import { crawlSite } from '../lib/crawler.js';
@@ -16,7 +17,7 @@ export const runDueSiteAudits = internalActionGeneric({
 
     for (const site of dueSites) {
       try {
-        await ctx.runAction(anyApi.actions.monitoring.runScheduledAudit, {
+        await ctx.runAction(internal.actions.monitoring.runScheduledAudit, {
           siteId: site._id,
           url: site.url,
         });

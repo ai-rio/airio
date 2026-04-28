@@ -10,4 +10,11 @@ crons.interval(
   {}
 );
 
+crons.interval(
+  'run due geo visibility checks',
+  { hours: 1 },
+  internal.actions.geoMonitoring.runDueGeoChecks,
+  {}
+);
+
 export default crons;

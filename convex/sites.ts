@@ -115,9 +115,12 @@ export const getDueSitesForGeo = internalQueryGeneric({
     return await anyDb(ctx)
       .query('sites')
       .filter((q: any) =>
-        q.or(
-          q.eq(q.field('nextGeoCheckAt'), undefined),
-          q.lte(q.field('nextGeoCheckAt'), args.now)
+        q.and(
+          q.eq(q.field('monitoringEnabled'), true),
+          q.or(
+            q.eq(q.field('nextGeoCheckAt'), undefined),
+            q.lte(q.field('nextGeoCheckAt'), args.now)
+          )
         )
       )
       .collect();

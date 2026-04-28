@@ -93,6 +93,7 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
   const runAudit = useAction(api.actions.audit.runAudit);
   const audits = useQuery(api.audits.listByUser, isAuthenticated ? {} : 'skip');
   const balance = useQuery(api.users.getMyCreditsBalance, convexAuth ? {} : 'skip');
+  const sites = useQuery(api.sites.listByUser, isAuthenticated ? {} : 'skip');
 
   const deltaMap = useMemo(() => {
     if (!audits) return new Map<string, number | null>();
@@ -183,6 +184,35 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
               Comprar
             </Button>
           </div>
+        )}
+
+        {isAuthenticated && sites && sites.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold">Sites monitorados</h2>
+              <span className="text-xs text-muted-foreground">{sites.length} site(s)</span>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                {(sites as any[]).map((site: any, idx: number) => (
+                  <div key={site._id}>
+                    {idx > 0 && <Separator />}
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/sites/${site._id}`)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <div>
+                        <div className="font-medium">{site.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{site.url}</div>
+                      </div>
+                      <span className="text-muted-foreground shrink-0">›</span>
+                    </button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </section>
         )}
 
         {convexAuth && (

@@ -3,9 +3,7 @@ const nextConfig = {
   env: {
     CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
   },
-  experimental: {
-    nodeMiddleware: true,
-  },
+transpilePackages: ['@airio/convex'],
 }
 
 export default nextConfig

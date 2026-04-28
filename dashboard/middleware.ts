@@ -10,7 +10,7 @@ const authMiddleware = convexAuthNextjsMiddleware(
       request.nextUrl.pathname.startsWith('/audit') ||
       request.nextUrl.pathname.startsWith('/billing')
 
-    if (isProtected) {
+    if (isProtected && !request.nextUrl.searchParams.has('code')) {
       const isAuth = await convexAuth.isAuthenticated()
       if (!isAuth) {
         const signIn = new URL('/sign-in', request.url)
@@ -19,11 +19,14 @@ const authMiddleware = convexAuthNextjsMiddleware(
       }
     }
   },
-  { convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL, verbose: false }
+  { convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL, verbose: true }
 )
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
+  const pathname = request.nextUrl.pathname
+  const isAuthEndpoint = pathname === '/api/auth' || pathname.startsWith('/api/auth/')
   if (
+    !isAuthEndpoint &&
     process.env.NODE_ENV !== 'production' &&
     request.cookies.get(DEV_BYPASS_COOKIE)?.value === '1'
   ) {
@@ -33,5 +36,5 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
 }

@@ -6,3 +6,7 @@ node_modules/
 .convex/
 dist/
 .DS_Store
+
+# AgentOps session artifacts
+.agents/
+.gstack/

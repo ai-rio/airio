@@ -1,4 +1,4 @@
-import { mutationGeneric, queryGeneric } from 'convex/server';
+import { internalMutationGeneric, queryGeneric } from 'convex/server';
 import { v } from 'convex/values';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -6,7 +6,7 @@ function anyDb(ctx: { db: unknown }): any {
   return ctx.db;
 }
 
-export const insert = mutationGeneric({
+export const insert = internalMutationGeneric({
   args: {
     siteId: v.id('sites'),
     basketId: v.id('promptBaskets'),

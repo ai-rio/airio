@@ -1,4 +1,4 @@
-import { mutationGeneric, queryGeneric } from 'convex/server';
+import { internalMutationGeneric, internalQueryGeneric, mutationGeneric, queryGeneric } from 'convex/server';
 import { v } from 'convex/values';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,7 +109,7 @@ export const setMonitoringEnabled = mutationGeneric({
   },
 });
 
-export const getDueSitesForGeo = queryGeneric({
+export const getDueSitesForGeo = internalQueryGeneric({
   args: { now: v.number() },
   handler: async (ctx, args) => {
     return await anyDb(ctx)
@@ -124,7 +124,7 @@ export const getDueSitesForGeo = queryGeneric({
   },
 });
 
-export const updateNextGeoCheck = mutationGeneric({
+export const updateNextGeoCheck = internalMutationGeneric({
   args: { siteId: v.string(), nextGeoCheckAt: v.number() },
   handler: async (ctx, args) => {
     await anyDb(ctx).patch(args.siteId, { nextGeoCheckAt: args.nextGeoCheckAt });

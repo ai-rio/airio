@@ -1,7 +1,7 @@
 'use node';
 
 import { callLlm } from './aeo/llmClient.js';
-import { buildPrompt, PROMPT_VERSION } from './aeo/prompt.js';
+import { PROMPT_VERSION, buildPrompt } from './aeo/prompt.js';
 import { analyzeRobotsTxt } from './aeo/robots.js';
 import { computeAlgorithmicScore } from './aeo/score.js';
 import { runSeoChecks } from './aeo/seoChecks.js';

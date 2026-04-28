@@ -345,13 +345,10 @@ async function checkReddit(domain: string): Promise<string | null> {
     const { access_token } = (await tokenRes.json()) as { access_token: string };
     // Quote the domain for exact-match search
     const q = encodeURIComponent(`"${domain}"`);
-    const searchRes = await fetch(
-      `https://oauth.reddit.com/search?q=${q}&limit=1&type=link`,
-      {
-        headers: { Authorization: `Bearer ${access_token}`, 'User-Agent': userAgent },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
+    const searchRes = await fetch(`https://oauth.reddit.com/search?q=${q}&limit=1&type=link`, {
+      headers: { Authorization: `Bearer ${access_token}`, 'User-Agent': userAgent },
+      signal: AbortSignal.timeout(5000),
+    });
     if (!searchRes.ok) return null;
     const data = (await searchRes.json()) as {
       data: { dist: number; children: Array<{ data: { permalink: string } }> };

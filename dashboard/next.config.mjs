@@ -3,7 +3,7 @@ const nextConfig = {
   env: {
     CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
   },
-transpilePackages: ['@airio/convex'],
-}
+  transpilePackages: ['@airio/convex'],
+};
 
-export default nextConfig
+export default nextConfig;

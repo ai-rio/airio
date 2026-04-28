@@ -1,8 +1,10 @@
-import { mutationGeneric, queryGeneric } from 'convex/server'
-import { v } from 'convex/values'
+import { mutationGeneric, queryGeneric } from 'convex/server';
+import { v } from 'convex/values';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function anyDb(ctx: { db: unknown }): any { return ctx.db }
+function anyDb(ctx: { db: unknown }): any {
+  return ctx.db;
+}
 
 export const createPending = mutationGeneric({
   args: {
@@ -19,9 +21,9 @@ export const createPending = mutationGeneric({
       billedAs: args.billedAs,
       createdAt: Date.now(),
       ...(args.siteId ? { siteId: args.siteId } : {}),
-    })
+    });
   },
-})
+});
 
 export const markComplete = mutationGeneric({
   args: {
@@ -36,9 +38,9 @@ export const markComplete = mutationGeneric({
       score: args.score,
       outputFiles: args.outputFiles,
       promptVersion: args.promptVersion,
-    })
+    });
   },
-})
+});
 
 export const markFailed = mutationGeneric({
   args: { auditId: v.string(), errorMessage: v.optional(v.string()) },
@@ -46,18 +48,18 @@ export const markFailed = mutationGeneric({
     await anyDb(ctx).patch(args.auditId, {
       status: 'failed',
       errorMessage: args.errorMessage,
-    })
+    });
   },
-})
+});
 
 export const listByUser = queryGeneric({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    let userId: string
+    const identity = await ctx.auth.getUserIdentity();
+    let userId: string;
 
     if (identity) {
-      userId = identity.subject.split('|')[0]
+      userId = identity.subject.split('|')[0];
     } else if (
       process.env.AUTH_EMAIL_MOCK === '1' ||
       process.env.CONVEX_DEPLOYMENT?.startsWith('dev:')
@@ -65,20 +67,20 @@ export const listByUser = queryGeneric({
       const devUser = await anyDb(ctx)
         .query('users')
         .withIndex('email', (q: any) => q.eq('email', 'dev@localhost'))
-        .unique()
-      if (!devUser) return []
-      userId = devUser._id
+        .unique();
+      if (!devUser) return [];
+      userId = devUser._id;
     } else {
-      return []
+      return [];
     }
 
     return await anyDb(ctx)
       .query('audits')
       .withIndex('by_user_and_created', (q: any) => q.eq('userId', userId))
       .order('desc')
-      .take(50)
+      .take(50);
   },
-})
+});
 
 export const listRecent = queryGeneric({
   args: { limit: v.optional(v.number()) },
@@ -86,16 +88,16 @@ export const listRecent = queryGeneric({
     return await anyDb(ctx)
       .query('audits')
       .order('desc')
-      .take(args.limit ?? 20)
+      .take(args.limit ?? 20);
   },
-})
+});
 
 export const getById = queryGeneric({
   args: { auditId: v.string() },
   handler: async (ctx, args) => {
-    return await anyDb(ctx).get(args.auditId)
+    return await anyDb(ctx).get(args.auditId);
   },
-})
+});
 
 export const listBySite = queryGeneric({
   args: { siteId: v.string(), limit: v.optional(v.number()) },
@@ -104,6 +106,6 @@ export const listBySite = queryGeneric({
       .query('audits')
       .withIndex('by_site', (q: any) => q.eq('siteId', args.siteId))
       .order('desc')
-      .take(args.limit ?? 12)
+      .take(args.limit ?? 12);
   },
-})
+});

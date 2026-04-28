@@ -1,6 +1,6 @@
-import { authTables } from '@convex-dev/auth/server'
-import { defineSchema, defineTable } from 'convex/server'
-import { v } from 'convex/values'
+import { authTables } from '@convex-dev/auth/server';
+import { defineSchema, defineTable } from 'convex/server';
+import { v } from 'convex/values';
 
 export default defineSchema({
   ...authTables,
@@ -34,19 +34,12 @@ export default defineSchema({
   audits: defineTable({
     userId: v.id('users'),
     url: v.string(),
-    status: v.union(
-      v.literal('pending'),
-      v.literal('complete'),
-      v.literal('failed')
-    ),
+    status: v.union(v.literal('pending'), v.literal('complete'), v.literal('failed')),
     // AEO score 0-100
     score: v.optional(v.number()),
     // JSON: { llmsTxt, robotsPatch, schemaBlocks, rewrittenPassages, findings }
     outputFiles: v.optional(v.string()),
-    billedAs: v.union(
-      v.literal('credit'),
-      v.literal('free')
-    ),
+    billedAs: v.union(v.literal('credit'), v.literal('free')),
     errorMessage: v.optional(v.string()),
     promptVersion: v.optional(v.string()),
     siteId: v.optional(v.id('sites')),
@@ -95,4 +88,4 @@ export default defineSchema({
     key: v.string(),
     ts: v.number(),
   }).index('by_key_and_ts', ['key', 'ts']),
-})
+});

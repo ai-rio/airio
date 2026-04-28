@@ -1,10 +1,10 @@
-'use node'
+'use node';
 
-import dns from 'node:dns'
-import { actionGeneric, anyApi } from 'convex/server'
-import { ConvexError, v } from 'convex/values'
-import { crawlSite } from '../lib/crawler.js'
-import { runAeoAnalysis } from '../lib/aeoAnalyzer.js'
+import dns from 'node:dns';
+import { actionGeneric, anyApi } from 'convex/server';
+import { ConvexError, v } from 'convex/values';
+import { runAeoAnalysis } from '../lib/aeoAnalyzer.js';
+import { crawlSite } from '../lib/crawler.js';
 
 const PRIVATE_IP_RANGES = [
   /^10\./,
@@ -15,63 +15,64 @@ const PRIVATE_IP_RANGES = [
   /^fc00:/,
   /^fd[0-9a-f]{2}:/i,
   /^169\.254\./,
-]
+];
 
 async function validateUrl(urlString: string): Promise<URL> {
-  let parsed: URL
+  let parsed: URL;
   try {
-    parsed = new URL(urlString)
+    parsed = new URL(urlString);
   } catch {
-    throw new ConvexError('URL inválida')
+    throw new ConvexError('URL inválida');
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new ConvexError('URL não permitida')
+    throw new ConvexError('URL não permitida');
   }
-  const hostname = parsed.hostname
+  const hostname = parsed.hostname;
   if (PRIVATE_IP_RANGES.some((re) => re.test(hostname))) {
-    throw new ConvexError('URL não permitida')
+    throw new ConvexError('URL não permitida');
   }
   try {
-    const { address } = await dns.promises.lookup(hostname)
+    const { address } = await dns.promises.lookup(hostname);
     if (PRIVATE_IP_RANGES.some((re) => re.test(address))) {
-      throw new ConvexError('URL não permitida')
+      throw new ConvexError('URL não permitida');
     }
   } catch (err) {
-    if (err instanceof ConvexError) throw err
-    throw new ConvexError('URL não permitida')
+    if (err instanceof ConvexError) throw err;
+    throw new ConvexError('URL não permitida');
   }
-  return parsed
+  return parsed;
 }
 
 export const runAudit = actionGeneric({
   args: { url: v.string(), siteId: v.optional(v.string()) },
   handler: async (ctx, { url, siteId }) => {
-    const identity = await ctx.auth.getUserIdentity()
+    const identity = await ctx.auth.getUserIdentity();
     const isDev =
       process.env.AUTH_EMAIL_MOCK === '1' ||
-      process.env.CONVEX_DEPLOYMENT?.startsWith('dev:') === true
-    if (!identity && !isDev) throw new ConvexError('Não autorizado')
+      process.env.CONVEX_DEPLOYMENT?.startsWith('dev:') === true;
+    if (!identity && !isDev) throw new ConvexError('Não autorizado');
 
-    const validUrl = await validateUrl(url)
+    const validUrl = await validateUrl(url);
     const userId = identity
       ? identity.subject.split('|')[0]
       : ((await ctx.runMutation(anyApi.users.getOrCreateUser, {
           email: 'dev@localhost',
-        })) as string)
+        })) as string);
 
-    const rateLimitAllowed = await ctx.runMutation(
-      anyApi.lib.rateLimit.checkRateLimit,
-      { key: userId, windowMs: 60_000, limit: 5 }
-    )
-    if (!rateLimitAllowed) throw new ConvexError('Limite de requisições atingido')
+    const rateLimitAllowed = await ctx.runMutation(anyApi.lib.rateLimit.checkRateLimit, {
+      key: userId,
+      windowMs: 60_000,
+      limit: 5,
+    });
+    if (!rateLimitAllowed) throw new ConvexError('Limite de requisições atingido');
 
-    let billedAs: 'credit' | 'free' = 'free'
+    let billedAs: 'credit' | 'free' = 'free';
     if (!siteId && (!isDev || identity)) {
       const gate = (await ctx.runMutation(anyApi.users.checkAndConsumeUsage, {
         userId,
-      })) as { allowed: boolean; billedAs?: string; reason?: string }
-      if (!gate.allowed) throw new ConvexError(gate.reason ?? 'Sem créditos')
-      billedAs = (gate.billedAs ?? 'credit') as 'credit' | 'free'
+      })) as { allowed: boolean; billedAs?: string; reason?: string };
+      if (!gate.allowed) throw new ConvexError(gate.reason ?? 'Sem créditos');
+      billedAs = (gate.billedAs ?? 'credit') as 'credit' | 'free';
     }
 
     const auditId = (await ctx.runMutation(anyApi.audits.createPending, {
@@ -79,54 +80,50 @@ export const runAudit = actionGeneric({
       url: validUrl.href,
       billedAs,
       siteId,
-    })) as string
+    })) as string;
 
-    const anthropicKey = process.env.OPENROUTER_API_KEY
-    if (!anthropicKey) throw new ConvexError('OPENROUTER_API_KEY não configurada')
+    const anthropicKey = process.env.OPENROUTER_API_KEY;
+    if (!anthropicKey) throw new ConvexError('OPENROUTER_API_KEY não configurada');
 
     try {
-      const crawled = await crawlSite(validUrl.href)
+      const crawled = await crawlSite(validUrl.href);
       const findings = await runAeoAnalysis(
         { url: validUrl.href, ...crawled },
         anthropicKey,
         process.env.OPENROUTER_MODEL
-      )
+      );
 
       await ctx.runMutation(anyApi.audits.markComplete, {
         auditId,
         score: findings.score,
         outputFiles: JSON.stringify(findings),
         promptVersion: findings.promptVersion,
-      })
-      await ctx.runMutation(anyApi.usageLogs.log, { userId, auditId })
+      });
+      await ctx.runMutation(anyApi.usageLogs.log, { userId, auditId });
 
       if (siteId) {
-        const site = (await ctx.runQuery(anyApi.sites.getById, { siteId })) as any
+        const site = (await ctx.runQuery(anyApi.sites.getById, { siteId })) as any;
         if (site) {
           const intervalMs =
-            site.schedule === 'weekly'
-              ? 7 * 24 * 60 * 60 * 1000
-              : 30 * 24 * 60 * 60 * 1000
+            site.schedule === 'weekly' ? 7 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
           await ctx.runMutation(anyApi.sites.updateNextAudit, {
             siteId,
             nextAuditAt: Date.now() + intervalMs,
-          })
+          });
           await ctx.runAction(anyApi.actions.alerts.checkAndSendAlerts, {
             siteId,
             auditId,
-          })
+          });
         }
       }
 
-      return { auditId, score: findings.score }
+      return { auditId, score: findings.score };
     } catch (err) {
       await ctx.runMutation(anyApi.audits.markFailed, {
         auditId,
         errorMessage: err instanceof Error ? err.message : 'Falha na auditoria',
-      })
-      throw new ConvexError(
-        err instanceof Error ? err.message : 'Falha na auditoria'
-      )
+      });
+      throw new ConvexError(err instanceof Error ? err.message : 'Falha na auditoria');
     }
   },
-})
+});

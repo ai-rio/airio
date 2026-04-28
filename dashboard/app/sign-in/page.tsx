@@ -1,25 +1,25 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useAuthActions } from '@convex-dev/auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuthActions } from '@convex-dev/auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 
 export default function SignInPage() {
-  const { signIn } = useAuthActions()
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') ?? '/'
+  const { signIn } = useAuthActions();
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') ?? '/';
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     try {
-      await signIn('resend', { email, redirectTo })
-      setSent(true)
+      await signIn('resend', { email, redirectTo });
+      setSent(true);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -28,9 +28,7 @@ export default function SignInPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold">AIRio</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Apareça no ChatGPT antes do seu concorrente.
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Apareça no ChatGPT antes do seu concorrente.</p>
         </div>
 
         {sent ? (
@@ -45,7 +43,7 @@ export default function SignInPage() {
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com.br"
               required
               className="w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
@@ -62,9 +60,12 @@ export default function SignInPage() {
 
         <p className="text-center text-xs text-gray-400 mt-6">
           Ao entrar, você concorda com nossos{' '}
-          <a href="https://ai.rio.br/termos" className="underline">Termos de Uso</a>.
+          <a href="https://ai.rio.br/termos" className="underline">
+            Termos de Uso
+          </a>
+          .
         </p>
       </div>
     </main>
-  )
+  );
 }

@@ -22,6 +22,34 @@ export const handleDodoWebhook = actionGeneric({
       }
     }
 
+    if (event.type === 'subscription.activated') {
+      const subscriptionId: string = event.data.id
+      const siteId: string | undefined = event.data.metadata?.siteId
+      if (siteId) {
+        await ctx.runMutation(anyApi.sites.setMonitoringEnabled, {
+          siteId,
+          enabled: true,
+          subscriptionId,
+        })
+      }
+    }
+
+    if (
+      event.type === 'subscription.cancelled' ||
+      event.type === 'subscription.past_due'
+    ) {
+      const subscriptionId: string = event.data.id
+      const site = (await ctx.runQuery(anyApi.sites.getBySubscriptionId, {
+        subscriptionId,
+      })) as any
+      if (site) {
+        await ctx.runMutation(anyApi.sites.setMonitoringEnabled, {
+          siteId: site._id,
+          enabled: false,
+        })
+      }
+    }
+
     return { ok: true }
   },
 })

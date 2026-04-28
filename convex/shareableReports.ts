@@ -5,12 +5,9 @@ import { v } from 'convex/values'
 function anyDb(ctx: { db: unknown }): any { return ctx.db }
 
 function generateToken(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let token = ''
-  for (let i = 0; i < 16; i++) {
-    token += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return token
+  const bytes = new Uint8Array(12)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
 }
 
 export const create = mutationGeneric({

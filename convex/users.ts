@@ -118,3 +118,10 @@ export const getMyCreditsBalance = queryGeneric({
     return { total, used, remaining: total - used, freeRemaining };
   },
 });
+
+export const getById = queryGeneric({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await anyDb(ctx).get(args.userId);
+  },
+});

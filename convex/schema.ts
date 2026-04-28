@@ -58,15 +58,72 @@ export default defineSchema({
     monitoringEnabled: v.boolean(),
     subscriptionId: v.optional(v.string()),
     nextAuditAt: v.number(),
+    nextGeoCheckAt: v.optional(v.number()),
     alertConfig: v.object({
       scoreDropThreshold: v.number(),
       criticalFindings: v.boolean(),
       crawlerBlocked: v.boolean(),
+      psosDropThreshold: v.optional(v.number()),
     }),
   })
     .index('by_user', ['userId'])
     .index('by_monitoring_enabled_and_next_audit_at', ['monitoringEnabled', 'nextAuditAt'])
     .index('by_subscription_id', ['subscriptionId']),
+
+  promptBaskets: defineTable({
+    siteId: v.id('sites'),
+    brandName: v.string(),
+    prompts: v.array(v.string()),
+    engine: v.union(v.literal('perplexity')),
+    runsPerPrompt: v.number(),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+  }).index('by_site', ['siteId']),
+
+  visibilitySnapshots: defineTable({
+    siteId: v.id('sites'),
+    basketId: v.id('promptBaskets'),
+    engine: v.string(),
+    prompt: v.string(),
+    runIndex: v.number(),
+    brandDetected: v.boolean(),
+    responseSnippet: v.string(),
+    sampledAt: v.number(),
+  })
+    .index('by_site_and_sampled_at', ['siteId', 'sampledAt'])
+    .index('by_basket', ['basketId']),
+
+  visibilityReports: defineTable({
+    siteId: v.id('sites'),
+    basketId: v.id('promptBaskets'),
+    engine: v.string(),
+    psos: v.number(),
+    ciLower: v.number(),
+    ciUpper: v.number(),
+    totalSamples: v.number(),
+    citationCount: v.number(),
+    windowDays: v.number(),
+    generatedAt: v.number(),
+  })
+    .index('by_site', ['siteId'])
+    .index('by_site_and_generated_at', ['siteId', 'generatedAt'])
+    .index('by_basket', ['basketId']),
+
+  citationDiagnostics: defineTable({
+    siteId: v.id('sites'),
+    reportId: v.id('visibilityReports'),
+    failureMode: v.union(
+      v.literal('technical_integrity'),
+      v.literal('semantic_alignment'),
+      v.literal('content_quality'),
+      v.literal('systemic_exclusion')
+    ),
+    details: v.string(),
+    suggestedFix: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index('by_site', ['siteId'])
+    .index('by_report', ['reportId']),
 
   shareable_reports: defineTable({
     auditId: v.id('audits'),

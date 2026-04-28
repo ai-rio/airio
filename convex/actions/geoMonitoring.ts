@@ -89,6 +89,11 @@ export const runSiteGeoCheck = internalActionGeneric({
         windowDays: WINDOW_DAYS,
         generatedAt: Date.now(),
       });
+
+      await ctx.runAction(internal.actions.alerts.checkAndSendPsosAlert, {
+        siteId,
+        reportId: '',
+      });
     }
 
     await ctx.runMutation(internal.sites.updateNextGeoCheck, {

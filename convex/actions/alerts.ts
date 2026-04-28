@@ -1,6 +1,6 @@
 'use node';
 
-import { actionGeneric, anyApi } from 'convex/server';
+import { actionGeneric, anyApi, internalActionGeneric } from 'convex/server';
 import { v } from 'convex/values';
 
 async function sendEmail(apiKey: string, to: string, subject: string, html: string): Promise<void> {
@@ -84,5 +84,44 @@ export const checkAndSendAlerts = actionGeneric({
         );
       }
     }
+  },
+});
+
+export const checkAndSendPsosAlert = internalActionGeneric({
+  args: { siteId: v.string(), reportId: v.string() },
+  handler: async (ctx, { siteId, reportId: _reportId }) => {
+    const resendKey = process.env.RESEND_API_KEY;
+    if (!resendKey) return;
+
+    const site = (await ctx.runQuery(anyApi.sites.getById, { siteId })) as any;
+    if (!site) return;
+
+    const threshold: number = site.alertConfig?.psosDropThreshold ?? 0.15;
+
+    const reports = (await ctx.runQuery(anyApi.visibilityReports.listBySite, {
+      siteId: siteId as any,
+      limit: 2,
+    })) as any[];
+    if (reports.length < 2) return;
+
+    const current = reports[0];
+    const previous = reports[1];
+    const drop = previous.psos - current.psos;
+    if (drop < threshold) return;
+
+    const user = (await ctx.runQuery(anyApi.users.getById, { userId: site.userId })) as any;
+    if (!user?.email) return;
+
+    const pct = (val: number) => `${Math.round(val * 100)}%`;
+    const detailUrl = `https://app.ai.rio.br/sites/${siteId}`;
+
+    await sendEmail(
+      resendKey,
+      user.email,
+      `⚠ Visibilidade GEO caiu de ${pct(previous.psos)} para ${pct(current.psos)} em ${site.name}`,
+      `<p>PSOS de <strong>${site.name}</strong> caiu de <strong>${pct(previous.psos)}</strong> para <strong>${pct(current.psos)}</strong>.</p>` +
+        `<p>IC 95%: ${pct(current.ciLower)}–${pct(current.ciUpper)} · ${current.citationCount}/${current.totalSamples} amostras</p>` +
+        `<p><a href="${detailUrl}">Ver detalhes →</a></p>`
+    );
   },
 });

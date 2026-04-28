@@ -1,8 +1,11 @@
 import { httpRouter } from 'convex/server'
 import { httpAction } from './_generated/server'
 import { anyApi } from 'convex/server'
+import { auth } from './auth'
 
 const http = httpRouter()
+
+auth.addHttpRoutes(http)
 
 http.route({
   path: '/webhooks/dodo',

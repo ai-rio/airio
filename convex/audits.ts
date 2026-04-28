@@ -26,12 +26,14 @@ export const markComplete = mutationGeneric({
     auditId: v.string(),
     score: v.number(),
     outputFiles: v.string(),
+    promptVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await anyDb(ctx).patch(args.auditId, {
       status: 'complete',
       score: args.score,
       outputFiles: args.outputFiles,
+      promptVersion: args.promptVersion,
     })
   },
 })
@@ -47,13 +49,26 @@ export const markFailed = mutationGeneric({
 })
 
 export const listByUser = queryGeneric({
-  args: { userId: v.string() },
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+    const userId = identity.subject.split('|')[0]
+    return await anyDb(ctx)
+      .query('audits')
+      .withIndex('by_user_and_created', (q: any) => q.eq('userId', userId))
+      .order('desc')
+      .take(50)
+  },
+})
+
+export const listRecent = queryGeneric({
+  args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     return await anyDb(ctx)
       .query('audits')
-      .withIndex('by_user_and_created', (q: any) => q.eq('userId', args.userId))
       .order('desc')
-      .take(50)
+      .take(args.limit ?? 20)
   },
 })
 

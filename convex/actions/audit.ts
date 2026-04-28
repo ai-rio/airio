@@ -47,10 +47,14 @@ export const runAudit = actionGeneric({
   args: { url: v.string() },
   handler: async (ctx, { url }) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new ConvexError('Não autorizado')
+    const isDev = process.env.AUTH_EMAIL_MOCK === '1' ||
+      process.env.CONVEX_DEPLOYMENT?.startsWith('dev:') === true
+    if (!identity && !isDev) throw new ConvexError('Não autorizado')
 
     const validUrl = await validateUrl(url)
-    const userId = identity.subject.split('|')[0]
+    const userId = identity
+      ? identity.subject.split('|')[0]
+      : (await ctx.runMutation(anyApi.users.getOrCreateUser, { email: 'dev@localhost' })) as string
 
     const rateLimitAllowed = await ctx.runMutation(
       anyApi.lib.rateLimit.checkRateLimit,
@@ -58,12 +62,14 @@ export const runAudit = actionGeneric({
     )
     if (!rateLimitAllowed) throw new ConvexError('Limite de requisições atingido')
 
-    const gate = (await ctx.runMutation(anyApi.users.checkAndConsumeUsage, {
-      userId,
-    })) as { allowed: boolean; billedAs?: string; reason?: string }
-    if (!gate.allowed) throw new ConvexError(gate.reason ?? 'Sem créditos')
-
-    const billedAs = (gate.billedAs ?? 'credit') as 'credit' | 'free'
+    let billedAs: 'credit' | 'free' = 'free'
+    if (!isDev || identity) {
+      const gate = (await ctx.runMutation(anyApi.users.checkAndConsumeUsage, {
+        userId,
+      })) as { allowed: boolean; billedAs?: string; reason?: string }
+      if (!gate.allowed) throw new ConvexError(gate.reason ?? 'Sem créditos')
+      billedAs = (gate.billedAs ?? 'credit') as 'credit' | 'free'
+    }
 
     const auditId = (await ctx.runMutation(anyApi.audits.createPending, {
       userId,
@@ -71,20 +77,22 @@ export const runAudit = actionGeneric({
       billedAs,
     })) as string
 
-    const anthropicKey = process.env.ANTHROPIC_API_KEY
-    if (!anthropicKey) throw new ConvexError('ANTHROPIC_API_KEY não configurada')
+    const anthropicKey = process.env.OPENROUTER_API_KEY
+    if (!anthropicKey) throw new ConvexError('OPENROUTER_API_KEY não configurada')
 
     try {
       const crawled = await crawlSite(validUrl.href)
       const findings = await runAeoAnalysis(
         { url: validUrl.href, ...crawled },
-        anthropicKey
+        anthropicKey,
+        process.env.OPENROUTER_MODEL
       )
 
       await ctx.runMutation(anyApi.audits.markComplete, {
         auditId,
         score: findings.score,
         outputFiles: JSON.stringify(findings),
+        promptVersion: findings.promptVersion,
       })
       await ctx.runMutation(anyApi.usageLogs.log, { userId, auditId })
 

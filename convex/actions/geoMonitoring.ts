@@ -77,7 +77,7 @@ export const runSiteGeoCheck = internalActionGeneric({
       const psos = computePsos(citationCount, totalSamples);
       const { lower: ciLower, upper: ciUpper } = wilsonCI(citationCount, totalSamples);
 
-      await ctx.runMutation(internal.visibilityReports.insert, {
+      const reportId = (await ctx.runMutation(internal.visibilityReports.insert, {
         siteId: siteId as any,
         basketId: basket._id as any,
         engine: basket.engine,
@@ -88,11 +88,11 @@ export const runSiteGeoCheck = internalActionGeneric({
         citationCount,
         windowDays: WINDOW_DAYS,
         generatedAt: Date.now(),
-      });
+      })) as string;
 
       await ctx.runAction(internal.actions.alerts.checkAndSendPsosAlert, {
         siteId,
-        reportId: '',
+        reportId,
       });
     }
 

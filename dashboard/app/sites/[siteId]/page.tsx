@@ -126,23 +126,20 @@ function Sparkline({ audits }: { audits: Audit[] }) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {scores.map((s, i) => {
-        const k = i;
-        return (
+      {scores.map((s, i) => (
+        <circle
           // biome-ignore lint/suspicious/noArrayIndexKey: sparkline has no stable id
-          <circle
-            key={k}
-            cx={toX(i)}
-            cy={toY(s)}
-            r="3"
-            fill="#6366f1"
-            stroke="white"
-            strokeWidth="1.5"
-          >
-            <title>{s}</title>
-          </circle>
-        );
-      })}
+          key={i}
+          cx={toX(i)}
+          cy={toY(s)}
+          r="3"
+          fill="#6366f1"
+          stroke="white"
+          strokeWidth="1.5"
+        >
+          <title>{s}</title>
+        </circle>
+      ))}
     </svg>
   );
 }

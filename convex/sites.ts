@@ -108,3 +108,25 @@ export const setMonitoringEnabled = mutationGeneric({
     });
   },
 });
+
+export const getDueSitesForGeo = queryGeneric({
+  args: { now: v.number() },
+  handler: async (ctx, args) => {
+    return await anyDb(ctx)
+      .query('sites')
+      .filter((q: any) =>
+        q.or(
+          q.eq(q.field('nextGeoCheckAt'), undefined),
+          q.lte(q.field('nextGeoCheckAt'), args.now)
+        )
+      )
+      .collect();
+  },
+});
+
+export const updateNextGeoCheck = mutationGeneric({
+  args: { siteId: v.string(), nextGeoCheckAt: v.number() },
+  handler: async (ctx, args) => {
+    await anyDb(ctx).patch(args.siteId, { nextGeoCheckAt: args.nextGeoCheckAt });
+  },
+});

@@ -1,7 +1,7 @@
 'use client'
 
 import { useAction, useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
+import { api } from 'airio-convex/_generated/api'
 import { useAuthActions } from '@convex-dev/auth/react'
 import { useConvexAuth } from 'convex/react'
 import { useState } from 'react'
@@ -25,7 +25,7 @@ export default function BillingPage() {
     setLoading(product)
     try {
       const { checkoutUrl } = await createCheckout({ product })
-      window.location.href = checkoutUrl
+      if (checkoutUrl) window.location.href = checkoutUrl
     } finally {
       setLoading(null)
     }

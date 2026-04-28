@@ -11,8 +11,20 @@ function generateToken(): string {
 }
 
 export const create = mutationGeneric({
-  args: { auditId: v.string(), siteId: v.string() },
+  args: { auditId: v.id('audits'), siteId: v.id('sites') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Não autorizado')
+    const userId = identity.subject.split('|')[0]
+
+    const audit = await anyDb(ctx).get(args.auditId)
+    if (!audit || audit.userId !== userId) throw new Error('Não autorizado')
+
+    const site = await anyDb(ctx).get(args.siteId)
+    if (!site || site.userId !== userId) throw new Error('Não autorizado')
+
+    if (audit.siteId?.toString() !== args.siteId.toString()) throw new Error('Audit não pertence a este site')
+
     const existing = await anyDb(ctx)
       .query('shareable_reports')
       .withIndex('by_audit', (q: any) => q.eq('auditId', args.auditId))
@@ -40,6 +52,23 @@ export const getByToken = queryGeneric({
 
     const audit = await anyDb(ctx).get(report.auditId)
     const site = await anyDb(ctx).get(report.siteId)
-    return { report, audit, site }
+    if (!audit || !site) return null
+
+    const findings = audit.outputFiles ? (() => {
+      try { return JSON.parse(audit.outputFiles) } catch { return null }
+    })() : null
+
+    return {
+      siteName: site.name as string,
+      siteUrl: site.url as string,
+      score: audit.score as number | null,
+      status: audit.status as string,
+      createdAt: audit.createdAt as number,
+      findings: (findings?.findings ?? []) as Array<{
+        severity: string
+        title: string
+        description?: string
+      }>,
+    }
   },
 })

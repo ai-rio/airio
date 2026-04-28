@@ -13,6 +13,7 @@ export async function samplePerplexity(
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         model: 'sonar',
         messages: [{ role: 'user', content: prompt }],
@@ -21,7 +22,7 @@ export async function samplePerplexity(
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Perplexity API ${res.status}: ${text}`);
+      throw new Error(`Perplexity API ${res.status}: ${text.slice(0, 200)}`);
     }
     const data = (await res.json()) as {
       choices: Array<{ message: { content: string } }>;

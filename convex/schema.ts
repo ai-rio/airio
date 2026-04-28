@@ -49,11 +49,39 @@ export default defineSchema({
     ),
     errorMessage: v.optional(v.string()),
     promptVersion: v.optional(v.string()),
+    siteId: v.optional(v.id('sites')),
     createdAt: v.number(),
   })
     .index('by_user', ['userId'])
     .index('by_status', ['status'])
-    .index('by_user_and_created', ['userId', 'createdAt']),
+    .index('by_user_and_created', ['userId', 'createdAt'])
+    .index('by_site', ['siteId']),
+
+  sites: defineTable({
+    userId: v.string(),
+    url: v.string(),
+    name: v.string(),
+    schedule: v.union(v.literal('weekly'), v.literal('monthly')),
+    monitoringEnabled: v.boolean(),
+    subscriptionId: v.optional(v.string()),
+    nextAuditAt: v.number(),
+    alertConfig: v.object({
+      scoreDropThreshold: v.number(),
+      criticalFindings: v.boolean(),
+      crawlerBlocked: v.boolean(),
+    }),
+  })
+    .index('by_user', ['userId'])
+    .index('by_monitoring_enabled_and_next_audit_at', ['monitoringEnabled', 'nextAuditAt'])
+    .index('by_subscription_id', ['subscriptionId']),
+
+  shareable_reports: defineTable({
+    auditId: v.id('audits'),
+    siteId: v.id('sites'),
+    token: v.string(),
+  })
+    .index('by_token', ['token'])
+    .index('by_audit', ['auditId']),
 
   usageLogs: defineTable({
     userId: v.id('users'),

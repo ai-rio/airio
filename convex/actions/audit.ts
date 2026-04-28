@@ -44,17 +44,20 @@ async function validateUrl(urlString: string): Promise<URL> {
 }
 
 export const runAudit = actionGeneric({
-  args: { url: v.string() },
-  handler: async (ctx, { url }) => {
+  args: { url: v.string(), siteId: v.optional(v.string()) },
+  handler: async (ctx, { url, siteId }) => {
     const identity = await ctx.auth.getUserIdentity()
-    const isDev = process.env.AUTH_EMAIL_MOCK === '1' ||
+    const isDev =
+      process.env.AUTH_EMAIL_MOCK === '1' ||
       process.env.CONVEX_DEPLOYMENT?.startsWith('dev:') === true
     if (!identity && !isDev) throw new ConvexError('Não autorizado')
 
     const validUrl = await validateUrl(url)
     const userId = identity
       ? identity.subject.split('|')[0]
-      : (await ctx.runMutation(anyApi.users.getOrCreateUser, { email: 'dev@localhost' })) as string
+      : ((await ctx.runMutation(anyApi.users.getOrCreateUser, {
+          email: 'dev@localhost',
+        })) as string)
 
     const rateLimitAllowed = await ctx.runMutation(
       anyApi.lib.rateLimit.checkRateLimit,
@@ -63,7 +66,7 @@ export const runAudit = actionGeneric({
     if (!rateLimitAllowed) throw new ConvexError('Limite de requisições atingido')
 
     let billedAs: 'credit' | 'free' = 'free'
-    if (!isDev || identity) {
+    if (!siteId && (!isDev || identity)) {
       const gate = (await ctx.runMutation(anyApi.users.checkAndConsumeUsage, {
         userId,
       })) as { allowed: boolean; billedAs?: string; reason?: string }
@@ -75,6 +78,7 @@ export const runAudit = actionGeneric({
       userId,
       url: validUrl.href,
       billedAs,
+      siteId,
     })) as string
 
     const anthropicKey = process.env.OPENROUTER_API_KEY
@@ -96,13 +100,33 @@ export const runAudit = actionGeneric({
       })
       await ctx.runMutation(anyApi.usageLogs.log, { userId, auditId })
 
+      if (siteId) {
+        const site = (await ctx.runQuery(anyApi.sites.getById, { siteId })) as any
+        if (site) {
+          const intervalMs =
+            site.schedule === 'weekly'
+              ? 7 * 24 * 60 * 60 * 1000
+              : 30 * 24 * 60 * 60 * 1000
+          await ctx.runMutation(anyApi.sites.updateNextAudit, {
+            siteId,
+            nextAuditAt: Date.now() + intervalMs,
+          })
+          await ctx.runAction(anyApi.actions.alerts.checkAndSendAlerts, {
+            siteId,
+            auditId,
+          })
+        }
+      }
+
       return { auditId, score: findings.score }
     } catch (err) {
       await ctx.runMutation(anyApi.audits.markFailed, {
         auditId,
         errorMessage: err instanceof Error ? err.message : 'Falha na auditoria',
       })
-      throw new ConvexError(err instanceof Error ? err.message : 'Falha na auditoria')
+      throw new ConvexError(
+        err instanceof Error ? err.message : 'Falha na auditoria'
+      )
     }
   },
 })

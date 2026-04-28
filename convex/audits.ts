@@ -9,6 +9,7 @@ export const createPending = mutationGeneric({
     userId: v.string(),
     url: v.string(),
     billedAs: v.union(v.literal('credit'), v.literal('free')),
+    siteId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await anyDb(ctx).insert('audits', {
@@ -17,6 +18,7 @@ export const createPending = mutationGeneric({
       status: 'pending',
       billedAs: args.billedAs,
       createdAt: Date.now(),
+      ...(args.siteId ? { siteId: args.siteId } : {}),
     })
   },
 })
@@ -92,5 +94,16 @@ export const getById = queryGeneric({
   args: { auditId: v.string() },
   handler: async (ctx, args) => {
     return await anyDb(ctx).get(args.auditId)
+  },
+})
+
+export const listBySite = queryGeneric({
+  args: { siteId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await anyDb(ctx)
+      .query('audits')
+      .withIndex('by_site', (q: any) => q.eq('siteId', args.siteId))
+      .order('desc')
+      .take(args.limit ?? 12)
   },
 })

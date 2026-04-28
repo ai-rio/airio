@@ -1,5 +1,7 @@
 'use client';
 
+import { PsosGauge } from '@/components/psos-gauge';
+import { PsosSparkline } from '@/components/psos-sparkline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,6 +34,16 @@ interface Audit {
   score: number | null;
   outputFiles: string | undefined;
   _creationTime: number;
+}
+
+interface VisibilityReport {
+  _id: Id<'visibilityReports'>;
+  psos: number;
+  ciLower: number;
+  ciUpper: number;
+  citationCount: number;
+  totalSamples: number;
+  generatedAt: number;
 }
 
 interface Finding {
@@ -100,10 +112,12 @@ function Sparkline({ audits }: { audits: Audit[] }) {
 
   return (
     <svg
+      role="img"
+      aria-label="Histórico de scores"
       viewBox={`0 0 ${W} ${H}`}
       className="w-full max-w-xs h-12"
-      aria-label="Histórico de scores"
     >
+      <title>Histórico de scores</title>
       <polyline
         points={points}
         fill="none"
@@ -112,20 +126,103 @@ function Sparkline({ audits }: { audits: Audit[] }) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {scores.map((s, i) => (
-        <circle
-          key={i}
-          cx={toX(i)}
-          cy={toY(s)}
-          r="3"
-          fill="#6366f1"
-          stroke="white"
-          strokeWidth="1.5"
-        >
-          <title>{s}</title>
-        </circle>
-      ))}
+      {scores.map((s, i) => {
+        const k = i;
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: sparkline has no stable id
+          <circle
+            key={k}
+            cx={toX(i)}
+            cy={toY(s)}
+            r="3"
+            fill="#6366f1"
+            stroke="white"
+            strokeWidth="1.5"
+          >
+            <title>{s}</title>
+          </circle>
+        );
+      })}
     </svg>
+  );
+}
+
+// ── PSOS section ─────────────────────────────────────────────────────────────
+
+function PsosSection({
+  siteId,
+  report,
+  history,
+  hasBasket,
+}: {
+  siteId: string;
+  report: VisibilityReport | null | undefined;
+  history: VisibilityReport[] | undefined;
+  hasBasket: boolean;
+}) {
+  const router = useRouter();
+
+  if (!hasBasket) {
+    return (
+      <Card>
+        <CardContent className="py-4 px-5">
+          <p className="text-sm font-medium text-gray-900 mb-1">Visibilidade em IA</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Configure prompts para medir com que frequência sua marca aparece no Perplexity.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push(`/sites/${siteId}/prompts`)}
+            className="text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded px-3 py-1.5 transition-colors"
+          >
+            Configurar monitoramento →
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!report) {
+    return (
+      <Card>
+        <CardContent className="py-4 px-5">
+          <p className="text-sm font-medium text-gray-900 mb-1">Visibilidade em IA</p>
+          <p className="text-xs text-gray-500">Aguardando primeira medição semanal...</p>
+          <button
+            type="button"
+            onClick={() => router.push(`/sites/${siteId}/prompts`)}
+            className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors block"
+          >
+            Gerenciar prompts →
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const orderedHistory = [...(history ?? [])].reverse();
+
+  return (
+    <Card>
+      <CardContent className="py-4 px-5 space-y-3">
+        <p className="text-sm font-medium text-gray-900">Visibilidade em IA (PSOS)</p>
+        <PsosGauge
+          psos={report.psos}
+          ciLower={report.ciLower}
+          ciUpper={report.ciUpper}
+          citationCount={report.citationCount}
+          totalSamples={report.totalSamples}
+        />
+        <PsosSparkline reports={orderedHistory} />
+        <button
+          type="button"
+          onClick={() => router.push(`/sites/${siteId}/prompts`)}
+          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          Gerenciar prompts →
+        </button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -175,6 +272,7 @@ function AlertConfigSection({
             <p className="text-xs text-gray-500">Alerta quando surgir um problema crítico</p>
           </div>
           <button
+            type="button"
             onClick={() => toggle('criticalFindings')}
             className={cn(
               'text-xs font-medium rounded px-2 py-0.5 border transition-colors',
@@ -198,6 +296,7 @@ function AlertConfigSection({
             </p>
           </div>
           <button
+            type="button"
             onClick={() => toggle('crawlerBlocked')}
             className={cn(
               'text-xs font-medium rounded px-2 py-0.5 border transition-colors',
@@ -224,6 +323,16 @@ export default function SiteDetailPage() {
   const audits = useQuery(api.audits.listBySite, {
     siteId: siteId as Id<'sites'>,
     limit: 12,
+  });
+  const latestReport = useQuery(api.visibilityReports.latestBySite, {
+    siteId: siteId as Id<'sites'>,
+  });
+  const reportHistory = useQuery(api.visibilityReports.listBySite, {
+    siteId: siteId as Id<'sites'>,
+    limit: 8,
+  });
+  const baskets = useQuery(api.promptBaskets.listBySite, {
+    siteId: siteId as Id<'sites'>,
   });
   const createReport = useMutation(api.shareableReports.create);
 
@@ -279,6 +388,7 @@ export default function SiteDetailPage() {
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Back button */}
         <button
+          type="button"
           onClick={() => router.push('/')}
           className="text-sm text-gray-500 hover:text-gray-800 transition-colors flex items-center gap-1"
         >
@@ -337,6 +447,7 @@ export default function SiteDetailPage() {
             <p className="text-sm font-medium text-gray-700 px-0.5">Problemas encontrados</p>
             {findings.map((f, i) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
                 key={i}
                 className={cn(
                   'rounded-lg border px-4 py-3 text-sm',
@@ -359,6 +470,17 @@ export default function SiteDetailPage() {
             ))}
           </div>
         )}
+
+        {/* GEO visibility */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-gray-700 px-0.5">Visibilidade em IA</p>
+          <PsosSection
+            siteId={siteId}
+            report={latestReport ?? null}
+            history={reportHistory}
+            hasBasket={(baskets?.length ?? 0) > 0}
+          />
+        </div>
 
         {/* Alert config */}
         <div className="space-y-2">

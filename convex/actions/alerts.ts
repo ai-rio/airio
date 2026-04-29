@@ -34,7 +34,7 @@ export const checkAndSendAlerts = actionGeneric({
     const user = (await ctx.runQuery(anyApi.users.getById, { userId: site.userId })) as any;
     if (!user?.email) return;
 
-    const detailUrl = `https://app.ai.rio.br/sites/${siteId}`;
+    const detailUrl = `https://seo.ai.rio.br/sites/${siteId}`;
 
     if (
       typeof current.score === 'number' &&
@@ -113,15 +113,15 @@ export const checkAndSendPsosAlert = internalActionGeneric({
     if (!user?.email) return;
 
     const pct = (val: number) => `${Math.round(val * 100)}%`;
-    const detailUrl = `https://app.ai.rio.br/sites/${siteId}`;
+    const detailUrl = `https://seo.ai.rio.br/sites/${siteId}`;
 
     await sendEmail(
       resendKey,
       user.email,
       `⚠ Visibilidade GEO caiu de ${pct(previous.psos)} para ${pct(current.psos)} em ${site.name}`,
       `<p>PSOS de <strong>${site.name}</strong> caiu de <strong>${pct(previous.psos)}</strong> para <strong>${pct(current.psos)}</strong>.</p>` +
-        `<p>IC 95%: ${pct(current.ciLower)}–${pct(current.ciUpper)} · ${current.citationCount}/${current.totalSamples} amostras</p>` +
-        `<p><a href="${detailUrl}">Ver detalhes →</a></p>`
+      `<p>IC 95%: ${pct(current.ciLower)}–${pct(current.ciUpper)} · ${current.citationCount}/${current.totalSamples} amostras</p>` +
+      `<p><a href="${detailUrl}">Ver detalhes →</a></p>`
     );
   },
 });

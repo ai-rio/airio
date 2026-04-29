@@ -18,13 +18,9 @@ export const runDueGeoChecks = internalActionGeneric({
       _id: string;
     }>;
     for (const site of sites) {
-      try {
-        await ctx.runAction(internal.actions.geoMonitoring.runSiteGeoCheck, {
-          siteId: site._id,
-        });
-      } catch (err) {
-        console.error(`GEO check failed for site ${site._id}:`, err);
-      }
+      await ctx.scheduler.runAfter(0, internal.actions.geoMonitoring.runSiteGeoCheck, {
+        siteId: site._id,
+      });
     }
   },
 });

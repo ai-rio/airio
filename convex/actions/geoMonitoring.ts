@@ -46,50 +46,54 @@ export const runSiteGeoCheck = internalActionGeneric({
     if (enabledBaskets.length === 0) return;
 
     for (const basket of enabledBaskets) {
-      const detectionResults: boolean[] = [];
+      try {
+        const detectionResults: boolean[] = [];
 
-      for (const prompt of basket.prompts) {
-        const rawSamples = await samplePerplexity(apiKey, prompt, basket.runsPerPrompt);
+        for (const prompt of basket.prompts) {
+          const rawSamples = await samplePerplexity(apiKey, prompt, basket.runsPerPrompt);
 
-        for (const raw of rawSamples) {
-          const brandDetected = detectBrand(raw.responseText, basket.brandName);
-          detectionResults.push(brandDetected);
+          for (const raw of rawSamples) {
+            const brandDetected = detectBrand(raw.responseText, basket.brandName);
+            detectionResults.push(brandDetected);
 
-          await ctx.runMutation(internal.visibilitySnapshots.insert, {
-            siteId: siteId as any,
-            basketId: basket._id as any,
-            engine: basket.engine,
-            prompt,
-            runIndex: raw.runIndex,
-            brandDetected,
-            responseSnippet: raw.responseText.slice(0, 500),
-            sampledAt: Date.now(),
-          });
+            await ctx.runMutation(internal.visibilitySnapshots.insert, {
+              siteId: siteId as any,
+              basketId: basket._id as any,
+              engine: basket.engine,
+              prompt,
+              runIndex: raw.runIndex,
+              brandDetected,
+              responseSnippet: raw.responseText.slice(0, 500),
+              sampledAt: Date.now(),
+            });
+          }
         }
+
+        const citationCount = detectionResults.filter(Boolean).length;
+        const totalSamples = detectionResults.length;
+        const psos = computePsos(citationCount, totalSamples);
+        const { lower: ciLower, upper: ciUpper } = wilsonCI(citationCount, totalSamples);
+
+        const reportId = (await ctx.runMutation(internal.visibilityReports.insert, {
+          siteId: siteId as any,
+          basketId: basket._id as any,
+          engine: basket.engine,
+          psos,
+          ciLower,
+          ciUpper,
+          totalSamples,
+          citationCount,
+          windowDays: WINDOW_DAYS,
+          generatedAt: Date.now(),
+        })) as string;
+
+        await ctx.runAction(internal.actions.alerts.checkAndSendPsosAlert, {
+          siteId,
+          reportId,
+        });
+      } catch (err) {
+        console.error(`GEO check failed for basket ${basket._id}:`, err);
       }
-
-      const citationCount = detectionResults.filter(Boolean).length;
-      const totalSamples = detectionResults.length;
-      const psos = computePsos(citationCount, totalSamples);
-      const { lower: ciLower, upper: ciUpper } = wilsonCI(citationCount, totalSamples);
-
-      const reportId = (await ctx.runMutation(internal.visibilityReports.insert, {
-        siteId: siteId as any,
-        basketId: basket._id as any,
-        engine: basket.engine,
-        psos,
-        ciLower,
-        ciUpper,
-        totalSamples,
-        citationCount,
-        windowDays: WINDOW_DAYS,
-        generatedAt: Date.now(),
-      })) as string;
-
-      await ctx.runAction(internal.actions.alerts.checkAndSendPsosAlert, {
-        siteId,
-        reportId,
-      });
     }
 
     await ctx.runMutation(internal.sites.updateNextGeoCheck, {

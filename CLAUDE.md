@@ -2,6 +2,10 @@
 
 This project uses [Convex](https://convex.dev) as its backend for AI-powered SEO audits where users submit URLs to get audit scores and AI-generated fixes.
 
+## Token Optimization
+
+RTK (Rust Token Killer) is active via global hook — all shell commands are auto-rewritten through `rtk` for 60-90% token savings. See `~/.claude/RTK.md` for usage.
+
 ## Hard Rules (Non-negotiable - Always Follow)
 
 ### 1. Think Before Coding

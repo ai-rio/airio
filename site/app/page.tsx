@@ -1,4 +1,4 @@
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.ai.rio.br'
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://seo.ai.rio.br'
 
 const PROBLEMS = [
   { icon: '🤖', text: 'Crawlers de IA bloqueados no robots.txt' },
@@ -8,16 +8,16 @@ const PROBLEMS = [
 ]
 
 const FIXES = [
-  { file: 'llms.txt',         desc: 'Gerado automaticamente para seu domínio' },
+  { file: 'llms.txt', desc: 'Gerado automaticamente para seu domínio' },
   { file: 'robots.txt patch', desc: 'Desbloqueia GPTBot, ClaudeBot, PerplexityBot' },
-  { file: 'Schema JSON-LD',   desc: 'FAQ, HowTo e Entity para cada página' },
+  { file: 'Schema JSON-LD', desc: 'FAQ, HowTo e Entity para cada página' },
   { file: 'Trechos reescritos', desc: 'Conteúdo otimizado para ser citado por IA' },
 ]
 
 const PLANS = [
-  { name: '10 créditos',  price: 'R$49',  unit: 'R$4,90/auditoria',  highlight: false },
-  { name: '30 créditos',  price: 'R$99',  unit: 'R$3,30/auditoria',  highlight: true  },
-  { name: '100 créditos', price: 'R$249', unit: 'R$2,49/auditoria',  highlight: false },
+  { name: '10 créditos', price: 'R$49', unit: 'R$4,90/auditoria', highlight: false },
+  { name: '30 créditos', price: 'R$99', unit: 'R$3,30/auditoria', highlight: true },
+  { name: '100 créditos', price: 'R$249', unit: 'R$2,49/auditoria', highlight: false },
 ]
 
 export default function HomePage() {
@@ -116,11 +116,10 @@ export default function HomePage() {
                 </p>
                 <a
                   href={`${DASHBOARD_URL}/billing`}
-                  className={`block text-center py-2.5 rounded-lg text-sm font-medium ${
-                    plan.highlight
+                  className={`block text-center py-2.5 rounded-lg text-sm font-medium ${plan.highlight
                       ? 'bg-white text-black'
                       : 'bg-black text-white'
-                  }`}
+                    }`}
                 >
                   Comprar
                 </a>

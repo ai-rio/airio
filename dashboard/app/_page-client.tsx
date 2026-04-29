@@ -1,15 +1,7 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -33,9 +25,9 @@ function formatDate(ms: number) {
 }
 
 function scoreColor(score: number) {
-  if (score >= 70) return 'text-green-600';
-  if (score >= 40) return 'text-yellow-600';
-  return 'text-red-600';
+  if (score >= 70) return 'text-[var(--brand-success)]';
+  if (score >= 40) return 'text-[var(--brand-warning)]';
+  return 'text-[var(--brand-danger)]';
 }
 
 function getHostname(url: string) {
@@ -84,7 +76,6 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
   const { isAuthenticated: convexAuth } = useConvexAuth();
   const isAuthenticated = convexAuth || isDevBypass;
   const router = useRouter();
-  const { signOut } = useAuthActions();
 
   const [url, setUrl] = useState('');
   const [running, setRunning] = useState(false);
@@ -118,40 +109,8 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
   const zeroCreditsBanner =
     convexAuth && balance !== undefined && balance.remaining === 0 && balance.freeRemaining === 0;
 
-  function CredentialsBadge() {
-    if (!convexAuth) return null;
-    if (balance === undefined) return <Badge variant="secondary">…</Badge>;
-    if (balance.remaining > 0)
-      return <Badge variant="secondary">{balance.remaining} crédito(s)</Badge>;
-    if (balance.freeRemaining > 0) return <Badge variant="outline">1 gratuita</Badge>;
-    return <Badge variant="destructive">Sem créditos</Badge>;
-  }
-
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white border-b">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="font-bold text-lg tracking-tight">AIRio</span>
-          <div className="flex items-center gap-3">
-            <CredentialsBadge />
-            {convexAuth && (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-                  Conta ▾
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => router.push('/billing')}>
-                    Comprar créditos
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => signOut()}>Sair</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-2xl mx-auto py-10 px-4 space-y-8">
         <section>
           <h1 className="text-xl font-semibold mb-4">Nova auditoria AEO</h1>
@@ -169,16 +128,16 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
               {running ? 'Auditando…' : 'Auditar'}
             </Button>
           </form>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-2 text-sm text-[var(--brand-danger)]">{error}</p>}
         </section>
 
         {zeroCreditsBanner && (
-          <div className="flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="flex items-center justify-between rounded-lg border border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] px-4 py-3 text-sm text-foreground">
             <span>Você não tem créditos. Compre um pacote para continuar auditando.</span>
             <Button
               variant="outline"
               size="sm"
-              className="ml-4 border-amber-400 text-amber-800 hover:bg-amber-100"
+              className="ml-4 border-[var(--brand-warning-border)] text-foreground hover:bg-[var(--brand-warning-muted)]"
               onClick={() => router.push('/billing')}
             >
               Comprar
@@ -258,7 +217,9 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
                             <span
                               className={cn(
                                 'w-12 text-right text-xs font-medium shrink-0',
-                                delta > 0 ? 'text-green-600' : 'text-red-600'
+                                delta > 0
+                                  ? 'text-[var(--brand-success)]'
+                                  : 'text-[var(--brand-danger)]'
                               )}
                             >
                               {delta > 0 ? `↑ +${delta}` : `↓ ${delta}`}
@@ -296,7 +257,7 @@ function SignIn() {
   return (
     <main className="max-w-sm mx-auto py-24 px-4 text-center">
       <h1 className="text-2xl font-bold mb-2">AIRio</h1>
-      <p className="text-gray-500 text-sm mb-8">Entre para auditar seu site</p>
+      <p className="text-muted-foreground text-sm mb-8">Entre para auditar seu site</p>
       {sent ? (
         <p className="text-green-600 text-sm">Verifique seu email — enviamos um link de acesso.</p>
       ) : (

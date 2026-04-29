@@ -55,22 +55,24 @@ interface Finding {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function scoreColor(score: number): string {
-  if (score >= 70) return 'text-green-600';
-  if (score >= 40) return 'text-yellow-600';
-  return 'text-red-600';
+  if (score >= 70) return 'text-[var(--brand-success)]';
+  if (score >= 40) return 'text-[var(--brand-warning)]';
+  return 'text-[var(--brand-danger)]';
 }
 
 function scoreBg(score: number): string {
-  if (score >= 70) return 'bg-green-50 border-green-200';
-  if (score >= 40) return 'bg-yellow-50 border-yellow-200';
-  return 'bg-red-50 border-red-200';
+  if (score >= 70) return 'bg-[var(--brand-success-muted)] border-[var(--brand-success-border)]';
+  if (score >= 40) return 'bg-[var(--brand-warning-muted)] border-[var(--brand-warning-border)]';
+  return 'bg-[var(--brand-danger-muted)] border-[var(--brand-danger-border)]';
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
-  critical: 'border-red-200 bg-red-50 text-red-700',
-  high: 'border-orange-200 bg-orange-50 text-orange-700',
-  medium: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-  low: 'border-gray-200 bg-gray-50 text-gray-600',
+  critical:
+    'border-[var(--brand-danger-border)] bg-[var(--brand-danger-muted)] text-[var(--brand-danger)]',
+  high: 'border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] text-[var(--brand-warning)]',
+  medium:
+    'border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] text-[var(--brand-warning)]',
+  low: 'border-border bg-muted text-muted-foreground',
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
@@ -94,7 +96,9 @@ function Sparkline({ audits }: { audits: Audit[] }) {
     .filter((s): s is number => s !== null);
 
   if (scores.length < 2) {
-    return <p className="text-xs text-gray-400 mt-1">Dados insuficientes para sparkline</p>;
+    return (
+      <p className="text-xs text-muted-foreground/70 mt-1">Dados insuficientes para sparkline</p>
+    );
   }
 
   const W = 240;
@@ -163,14 +167,14 @@ function PsosSection({
     return (
       <Card>
         <CardContent className="py-4 px-5">
-          <p className="text-sm font-medium text-gray-900 mb-1">Visibilidade em IA</p>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-sm font-medium text-foreground mb-1">Visibilidade em IA</p>
+          <p className="text-xs text-muted-foreground mb-3">
             Configure prompts para medir com que frequência sua marca aparece no Perplexity.
           </p>
           <button
             type="button"
             onClick={() => router.push(`/sites/${siteId}/prompts`)}
-            className="text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded px-3 py-1.5 transition-colors"
+            className="text-xs font-medium text-foreground border border-border bg-muted hover:bg-muted rounded px-3 py-1.5 transition-colors"
           >
             Configurar monitoramento →
           </button>
@@ -183,12 +187,12 @@ function PsosSection({
     return (
       <Card>
         <CardContent className="py-4 px-5">
-          <p className="text-sm font-medium text-gray-900 mb-1">Visibilidade em IA</p>
-          <p className="text-xs text-gray-500">Aguardando primeira medição semanal...</p>
+          <p className="text-sm font-medium text-foreground mb-1">Visibilidade em IA</p>
+          <p className="text-xs text-muted-foreground">Aguardando primeira medição semanal...</p>
           <button
             type="button"
             onClick={() => router.push(`/sites/${siteId}/prompts`)}
-            className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors block"
+            className="mt-2 text-xs text-muted-foreground hover:text-muted-foreground transition-colors block"
           >
             Gerenciar prompts →
           </button>
@@ -202,7 +206,7 @@ function PsosSection({
   return (
     <Card>
       <CardContent className="py-4 px-5 space-y-3">
-        <p className="text-sm font-medium text-gray-900">Visibilidade em IA (PSOS)</p>
+        <p className="text-sm font-medium text-foreground">Visibilidade em IA (PSOS)</p>
         <PsosGauge
           psos={report.psos}
           ciLower={report.ciLower}
@@ -214,7 +218,7 @@ function PsosSection({
         <button
           type="button"
           onClick={() => router.push(`/sites/${siteId}/prompts`)}
-          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          className="text-xs text-muted-foreground hover:text-muted-foreground transition-colors"
         >
           Gerenciar prompts →
         </button>
@@ -250,12 +254,12 @@ function AlertConfigSection({
         {/* Row 1 — score drop, always active */}
         <div className="flex items-center justify-between py-3">
           <div>
-            <p className="text-sm font-medium text-gray-900">Queda de score</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-medium text-foreground">Queda de score</p>
+            <p className="text-xs text-muted-foreground">
               Alerta quando cair {site.alertConfig.scoreDropThreshold} pontos ou mais
             </p>
           </div>
-          <span className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded px-2 py-0.5">
+          <span className="text-xs font-medium text-[var(--brand-success)] bg-[var(--brand-success-muted)] border border-[var(--brand-success-border)] rounded px-2 py-0.5">
             Ativo
           </span>
         </div>
@@ -265,8 +269,10 @@ function AlertConfigSection({
         {/* Row 2 — critical findings */}
         <div className="flex items-center justify-between py-3">
           <div>
-            <p className="text-sm font-medium text-gray-900">Novos problemas críticos</p>
-            <p className="text-xs text-gray-500">Alerta quando surgir um problema crítico</p>
+            <p className="text-sm font-medium text-foreground">Novos problemas críticos</p>
+            <p className="text-xs text-muted-foreground">
+              Alerta quando surgir um problema crítico
+            </p>
           </div>
           <button
             type="button"
@@ -274,8 +280,8 @@ function AlertConfigSection({
             className={cn(
               'text-xs font-medium rounded px-2 py-0.5 border transition-colors',
               site.alertConfig.criticalFindings
-                ? 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100'
-                : 'text-gray-400 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                ? 'text-[var(--brand-success)] bg-[var(--brand-success-muted)] border-[var(--brand-success-border)] hover:bg-[var(--brand-success-muted)]'
+                : 'text-muted-foreground/70 bg-muted border-border hover:bg-muted'
             )}
           >
             {site.alertConfig.criticalFindings ? 'Ativo' : 'Inativo'}
@@ -287,8 +293,8 @@ function AlertConfigSection({
         {/* Row 3 — crawler blocked */}
         <div className="flex items-center justify-between py-3">
           <div>
-            <p className="text-sm font-medium text-gray-900">Crawler de IA bloqueado</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-medium text-foreground">Crawler de IA bloqueado</p>
+            <p className="text-xs text-muted-foreground">
               Alerta quando robots.txt bloquear crawlers de IA
             </p>
           </div>
@@ -298,8 +304,8 @@ function AlertConfigSection({
             className={cn(
               'text-xs font-medium rounded px-2 py-0.5 border transition-colors',
               site.alertConfig.crawlerBlocked
-                ? 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100'
-                : 'text-gray-400 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                ? 'text-[var(--brand-success)] bg-[var(--brand-success-muted)] border-[var(--brand-success-border)] hover:bg-[var(--brand-success-muted)]'
+                : 'text-muted-foreground/70 bg-muted border-border hover:bg-muted'
             )}
           >
             {site.alertConfig.crawlerBlocked ? 'Ativo' : 'Inativo'}
@@ -337,7 +343,7 @@ export default function SiteDetailPage() {
   if (site === undefined || audits === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-400 text-sm">Carregando…</p>
+        <p className="text-muted-foreground/70 text-sm">Carregando…</p>
       </div>
     );
   }
@@ -346,7 +352,7 @@ export default function SiteDetailPage() {
   if (site === null) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500 text-sm">Site não encontrado.</p>
+        <p className="text-[var(--brand-danger)] text-sm">Site não encontrado.</p>
       </div>
     );
   }
@@ -381,13 +387,13 @@ export default function SiteDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted/30">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Back button */}
         <button
           type="button"
           onClick={() => router.push('/')}
-          className="text-sm text-gray-500 hover:text-gray-800 transition-colors flex items-center gap-1"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
         >
           ← Voltar
         </button>
@@ -395,14 +401,14 @@ export default function SiteDetailPage() {
         {/* Header + score badge */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-gray-900 truncate">{site.name}</h1>
-            <p className="text-sm font-mono text-gray-500 truncate mt-0.5">{site.url}</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <h1 className="text-2xl font-semibold text-foreground truncate">{site.name}</h1>
+            <p className="text-sm font-mono text-muted-foreground truncate mt-0.5">{site.url}</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
               {SCHEDULE_LABEL[site.schedule]} •{' '}
               {site.monitoringEnabled ? (
-                <span className="text-green-600">Monitoramento ativo</span>
+                <span className="text-[var(--brand-success)]">Monitoramento ativo</span>
               ) : (
-                <span className="text-gray-400">Monitoramento pausado</span>
+                <span className="text-muted-foreground/70">Monitoramento pausado</span>
               )}
             </p>
           </div>
@@ -419,7 +425,7 @@ export default function SiteDetailPage() {
               >
                 {latestAudit.score}
               </span>
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mt-0.5">
+              <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide mt-0.5">
                 Score AEO
               </span>
             </div>
@@ -430,7 +436,7 @@ export default function SiteDetailPage() {
         {audits.length > 0 && (
           <Card>
             <CardContent className="py-4 px-5">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                 Histórico de scores
               </p>
               <Sparkline audits={audits as Audit[]} />
@@ -441,7 +447,9 @@ export default function SiteDetailPage() {
         {/* Findings */}
         {findings.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700 px-0.5">Problemas encontrados</p>
+            <p className="text-sm font-medium text-muted-foreground px-0.5">
+              Problemas encontrados
+            </p>
             {findings.map((f, i) => (
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
@@ -470,7 +478,7 @@ export default function SiteDetailPage() {
 
         {/* GEO visibility */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-700 px-0.5">Visibilidade em IA</p>
+          <p className="text-sm font-medium text-muted-foreground px-0.5">Visibilidade em IA</p>
           <PsosSection
             siteId={siteId}
             report={latestReport ?? null}
@@ -481,7 +489,7 @@ export default function SiteDetailPage() {
 
         {/* Alert config */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-700 px-0.5">Configurar alertas</p>
+          <p className="text-sm font-medium text-muted-foreground px-0.5">Configurar alertas</p>
           <AlertConfigSection site={site as Site} siteId={siteId} />
         </div>
 

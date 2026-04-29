@@ -13,10 +13,12 @@ interface Finding {
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
-  critical: 'border-red-200 bg-red-50 text-red-700',
-  high: 'border-orange-200 bg-orange-50 text-orange-700',
-  medium: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-  low: 'border-gray-200 bg-gray-50 text-gray-600',
+  critical:
+    'border-[var(--brand-danger-border)] bg-[var(--brand-danger-muted)] text-[var(--brand-danger)]',
+  high: 'border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] text-[var(--brand-warning)]',
+  medium:
+    'border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] text-[var(--brand-warning)]',
+  low: 'border-border bg-muted text-muted-foreground',
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
@@ -27,9 +29,9 @@ const SEVERITY_LABEL: Record<string, string> = {
 };
 
 function scoreColor(score: number): string {
-  if (score >= 70) return 'text-green-600';
-  if (score >= 40) return 'text-yellow-600';
-  return 'text-red-600';
+  if (score >= 70) return 'text-[var(--brand-success)]';
+  if (score >= 40) return 'text-[var(--brand-warning)]';
+  return 'text-[var(--brand-danger)]';
 }
 
 export default function PublicReportPage() {
@@ -73,7 +75,7 @@ export default function PublicReportPage() {
               <span className="text-2xl text-muted-foreground">/100</span>
             </p>
             {(criticalCount > 0 || highCount > 0) && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-[var(--brand-danger)]">
                 {criticalCount > 0 && `${criticalCount} crítico${criticalCount > 1 ? 's' : ''}`}
                 {criticalCount > 0 && highCount > 0 && ' · '}
                 {highCount > 0 && `${highCount} alta prioridade`}
@@ -90,6 +92,7 @@ export default function PublicReportPage() {
           <div className="space-y-2">
             {findings.map((f: Finding, i: number) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
                 key={i}
                 className={`rounded-lg border px-4 py-3 text-sm ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.low}`}
               >

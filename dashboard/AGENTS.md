@@ -1,6 +1,6 @@
-# Dashboard - Airio App (app.ai.rio.br)
+# Dashboard - Airio App (seo.ai.rio.br)
 
-This is the Next.js 15 application for the Airio dashboard, accessible at app.ai.rio.br.
+This is the Next.js 15 application for the Airio dashboard, accessible at seo.ai.rio.br.
 
 ## Purpose
 - User authentication and session management (via @convex-dev/auth + Resend)

@@ -39,7 +39,7 @@ bun run lint
 2. Scrolling down → feature sections explain audit process, AI analysis, fix generation
 3. Pricing section → shows free tier (1 audit/month) and paid packs (10/30/100 audits)
 4. Testimonials/social proof → builds trust
-5. Final CTA → button links to dashboard sign-up (`https://app.ai.rio.br/sign-in`)
+5. Final CTA → button links to dashboard sign-up (`https://seo.ai.rio.br/sign-in`)
 
 ### Documentation Flow
 1. User navigates to `/docs` → sees documentation index

@@ -926,7 +926,7 @@ export const checkAndSendPsosAlert = actionGeneric({
     if (!user?.email) return;
 
     const pct = (v: number) => `${Math.round(v * 100)}%`;
-    const detailUrl = `https://app.ai.rio.br/sites/${siteId}`;
+    const detailUrl = `https://seo.ai.rio.br/sites/${siteId}`;
 
     await sendEmail(
       resendKey,

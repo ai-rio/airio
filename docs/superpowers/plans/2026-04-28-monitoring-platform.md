@@ -679,7 +679,7 @@ export const checkAndSendAlerts = actionGeneric({
     })) as any
     if (!user?.email) return
 
-    const detailUrl = `https://app.ai.rio.br/sites/${siteId}`
+    const detailUrl = `https://seo.ai.rio.br/sites/${siteId}`
 
     // 1. Score drop
     if (

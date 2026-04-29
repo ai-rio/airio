@@ -47,7 +47,7 @@ This project uses [Convex](https://convex.dev) as its backend for AI-powered SEO
 
 ### Repo Structure
 - `site/` — marketing LP at ai.rio.br (Next.js, port 3003)
-- `dashboard/` — app at app.ai.rio.br (Next.js, port 3002)
+- `dashboard/` — app at seo.ai.rio.br (Next.js, port 3002)
 - `convex/` — backend (DB, auth, actions, billing)
 
 ### Commands

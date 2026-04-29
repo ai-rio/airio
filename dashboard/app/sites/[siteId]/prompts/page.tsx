@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { api } from 'airio-convex/_generated/api';
 import type { Id } from 'airio-convex/_generated/dataModel';
@@ -77,115 +78,105 @@ export default function PromptsPage() {
   const canSave = brandName.trim().length > 0 && prompts.some((p) => p.trim().length > 0);
 
   if (baskets === undefined) {
-    return (
-      <div className="p-8 font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground uppercase tracking-[0.1em]">
-        Carregando…
-      </div>
-    );
+    return <div className="p-6 text-sm text-gray-500">Carregando...</div>;
   }
 
   return (
-    <main className="max-w-lg mx-auto py-12 px-4">
-      <button
-        type="button"
-        onClick={() => router.push(`/sites/${siteId}`)}
-        className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground uppercase tracking-[0.1em] hover:text-[var(--brand-text)] transition-colors mb-8 block"
-      >
-        ← Voltar
-      </button>
-
-      <div className="border-b border-border pb-6 mb-8">
-        <h1 className="font-[family-name:var(--font-bebas)] text-[40px] leading-none text-foreground">
-          Monitoramento de Visibilidade
-        </h1>
-        <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground uppercase tracking-[0.1em] mt-2">
-          7 amostras por prompt · motor: Perplexity · verificação semanal
-        </p>
-      </div>
-
-      <div className="space-y-6">
-        <div className="border-b border-border pb-6">
-          <label
-            className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-muted-foreground mb-2 block"
-            htmlFor="brand-name"
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-lg mx-auto space-y-6">
+        <div>
+          <button
+            type="button"
+            onClick={() => router.push(`/sites/${siteId}`)}
+            className="text-sm text-gray-500 hover:text-gray-700 mb-4 block"
           >
-            Nome da marca
-          </label>
-          <Input
-            id="brand-name"
-            value={brandName}
-            onChange={(e) => setBrandName(e.target.value)}
-            placeholder="Ex: Airbnb"
-          />
-          <p className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground mt-1.5">
-            Detectamos menções exatas (case-insensitive) nas respostas do Perplexity.
+            ← Voltar
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900">Monitoramento de Visibilidade</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            7 amostras por prompt · motor: Perplexity · verificação semanal
           </p>
         </div>
 
-        <div className="border-b border-border pb-6">
-          <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-muted-foreground mb-3">
-            Prompts ({prompts.length}/{MAX_PROMPTS})
-          </p>
-          <div className="space-y-2">
-            {prompts.map((p, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: order is stable
-              <div key={i} className="flex gap-2 items-center">
-                <Input
-                  value={p}
-                  onChange={(e) => updatePrompt(i, e.target.value)}
-                  placeholder="Ex: Qual a melhor plataforma para alugar imóveis?"
-                />
-                {prompts.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePrompt(i)}
-                    className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-danger)] hover:opacity-70 transition-opacity shrink-0"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {prompts.length < MAX_PROMPTS && (
-            <button
-              type="button"
-              onClick={addPrompt}
-              className="mt-3 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-[var(--brand-text)] hover:opacity-70 transition-opacity"
-            >
-              + Adicionar prompt
-            </button>
-          )}
-        </div>
-
-        {existing && (
-          <div className="flex items-center justify-between border-b border-border pb-6">
+        <Card>
+          <CardContent className="py-4 px-5 space-y-5">
             <div>
-              <p className="text-sm font-medium text-foreground">Monitoramento ativo</p>
-              <p className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground mt-0.5">
-                Verificação automática semanal
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="brand-name">
+                Nome da marca
+              </label>
+              <Input
+                id="brand-name"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder="Ex: Airbnb"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Detectamos menções exatas (case-insensitive) nas respostas do Perplexity.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setEnabled(!enabled)}
-              className={`w-11 h-6 relative border transition-colors ${
-                enabled ? 'bg-[var(--brand)] border-[var(--brand)]' : 'bg-muted border-border'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 bg-background transition-all ${
-                  enabled ? 'left-5' : 'left-0.5'
-                }`}
-              />
-            </button>
-          </div>
-        )}
+
+            <div>
+              <p className="block text-sm font-medium text-gray-700 mb-2">
+                Prompts ({prompts.length}/{MAX_PROMPTS})
+              </p>
+              <div className="space-y-2">
+                {prompts.map((p, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: order is stable
+                  <div key={i} className="flex gap-2 items-center">
+                    <Input
+                      value={p}
+                      onChange={(e) => updatePrompt(i, e.target.value)}
+                      placeholder="Ex: Qual a melhor plataforma para alugar imóveis?"
+                    />
+                    {prompts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePrompt(i)}
+                        className="text-xs text-red-400 hover:text-red-600 shrink-0"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {prompts.length < MAX_PROMPTS && (
+                <button
+                  type="button"
+                  onClick={addPrompt}
+                  className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  + Adicionar prompt
+                </button>
+              )}
+            </div>
+
+            {existing && (
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Monitoramento ativo</p>
+                  <p className="text-xs text-gray-400">Verificação automática semanal</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEnabled(!enabled)}
+                  className={`text-xs font-medium rounded px-2 py-0.5 border transition-colors ${
+                    enabled
+                      ? 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100'
+                      : 'text-gray-400 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {enabled ? 'Ativo' : 'Inativo'}
+                </button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Button onClick={save} disabled={saving || !canSave} className="w-full">
-          {saving ? 'Salvando…' : existing ? 'Salvar alterações' : 'Criar monitoramento'}
+          {saving ? 'Salvando...' : existing ? 'Salvar alterações' : 'Criar monitoramento'}
         </Button>
       </div>
-    </main>
+    </div>
   );
 }

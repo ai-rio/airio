@@ -1,5 +1,7 @@
 'use client';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { api } from 'airio-convex/_generated/api';
 import { useQuery } from 'convex/react';
 import { useParams } from 'next/navigation';
@@ -11,10 +13,12 @@ interface Finding {
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
-  critical: 'bg-[var(--brand-danger)] text-white',
-  high: 'bg-orange-500 text-white',
-  medium: 'bg-[var(--brand-blue)] text-[var(--brand-blue-fg)]',
-  low: 'bg-muted text-muted-foreground border border-border',
+  critical:
+    'border-[var(--brand-danger-border)] bg-[var(--brand-danger-muted)] text-[var(--brand-danger)]',
+  high: 'border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] text-[var(--brand-warning)]',
+  medium:
+    'border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] text-[var(--brand-warning)]',
+  low: 'border-border bg-muted text-muted-foreground',
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
@@ -25,23 +29,9 @@ const SEVERITY_LABEL: Record<string, string> = {
 };
 
 function scoreColor(score: number): string {
-  if (score >= 70) return 'text-[var(--brand-text)]';
-  if (score >= 40) return 'text-orange-400';
+  if (score >= 70) return 'text-[var(--brand-success)]';
+  if (score >= 40) return 'text-[var(--brand-warning)]';
   return 'text-[var(--brand-danger)]';
-}
-
-function scoreBarColor(score: number): string {
-  if (score >= 70) return 'bg-[var(--brand)]';
-  if (score >= 40) return 'bg-orange-400';
-  return 'bg-[var(--brand-danger)]';
-}
-
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
 }
 
 export default function PublicReportPage() {
@@ -49,117 +39,95 @@ export default function PublicReportPage() {
   const data = useQuery(api.shareableReports.getByToken, { token });
 
   if (data === undefined) {
-    return (
-      <div className="p-8 text-center font-[family-name:var(--font-mono)] text-sm text-muted-foreground">
-        Carregando…
-      </div>
-    );
+    return <div className="p-8 text-center text-sm text-muted-foreground">Carregando…</div>;
   }
   if (data === null) {
-    return (
-      <div className="p-8 text-center font-[family-name:var(--font-mono)] text-sm text-[var(--brand-danger)]">
-        Relatório não encontrado.
-      </div>
-    );
+    return <div className="p-8 text-center text-sm text-red-500">Relatório não encontrado.</div>;
   }
 
-  const { siteName, siteUrl, score, findings, createdAt } = data;
+  const { siteName, siteUrl, score, findings } = data;
 
   const criticalCount = findings.filter((f: Finding) => f.severity === 'critical').length;
   const highCount = findings.filter((f: Finding) => f.severity === 'high').length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Yellow header bar */}
-      <header className="bg-[var(--brand)] text-[var(--brand-fg)] px-8 py-3 flex justify-between items-center">
-        <span className="font-[family-name:var(--font-bebas)] text-[20px] tracking-wide">
-          AIR<span className="opacity-60">IO</span>
-        </span>
-        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.1em] opacity-70">
-          {createdAt ? formatDate(createdAt) : ''}
-        </span>
-      </header>
+    <main className="max-w-2xl mx-auto py-10 px-4 space-y-8">
+      {/* Header */}
+      <div className="space-y-1">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          Relatório AEO
+        </p>
+        <h1 className="text-2xl font-bold leading-tight">{siteName}</h1>
+        <p className="text-sm text-muted-foreground break-all">{siteUrl}</p>
+      </div>
 
-      {/* Hero */}
-      <div className="grid grid-cols-[1fr_auto] gap-8 items-center px-8 py-16 border-b border-border">
-        {/* Left: site name + score bar */}
-        <div>
-          <h1 className="font-[family-name:var(--font-bebas)] text-[clamp(40px,6vw,80px)] leading-none text-foreground break-all">
-            {siteName}
-          </h1>
-          <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mt-1 break-all">
-            {siteUrl}
-          </p>
-          {score !== null && (
-            <div className="mt-4 h-2 bg-muted border border-border max-w-sm">
-              <div className={`h-full ${scoreBarColor(score)}`} style={{ width: `${score}%` }} />
-            </div>
-          )}
-        </div>
+      <Separator />
 
-        {/* Right: score display */}
-        {score !== null && (
-          <div className="text-right">
-            <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground uppercase tracking-[0.15em] mb-1">
-              Score AEO
-            </p>
-            <p
-              className={`font-[family-name:var(--font-bebas)] text-[120px] leading-none ${scoreColor(score)}`}
-            >
+      {/* Score */}
+      {score !== null && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Score AEO</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <p className={`text-6xl font-bold tabular-nums ${scoreColor(score)}`}>
               {score}
+              <span className="text-2xl text-muted-foreground">/100</span>
             </p>
             {(criticalCount > 0 || highCount > 0) && (
-              <p className="font-[family-name:var(--font-mono)] text-[10px] text-[var(--brand-danger)] mt-1 tracking-[0.05em]">
+              <p className="text-xs text-[var(--brand-danger)]">
                 {criticalCount > 0 && `${criticalCount} crítico${criticalCount > 1 ? 's' : ''}`}
                 {criticalCount > 0 && highCount > 0 && ' · '}
                 {highCount > 0 && `${highCount} alta prioridade`}
               </p>
             )}
-          </div>
-        )}
-      </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Findings section */}
+      {/* Findings */}
       {findings.length > 0 && (
-        <section className="px-8 py-8 border-b border-border">
-          <h2 className="font-[family-name:var(--font-bebas)] text-[28px] leading-none mb-5">
-            Achados
-          </h2>
+        <section className="space-y-3">
+          <h2 className="font-semibold">Achados</h2>
           <div className="space-y-2">
             {findings.map((f: Finding, i: number) => (
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
                 key={i}
-                className="rounded-sm px-4 py-3"
+                className={`rounded-lg border px-4 py-3 text-sm ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.low}`}
               >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2.5 py-1 shrink-0 ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.low}`}
-                  >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold">
                     {SEVERITY_LABEL[f.severity] ?? f.severity}
                   </span>
-                  <div>
-                    <p className="font-sans text-sm font-medium leading-snug">{f.title}</p>
-                    {f.description && (
-                      <p className="font-sans text-sm text-muted-foreground leading-snug mt-0.5">
-                        {f.description}
-                      </p>
-                    )}
-                  </div>
+                  <span className="font-medium">{f.title}</span>
                 </div>
+                {f.description && (
+                  <p className="text-sm leading-snug opacity-90">{f.description}</p>
+                )}
               </div>
             ))}
           </div>
         </section>
       )}
 
+      <Separator />
+
       {/* Footer */}
-      <footer className="px-8 py-8 text-center font-[family-name:var(--font-mono)] text-[12px] text-muted-foreground tracking-[0.1em]">
-        GERADO POR{' '}
-        <a href="https://seo.ai.rio.br" className="text-[var(--brand-text)]">
-          AIRIO
-        </a>
+      <footer className="text-center text-xs text-muted-foreground space-y-1 pb-4">
+        <p>
+          Gerado por{' '}
+          <a
+            href="https://ai.rio.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            airio
+          </a>
+        </p>
+        <p className="opacity-60">Otimização para IA · ai.rio.br</p>
       </footer>
-    </div>
+    </main>
   );
 }

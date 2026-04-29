@@ -12,22 +12,13 @@
   --color-muted: #f5f5f5;
   --color-muted-foreground: #737373;
   --color-border: #e5e5e5;
-  --radius: 0;
+  --radius: 0.5rem;
 }
 
 body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: system-ui, -apple-system, sans-serif;
-}
-
-@keyframes ticker {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
 }
 
 @theme inline {
@@ -97,7 +88,7 @@ body {
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0;
+  --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -106,7 +97,6 @@ body {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  /* Brand tokens */
   --brand: #ffe03d;
   --brand-fg: #09090b;
   --brand-text: #7a5500;
@@ -123,17 +113,6 @@ body {
   --brand-blue-fg: #ffffff;
   --surface-blue: #ebf9ff;
   --surface-yellow: #fff5c2;
-  /* Wireframe aliases */
-  --bg: var(--background);
-  --bg2: var(--card);
-  --bg3: var(--muted);
-  --text: var(--foreground);
-  --text2: var(--muted-foreground);
-  --accent-fg: var(--brand-fg);
-  --accent-text: var(--brand-text);
-  --accent2: var(--brand-danger);
-  --blue: var(--brand-blue);
-  --blue-fg: var(--brand-blue-fg);
 }
 
 .dark {
@@ -168,7 +147,6 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  /* Brand tokens — dark overrides */
   --brand-text: #ffe03d;
   --brand-success: #4ade80;
   --brand-success-muted: #052e16;
@@ -183,11 +161,6 @@ body {
   --brand-blue-fg: #09090b;
   --surface-blue: #091929;
   --surface-yellow: #1a1400;
-  /* Wireframe aliases — dark overrides */
-  --accent-text: var(--brand-text);
-  --accent2: var(--brand-danger);
-  --blue: var(--brand-blue);
-  --blue-fg: var(--brand-blue-fg);
 }
 
 @layer base {

@@ -41,14 +41,14 @@ export default function BillingPage() {
       </p>
 
       {success && (
-        <div className="mb-6 bg-[var(--brand-success-muted)] border border-[var(--brand-success-border)] p-4 text-sm text-[var(--brand-success)]">
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
           Pagamento confirmado. Créditos adicionados à sua conta.
         </div>
       )}
 
       <div className="space-y-3">
         {PACKS.map((pack) => (
-          <div key={pack.id} className="border border-border p-5 flex items-center justify-between">
+          <div key={pack.id} className="border rounded-lg p-5 flex items-center justify-between">
             <div>
               <p className="font-semibold">{pack.label}</p>
               <p className="text-xs text-gray-500 mt-0.5">{pack.note}</p>
@@ -56,10 +56,9 @@ export default function BillingPage() {
             <div className="flex items-center gap-4">
               <span className="font-bold">{pack.price}</span>
               <button
-                type="button"
                 onClick={() => handleBuy(pack.id)}
                 disabled={loading === pack.id}
-                className="bg-[var(--brand)] text-[var(--brand-fg)] px-5 py-2 font-[family-name:var(--font-bebas)] text-[16px] tracking-wide disabled:opacity-50"
+                className="bg-black text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 {loading === pack.id ? '…' : 'Comprar'}
               </button>

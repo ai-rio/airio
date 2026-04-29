@@ -48,43 +48,49 @@ function NavInner({
   ];
 
   return (
-    <nav className="sticky top-0 z-50 bg-background border-b border-border flex items-center justify-between px-8 h-14">
-      <Link
-        href="/"
-        className="font-[family-name:var(--font-bebas)] text-[24px] tracking-[1px] leading-none text-foreground"
-      >
-        AIR<span className="text-[var(--brand-text)]">IO</span>
-      </Link>
+    <nav className="sticky top-0 z-50 bg-background border-b border-border">
+      <div className="flex items-center gap-6 px-6 h-12">
+        {/* Logo */}
+        <Link
+          href="/"
+          className="font-[family-name:var(--font-bebas)] text-2xl tracking-wide leading-none mr-2"
+        >
+          AIR<span className="text-[var(--brand-text)]">IO</span>
+        </Link>
 
-      <div className="flex items-center gap-4">
-        {navLinks.map(({ label, href }) => {
-          const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={[
-                'text-[13px] uppercase tracking-[0.05em] border-b border-transparent pb-0.5 transition-colors',
-                isActive
-                  ? 'text-foreground border-[var(--brand)]'
-                  : 'text-muted-foreground hover:text-foreground hover:border-[var(--brand)]',
-              ].join(' ')}
-            >
-              {label}
-            </Link>
-          );
-        })}
+        {/* Nav links */}
+        <div className="flex items-center gap-4 flex-1">
+          {navLinks.map(({ label, href }) => {
+            const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={[
+                  'text-[11px] uppercase tracking-[0.1em] border-b pb-0.5 bg-transparent transition-colors',
+                  isActive
+                    ? 'text-foreground border-[var(--brand)]'
+                    : 'text-muted-foreground border-transparent hover:text-foreground hover:border-[var(--brand)]',
+                ].join(' ')}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
 
+        {/* Theme toggle */}
         <button
           type="button"
           onClick={toggleTheme}
           aria-label="Toggle theme"
-          className="w-9 h-9 bg-muted border border-muted-foreground text-foreground flex items-center justify-center hover:bg-muted/80 transition-colors text-base leading-none"
+          className="w-9 h-9 bg-muted border border-border text-foreground flex items-center justify-center hover:bg-muted/80 transition-colors text-base leading-none"
         >
           ◐
         </button>
 
-        <div className="w-8 h-8 bg-[var(--brand)] text-[var(--brand-fg)] flex items-center justify-center font-[family-name:var(--font-bebas)] text-[16px]">
+        {/* User avatar — fallback "U" since no viewer query exists */}
+        <div className="w-8 h-8 bg-[var(--brand)] text-[var(--brand-fg)] flex items-center justify-center text-sm font-bold uppercase">
           U
         </div>
       </div>

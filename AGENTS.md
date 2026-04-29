@@ -2,6 +2,10 @@
 
 This project uses [Convex](https://convex.dev) as its backend for AI-powered SEO audits where users submit URLs to get audit scores and AI-generated fixes.
 
+## Token Optimization
+
+RTK (Rust Token Killer) is active via global hook — all shell commands are auto-rewritten through `rtk` for 60-90% token savings. See `~/.agents/RTK.md` for usage.
+
 ## Hard Rules (Non-negotiable - Always Follow)
 
 ### 1. Think Before Coding
@@ -106,6 +110,7 @@ Keep this file focused and under 300 lines for optimal agent performance. Iterat
 
 ## Rule Files
 For detailed, domain-specific rules, see the files in `.agents/rules/`:
+- `.agents/rules/design-system.md` - **MANDATORY for any UI/frontend task** — typography, color tokens, layout patterns, forbidden classes
 - `.agents/rules/convex-action-pattern.md` - Convex action pattern requirements
 - `.agents/rules/ai-output-handling.md` - Handling AI-generated content safely
 - `.agents/rules/credit-billing-integrity.md` - Credit and billing accuracy requirements

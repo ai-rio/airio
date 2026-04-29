@@ -81,9 +81,17 @@ export const updateAlertConfig = mutationGeneric({
       scoreDropThreshold: v.number(),
       criticalFindings: v.boolean(),
       crawlerBlocked: v.boolean(),
+      psosDropThreshold: v.optional(v.number()),
     }),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Não autorizado');
+    const userId = identity.subject.split('|')[0];
+    const site = await anyDb(ctx).get(args.siteId);
+    if (!site) throw new Error('Site não encontrado');
+    if (site.userId !== userId) throw new Error('Não autorizado');
+    console.log({ event: 'alert_config_updated', siteId: args.siteId, userId, alertConfig: args.alertConfig });
     await anyDb(ctx).patch(args.siteId, { alertConfig: args.alertConfig });
   },
 });
@@ -102,6 +110,13 @@ export const setMonitoringEnabled = mutationGeneric({
     subscriptionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Não autorizado');
+    const userId = identity.subject.split('|')[0];
+    const site = await anyDb(ctx).get(args.siteId);
+    if (!site) throw new Error('Site não encontrado');
+    if (site.userId !== userId) throw new Error('Não autorizado');
+    console.log({ event: 'monitoring_toggled', siteId: args.siteId, userId, enabled: args.enabled });
     await anyDb(ctx).patch(args.siteId, {
       monitoringEnabled: args.enabled,
       ...(args.subscriptionId !== undefined ? { subscriptionId: args.subscriptionId } : {}),

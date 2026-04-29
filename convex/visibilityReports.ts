@@ -27,6 +27,11 @@ export const insert = internalMutationGeneric({
 export const latestBySite = queryGeneric({
   args: { siteId: v.id('sites') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const userId = identity.subject.split('|')[0];
+    const site = await anyDb(ctx).get(args.siteId);
+    if (!site || site.userId !== userId) return null;
     return await anyDb(ctx)
       .query('visibilityReports')
       .withIndex('by_site_and_generated_at', (q: any) => q.eq('siteId', args.siteId))
@@ -38,6 +43,11 @@ export const latestBySite = queryGeneric({
 export const listBySite = queryGeneric({
   args: { siteId: v.id('sites'), limit: v.number() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    const userId = identity.subject.split('|')[0];
+    const site = await anyDb(ctx).get(args.siteId);
+    if (!site || site.userId !== userId) return [];
     return await anyDb(ctx)
       .query('visibilityReports')
       .withIndex('by_site_and_generated_at', (q: any) => q.eq('siteId', args.siteId))

@@ -1,9 +1,12 @@
 'use client';
 
+import { PsosChangeBadge } from '@/components/psos-change-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { STALE_THRESHOLD_MS } from '@/lib/monitoring-constants';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from 'airio-convex/_generated/api';
+import type { Id } from 'airio-convex/_generated/dataModel';
 import { useMutation, useQuery } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
 import Link from 'next/link';
@@ -117,6 +120,58 @@ function SparkLine({ scores }: { scores: number[] }) {
   );
 }
 
+function pct(v: number) {
+  return `${Math.round(v * 100)}%`;
+}
+
+function SitePsosIndicator({ siteId }: { siteId: string }) {
+  const latestReport = useQuery(api.visibilityReports.latestBySite, {
+    siteId: siteId as Id<'sites'>,
+  });
+  const reports = useQuery(api.visibilityReports.listBySite, {
+    siteId: siteId as Id<'sites'>,
+    limit: 2,
+  });
+
+  if (latestReport === undefined) {
+    return (
+      <span className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground">
+        —
+      </span>
+    );
+  }
+  if (latestReport === null) {
+    return (
+      <span className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground">
+        Sem dados
+      </span>
+    );
+  }
+
+  const psosColor =
+    latestReport.psos >= 0.6
+      ? 'text-[var(--brand-success)]'
+      : latestReport.psos >= 0.3
+        ? 'text-[var(--brand-warning)]'
+        : 'text-[var(--brand-danger)]';
+
+  const now = Date.now();
+  const isStale =
+    latestReport._creationTime !== undefined &&
+    now - latestReport._creationTime > STALE_THRESHOLD_MS;
+  const dotClass = isStale ? 'bg-[var(--brand-warning)]' : 'bg-[var(--brand-success)]';
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`font-[family-name:var(--font-mono)] text-[11px] ${psosColor}`}>
+        PSOS {pct(latestReport.psos)}
+      </span>
+      <PsosChangeBadge currentPsos={latestReport.psos} previousPsos={reports?.[1]?.psos ?? null} />
+      <span className={`w-2 h-2 inline-block ${dotClass}`} />
+    </div>
+  );
+}
+
 function SiteCard({ site }: { site: Site }) {
   const audits = useQuery(api.audits.listBySite, { siteId: site._id });
   const latest = audits?.[0];
@@ -169,6 +224,7 @@ function SiteCard({ site }: { site: Site }) {
           )}
         </div>
       )}
+      {site.monitoringEnabled && <SitePsosIndicator siteId={site._id} />}
       <div className="flex items-center justify-between border-t border-border pt-4">
         <span className="font-[family-name:var(--font-mono)] text-[12px] text-muted-foreground">
           {latest
@@ -182,6 +238,66 @@ function SiteCard({ site }: { site: Site }) {
         </span>
       </div>
     </Link>
+  );
+}
+
+function SiteCardSkeleton() {
+  return (
+    <div className="bg-card border-r border-border p-8 flex flex-col gap-6 animate-pulse">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2 min-w-0 flex-1">
+          <div className="h-7 w-40 bg-muted" />
+          <div className="h-3 w-56 bg-muted" />
+        </div>
+        <div className="h-12 w-16 bg-muted shrink-0" />
+      </div>
+      <div className="h-10 w-full bg-muted" />
+      <div className="flex gap-2">
+        <div className="h-5 w-16 bg-muted" />
+        <div className="h-5 w-12 bg-muted" />
+      </div>
+      <div className="flex items-center justify-between border-t border-border pt-4">
+        <div className="h-3 w-28 bg-muted" />
+        <div className="h-3 w-8 bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+function EmptyStateDashboard() {
+  return (
+    <div className="px-8 py-16 border-b border-border">
+      <p className="font-[family-name:var(--font-bebas)] text-[40px] leading-none text-muted-foreground">
+        NENHUM SITE CADASTRADO
+      </p>
+      <p className="font-sans text-muted-foreground text-[14px] mt-3">
+        Adicione um site para começar a auditar a visibilidade em IA.
+      </p>
+      <div className="mt-8 grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-px border border-border">
+        <div className="bg-[var(--surface-blue)] p-8 border-r border-border">
+          <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] uppercase tracking-[0.15em]">
+            Auditoria AEO
+          </p>
+          <p className="font-[family-name:var(--font-bebas)] text-[28px] mt-2 leading-none">
+            Descubra como a IA vê seu site
+          </p>
+          <p className="font-sans text-muted-foreground text-[13px] mt-2">
+            Score de visibilidade + correções geradas por IA.
+          </p>
+        </div>
+        <div className="bg-[var(--surface-yellow)] p-8">
+          <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] uppercase tracking-[0.15em]">
+            Monitoramento
+          </p>
+          <p className="font-[family-name:var(--font-bebas)] text-[28px] mt-2 leading-none">
+            Rastreie sua presença em IA
+          </p>
+          <p className="font-sans text-muted-foreground text-[13px] mt-2">
+            PSOS semanal, alertas automáticos, tendências.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -402,8 +518,14 @@ export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: b
           )}
         </div>
 
-        {sites === undefined ? null : sites.length === 0 ? (
-          <AddSiteCard onClick={() => setModalOpen(true)} />
+        {sites === undefined ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-px border border-border">
+            <SiteCardSkeleton />
+            <SiteCardSkeleton />
+            <SiteCardSkeleton />
+          </div>
+        ) : sites.length === 0 ? (
+          <EmptyStateDashboard />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-px border border-border">
             {(sites as Site[]).map((site) => (
@@ -435,7 +557,9 @@ function SignIn() {
       <h1 className="text-2xl font-bold mb-2">AIRio</h1>
       <p className="text-muted-foreground text-sm mb-8">Entre para auditar seu site</p>
       {sent ? (
-        <p className="text-green-600 text-sm">Verifique seu email — enviamos um link de acesso.</p>
+        <p className="text-[var(--brand-success)] text-sm">
+          Verifique seu email — enviamos um link de acesso.
+        </p>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input

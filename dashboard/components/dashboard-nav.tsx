@@ -42,9 +42,16 @@ function NavInner({
     localStorage.setItem('airio-theme', next ? 'dark' : 'light');
   }
 
-  const navLinks = [
+  type NavLink = { label: string; href: string; isActive?: (pathname: string) => boolean };
+  const navLinks: NavLink[] = [
     { label: 'Dashboard', href: '/' },
     { label: 'Faturamento', href: '/billing' },
+    {
+      label: 'Monitoramento',
+      href: '/monitoring',
+      isActive: (p) =>
+        p.startsWith('/monitoring') || (p.startsWith('/sites/') && p.endsWith('/monitoring')),
+    },
   ];
 
   return (
@@ -57,12 +64,16 @@ function NavInner({
       </Link>
 
       <div className="flex items-center gap-4">
-        {navLinks.map(({ label, href }) => {
-          const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
+        {navLinks.map((link) => {
+          const isActive = link.isActive
+            ? link.isActive(pathname)
+            : link.href === '/'
+              ? pathname === '/'
+              : pathname.startsWith(link.href);
           return (
             <Link
-              key={href}
-              href={href}
+              key={link.href}
+              href={link.href}
               className={[
                 'text-[13px] uppercase tracking-[0.05em] border-b border-transparent pb-0.5 transition-colors',
                 isActive
@@ -70,7 +81,7 @@ function NavInner({
                   : 'text-muted-foreground hover:text-foreground hover:border-[var(--brand)]',
               ].join(' ')}
             >
-              {label}
+              {link.label}
             </Link>
           );
         })}

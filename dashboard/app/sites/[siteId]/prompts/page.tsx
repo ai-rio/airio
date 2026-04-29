@@ -68,7 +68,7 @@ export default function PromptsPage() {
           engine: 'perplexity',
         });
       }
-      router.push(`/sites/${siteId}`);
+      router.push(`/sites/${siteId}/monitoring`);
     } finally {
       setSaving(false);
     }
@@ -88,7 +88,7 @@ export default function PromptsPage() {
     <main className="max-w-lg mx-auto py-12 px-4">
       <button
         type="button"
-        onClick={() => router.push(`/sites/${siteId}`)}
+        onClick={() => router.push(`/sites/${siteId}/monitoring`)}
         className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground uppercase tracking-[0.1em] hover:text-[var(--brand-text)] transition-colors mb-8 block"
       >
         ← Voltar

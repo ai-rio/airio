@@ -9,7 +9,11 @@ interface ReportPoint {
 
 export function PsosSparkline({ reports }: { reports: ReportPoint[] }) {
   if (reports.length < 2) {
-    return <p className="text-xs text-gray-400 mt-1">Dados insuficientes para tendência</p>;
+    return (
+      <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mt-1">
+        Dados insuficientes para tendência
+      </p>
+    );
   }
 
   const W = 280;
@@ -37,28 +41,10 @@ export function PsosSparkline({ reports }: { reports: ReportPoint[] }) {
         role="img"
         aria-label="Gráfico de tendência PSOS"
       >
-        <polygon
-          points={`${upperBand} ${lowerBand}`}
-          fill="currentColor"
-          className="text-blue-100"
-          opacity={0.8}
-        />
-        <polyline
-          points={linePoints}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          className="text-blue-500"
-        />
-        <circle
-          cx={toX(reports.length - 1)}
-          cy={toY(latest.psos)}
-          r={3}
-          fill="currentColor"
-          className="text-blue-600"
-        />
+        <polygon points={`${upperBand} ${lowerBand}`} fill="var(--surface-yellow)" opacity={0.6} />
+        <polyline points={linePoints} fill="none" stroke="var(--brand-text)" strokeWidth={2} />
       </svg>
-      <p className="text-xs text-gray-400 mt-1">
+      <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mt-1">
         Últimas {reports.length} semanas · atual {pct(latest.psos)}
       </p>
     </div>

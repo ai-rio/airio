@@ -1,244 +1,420 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from 'airio-convex/_generated/api';
-import { useAction, useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
+
+type Site = {
+  _id: string;
+  name: string;
+  url: string;
+  schedule: 'weekly' | 'monthly';
+  monitoringEnabled: boolean;
+  nextAuditAt: number;
+};
 
 type Audit = {
   _id: string;
-  url: string;
   score: number | null;
   status: string;
   _creationTime: number;
+  outputFiles?: string;
 };
 
+type AuditWithSite = Audit & { siteId?: string };
+
 function formatDate(ms: number) {
-  return new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return new Date(ms).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  });
 }
 
-function scoreColor(score: number) {
-  if (score >= 70) return 'text-[var(--brand-success)]';
-  if (score >= 40) return 'text-[var(--brand-warning)]';
+function scoreColorClass(score: number) {
+  if (score >= 70) return 'text-[var(--brand-text)]';
+  if (score >= 40) return 'text-[var(--brand-blue)]';
   return 'text-[var(--brand-danger)]';
 }
 
-function getHostname(url: string) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
+const TICKER_TEXT =
+  '§ GPTBot · § ClaudeBot · § PerplexityBot · § Google-Extended · § OAI-SearchBot · § Amazonbot · ';
+
+function TickerStrip() {
+  const repeated = TICKER_TEXT.repeat(8);
+  return (
+    <div className="overflow-hidden bg-[var(--brand)] text-[var(--brand-fg)] py-1.5">
+      <div
+        className="inline-flex whitespace-nowrap font-[family-name:var(--font-mono)] text-[11px] font-bold"
+        style={{ animation: 'ticker 60s linear infinite' }}
+      >
+        <span>{repeated}</span>
+        <span aria-hidden>{repeated}</span>
+      </div>
+    </div>
+  );
 }
 
-function buildDeltaMap(audits: Audit[]): Map<string, number | null> {
-  const groups = new Map<string, Audit[]>();
-  for (const a of audits) {
-    const h = getHostname(a.url);
-    const g = groups.get(h) ?? [];
-    g.push(a);
-    groups.set(h, g);
-  }
-  for (const [h, g] of groups) {
-    groups.set(
-      h,
-      [...g].sort((a, b) => b._creationTime - a._creationTime)
+function ScoreBadge({ audits }: { audits: Audit[] | undefined }) {
+  if (audits === undefined) {
+    return (
+      <span className="font-[family-name:var(--font-bebas)] text-[48px] leading-none text-muted-foreground">
+        —
+      </span>
     );
   }
-  const deltaMap = new Map<string, number | null>();
-  for (const [, g] of groups) {
-    for (let i = 0; i < g.length; i++) {
-      const curr = g[i];
-      if (curr.score === null) {
-        deltaMap.set(curr._id, null);
-        continue;
-      }
-      const prev = g.slice(i + 1).find((a) => a.score !== null);
-      if (!prev) {
-        deltaMap.set(curr._id, null);
-      } else {
-        const d = curr.score - (prev.score as number);
-        deltaMap.set(curr._id, d === 0 ? null : d);
-      }
-    }
+  const latest = audits[0];
+  if (!latest || latest.score === null) {
+    return (
+      <span className="font-[family-name:var(--font-bebas)] text-[48px] leading-none text-muted-foreground">
+        —
+      </span>
+    );
   }
-  return deltaMap;
+  const prev = audits[1];
+  const delta = prev && prev.score !== null ? latest.score - prev.score : null;
+  return (
+    <div className="flex flex-col items-end">
+      <span
+        className={`font-[family-name:var(--font-bebas)] text-[48px] leading-none ${scoreColorClass(latest.score)}`}
+      >
+        {latest.score}
+      </span>
+      {delta !== null && delta !== 0 && (
+        <span
+          className={`font-[family-name:var(--font-mono)] text-[11px] ${delta > 0 ? 'text-[var(--brand-text)]' : 'text-[var(--brand-danger)]'}`}
+        >
+          {delta > 0 ? `↑ +${delta}` : `↓ ${delta}`}
+        </span>
+      )}
+    </div>
+  );
 }
 
-export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: boolean }) {
-  const { isAuthenticated: convexAuth } = useConvexAuth();
-  const isAuthenticated = convexAuth || isDevBypass;
-  const router = useRouter();
+function SparkLine({ scores }: { scores: number[] }) {
+  if (scores.length < 2) return null;
+  const data = scores.map((s, i) => ({ i, s }));
+  return (
+    <ResponsiveContainer width="100%" height={40}>
+      <AreaChart data={data}>
+        <Area
+          dataKey="s"
+          stroke="var(--brand-text)"
+          fill="var(--surface-yellow)"
+          strokeWidth={1.5}
+          dot={false}
+          isAnimationActive={false}
+        />
+        <Tooltip contentStyle={{ display: 'none' }} cursor={false} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
 
+function SiteCard({ site }: { site: Site }) {
+  const audits = useQuery(api.audits.listBySite, { siteId: site._id });
+  const latest = audits?.[0];
+  const sparkScores = audits
+    ? [...audits]
+        .reverse()
+        .filter((a) => a.score !== null)
+        .map((a) => a.score as number)
+    : [];
+
+  let findings: Array<{ severity: string }> = [];
+  if (latest?.outputFiles) {
+    try {
+      findings = JSON.parse(latest.outputFiles).findings ?? [];
+    } catch {}
+  }
+  const critCount = findings.filter((f) => f.severity === 'critical').length;
+  const highCount = findings.filter((f) => f.severity === 'high').length;
+
+  return (
+    <Link
+      href={`/sites/${site._id}`}
+      className="bg-card border-r border-border p-8 cursor-pointer hover:bg-muted/50 transition-colors relative flex flex-col gap-6 no-underline"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="font-[family-name:var(--font-bebas)] text-[28px] leading-none text-foreground truncate">
+            {site.name}
+          </div>
+          <div className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mt-1 truncate">
+            {site.url}
+          </div>
+        </div>
+        <div className="shrink-0">
+          <ScoreBadge audits={audits} />
+        </div>
+      </div>
+      <SparkLine scores={sparkScores} />
+      {(critCount > 0 || highCount > 0) && (
+        <div className="flex gap-1.5 flex-wrap">
+          {critCount > 0 && (
+            <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 bg-[var(--brand-danger)] text-white">
+              {critCount} crítico{critCount > 1 ? 's' : ''}
+            </span>
+          )}
+          {highCount > 0 && (
+            <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 bg-orange-500 text-white">
+              {highCount} alto{highCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="flex items-center justify-between border-t border-border pt-4">
+        <span className="font-[family-name:var(--font-mono)] text-[12px] text-muted-foreground">
+          {latest
+            ? `Auditado ${formatDate(latest._creationTime)}`
+            : site.nextAuditAt
+              ? `Próx. ${formatDate(site.nextAuditAt)}`
+              : '—'}
+        </span>
+        <span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--brand-text)]">
+          VER →
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function AddSiteCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="bg-[var(--surface-blue)] border border-dashed border-[var(--brand-blue)] flex flex-col items-center justify-center min-h-[200px] gap-4 cursor-pointer hover:border-[var(--brand)] hover:bg-card transition-colors w-full"
+    >
+      <span className="font-[family-name:var(--font-bebas)] text-[48px] leading-none text-muted-foreground">
+        +
+      </span>
+      <span className="font-[family-name:var(--font-mono)] text-[13px] uppercase tracking-widest text-muted-foreground">
+        Adicionar Site
+      </span>
+    </button>
+  );
+}
+
+function AddSiteModal({ onClose }: { onClose: () => void }) {
+  const createSite = useMutation(api.sites.create);
+  const [name, setName] = useState('');
   const [url, setUrl] = useState('');
-  const [running, setRunning] = useState(false);
+  const [schedule, setSchedule] = useState<'weekly' | 'monthly'>('weekly');
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const runAudit = useAction(api.actions.audit.runAudit);
-  const audits = useQuery(api.audits.listByUser, isAuthenticated ? {} : 'skip');
-  const balance = useQuery(api.users.getMyCreditsBalance, convexAuth ? {} : 'skip');
-  const sites = useQuery(api.sites.listByUser, isAuthenticated ? {} : 'skip');
-
-  const deltaMap = useMemo(() => {
-    if (!audits) return new Map<string, number | null>();
-    return buildDeltaMap(audits);
-  }, [audits]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setRunning(true);
+    setSubmitting(true);
     try {
-      const result = await runAudit({ url });
-      router.push(`/audit/${result.auditId}`);
+      await createSite({ name, url, schedule });
+      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      setRunning(false);
+      setError(err instanceof Error ? err.message : 'Erro ao criar site');
+      setSubmitting(false);
     }
   }
 
-  if (!isAuthenticated) return <SignIn />;
-
-  const zeroCreditsBanner =
-    convexAuth && balance !== undefined && balance.remaining === 0 && balance.freeRemaining === 0;
-
   return (
-    <>
-      <main className="max-w-2xl mx-auto py-10 px-4 space-y-8">
-        <section>
-          <h1 className="text-xl font-semibold mb-4">Nova auditoria AEO</h1>
-          <form onSubmit={handleSubmit} className="flex gap-2">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4">
+      <div className="bg-card border border-border w-full max-w-md p-8">
+        <h2 className="font-[family-name:var(--font-bebas)] text-[32px] leading-none text-foreground mb-6">
+          Adicionar Site
+        </h2>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="modal-name"
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-muted-foreground"
+            >
+              Nome
+            </label>
             <Input
+              id="modal-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Meu site"
+              required
+              disabled={submitting}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="modal-url"
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-muted-foreground"
+            >
+              URL
+            </label>
+            <Input
+              id="modal-url"
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://seusite.com.br"
               required
-              disabled={running}
-              className="flex-1"
+              disabled={submitting}
             />
-            <Button type="submit" disabled={running}>
-              {running ? 'Auditando…' : 'Auditar'}
-            </Button>
-          </form>
-          {error && <p className="mt-2 text-sm text-[var(--brand-danger)]">{error}</p>}
-        </section>
-
-        {zeroCreditsBanner && (
-          <div className="flex items-center justify-between rounded-lg border border-[var(--brand-warning-border)] bg-[var(--brand-warning-muted)] px-4 py-3 text-sm text-foreground">
-            <span>Você não tem créditos. Compre um pacote para continuar auditando.</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-4 border-[var(--brand-warning-border)] text-foreground hover:bg-[var(--brand-warning-muted)]"
-              onClick={() => router.push('/billing')}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="modal-schedule"
+              className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] text-muted-foreground"
             >
-              Comprar
+              Frequência
+            </label>
+            <select
+              id="modal-schedule"
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value as 'weekly' | 'monthly')}
+              disabled={submitting}
+              className="w-full border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
+            >
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensal</option>
+            </select>
+          </div>
+          {error && <p className="text-sm text-[var(--brand-danger)]">{error}</p>}
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" disabled={submitting} className="flex-1">
+              {submitting ? 'Criando…' : 'Criar'}
+            </Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+              Cancelar
             </Button>
           </div>
-        )}
+        </form>
+      </div>
+    </div>
+  );
+}
 
-        {isAuthenticated && sites && sites.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold">Sites monitorados</h2>
-              <span className="text-xs text-muted-foreground">{sites.length} site(s)</span>
-            </div>
-            <Card>
-              <CardContent className="p-0">
-                {(sites as any[]).map((site: any, idx: number) => (
-                  <div key={site._id}>
-                    {idx > 0 && <Separator />}
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/sites/${site._id}`)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/50 transition-colors text-left"
-                    >
-                      <div>
-                        <div className="font-medium">{site.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{site.url}</div>
-                      </div>
-                      <span className="text-muted-foreground shrink-0">›</span>
-                    </button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </section>
-        )}
+export default function DashboardPage({ isDevBypass = false }: { isDevBypass?: boolean }) {
+  const { isAuthenticated: convexAuth } = useConvexAuth();
+  const isAuthenticated = convexAuth || isDevBypass;
 
-        {convexAuth && (
-          <section>
-            <h2 className="text-base font-semibold mb-3">Auditorias recentes</h2>
-            {audits === undefined ? null : audits.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                <span className="text-3xl mb-3">🔍</span>
-                <p className="text-sm">
-                  Nenhuma auditoria ainda. Envie uma URL acima para começar.
-                </p>
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const sites = useQuery(api.sites.listByUser, isAuthenticated ? {} : 'skip');
+  const allAudits = useQuery(api.audits.listByUser, isAuthenticated ? {} : 'skip');
+  const balance = useQuery(api.users.getMyCreditsBalance, convexAuth ? {} : 'skip');
+
+  if (!isAuthenticated) return <SignIn />;
+
+  const avgScore: string = (() => {
+    if (!sites || !allAudits || sites.length === 0) return '—';
+    const latestBySite = new Map<string, number>();
+    for (const audit of allAudits as AuditWithSite[]) {
+      if (!audit.siteId || audit.score === null) continue;
+      if (!latestBySite.has(audit.siteId)) {
+        latestBySite.set(audit.siteId, audit.score);
+      }
+    }
+    if (latestBySite.size === 0) return '—';
+    const sum = [...latestBySite.values()].reduce((a, b) => a + b, 0);
+    return Math.round(sum / latestBySite.size).toString();
+  })();
+
+  const planLabel =
+    balance !== undefined
+      ? balance.freeRemaining > 0
+        ? 'PLANO FREE'
+        : `${balance.remaining} CRÉDITOS`
+      : 'PLANO FREE';
+
+  return (
+    <>
+      <TickerStrip />
+
+      <section className="py-16 px-8 border-b border-border">
+        <div className="grid grid-cols-[1fr_auto] gap-8 items-end">
+          <div>
+            <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] tracking-[0.15em] uppercase mb-3">
+              § Monitoramento AEO / Mercado Brasileiro
+            </p>
+            <h1 className="font-[family-name:var(--font-bebas)] text-[clamp(56px,8vw,96px)] leading-[0.95] text-foreground mb-8">
+              SEUS SITES.
+              <br />
+              <span className="text-[var(--brand-text)]">SUA PRESENÇA</span>
+              <br />
+              NO ChatGPT.
+            </h1>
+            <div className="flex gap-8">
+              <div>
+                <div className="font-[family-name:var(--font-bebas)] text-[40px] leading-none text-[var(--brand-text)]">
+                  {sites?.length ?? 0}
+                </div>
+                <div className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground mt-1">
+                  Sites monitorados
+                </div>
               </div>
-            ) : (
-              <Card>
-                <CardContent className="p-0">
-                  {(audits as Audit[]).map((audit: Audit, idx: number) => {
-                    const isPending = audit.status === 'pending' || audit.score === null;
-                    const delta = deltaMap.get(audit._id) ?? null;
-                    return (
-                      <div key={audit._id}>
-                        {idx > 0 && <Separator />}
-                        <button
-                          type="button"
-                          onClick={() => router.push(`/audit/${audit._id}`)}
-                          className="w-full flex items-center gap-4 px-4 py-3 text-sm hover:bg-muted/50 transition-colors text-left"
-                        >
-                          <span className="flex-1 font-medium truncate">
-                            {getHostname(audit.url)}
-                          </span>
-                          <span className="text-muted-foreground text-xs shrink-0">
-                            {formatDate(audit._creationTime)}
-                          </span>
-                          <span className="w-16 text-right shrink-0">
-                            {isPending ? (
-                              <span className="text-muted-foreground">⏳ processando…</span>
-                            ) : (
-                              <span className={cn('font-semibold', scoreColor(audit.score ?? 0))}>
-                                {audit.score}/100
-                              </span>
-                            )}
-                          </span>
-                          {!isPending && delta !== null && (
-                            <span
-                              className={cn(
-                                'w-12 text-right text-xs font-medium shrink-0',
-                                delta > 0
-                                  ? 'text-[var(--brand-success)]'
-                                  : 'text-[var(--brand-danger)]'
-                              )}
-                            >
-                              {delta > 0 ? `↑ +${delta}` : `↓ ${delta}`}
-                            </span>
-                          )}
-                          {(isPending || delta === null) && (
-                            <span className="w-12 shrink-0" aria-hidden />
-                          )}
-                          <span className="text-muted-foreground shrink-0">›</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            )}
-          </section>
+              <div>
+                <div className="font-[family-name:var(--font-bebas)] text-[40px] leading-none text-[var(--brand-text)]">
+                  {avgScore}
+                </div>
+                <div className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground mt-1">
+                  Média AEO
+                </div>
+              </div>
+              <div>
+                <div className="font-[family-name:var(--font-bebas)] text-[40px] leading-none text-[var(--brand-text)]">
+                  0
+                </div>
+                <div className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground mt-1">
+                  Alertas ativos
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="bg-[var(--brand)] text-[var(--brand-fg)] font-[family-name:var(--font-bebas)] text-[18px] h-12 px-8 hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              ＋ ADICIONAR SITE →
+            </button>
+            <span className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground">
+              {planLabel}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-8 py-8">
+        <div className="flex items-baseline gap-3 mb-6">
+          <h2 className="font-[family-name:var(--font-bebas)] text-[32px] leading-none text-foreground">
+            SITES MONITORADOS
+          </h2>
+          {sites !== undefined && (
+            <span className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground">
+              {sites.length}
+            </span>
+          )}
+        </div>
+
+        {sites === undefined ? null : sites.length === 0 ? (
+          <AddSiteCard onClick={() => setModalOpen(true)} />
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-px border border-border">
+            {(sites as Site[]).map((site) => (
+              <SiteCard key={site._id} site={site} />
+            ))}
+            <AddSiteCard onClick={() => setModalOpen(true)} />
+          </div>
         )}
-      </main>
+      </section>
+
+      {modalOpen && <AddSiteModal onClose={() => setModalOpen(false)} />}
     </>
   );
 }
@@ -268,9 +444,12 @@ function SignIn() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="seu@email.com.br"
             required
-            className="border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full border border-border bg-background text-foreground px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
           />
-          <button type="submit" className="bg-black text-white py-2 rounded-lg text-sm font-medium">
+          <button
+            type="submit"
+            className="bg-[var(--brand)] text-[var(--brand-fg)] py-2 font-[family-name:var(--font-bebas)] text-[16px] tracking-wide w-full"
+          >
             Entrar com email
           </button>
         </form>

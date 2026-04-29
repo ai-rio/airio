@@ -36,10 +36,18 @@ function downloadFile(content: string, filename: string, mime = 'text/plain') {
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
-  critical: 'border-red-200 bg-red-50 text-red-700',
-  high: 'border-orange-200 bg-orange-50 text-orange-700',
-  medium: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-  low: 'border-gray-200 bg-gray-50 text-gray-600',
+  critical:
+    'bg-[var(--brand-danger-muted)] border-[var(--brand-danger-border)] text-[var(--brand-danger)]',
+  high: 'bg-orange-500/10 border-orange-500/30 text-orange-500',
+  medium: 'bg-[var(--surface-blue)] border-[var(--brand-blue)]/30 text-[var(--brand-blue)]',
+  low: 'bg-muted border-border text-muted-foreground',
+};
+
+const SEVERITY_CHIP: Record<string, string> = {
+  critical: 'bg-[var(--brand-danger)] text-white',
+  high: 'bg-orange-500 text-white',
+  medium: 'bg-[var(--brand-blue)] text-[var(--brand-blue-fg)]',
+  low: 'bg-muted text-muted-foreground border border-border',
 };
 
 const PAGE_TYPE_LABEL: Record<string, string> = {
@@ -68,37 +76,57 @@ const TOOL_LABEL: Record<string, string> = {
   other: 'Manual',
 };
 
+function scoreColorClass(score: number) {
+  if (score >= 70) return 'text-[var(--brand-text)]';
+  if (score >= 40) return 'text-[var(--brand-blue)]';
+  return 'text-[var(--brand-danger)]';
+}
+
 export default function AuditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const audit = useQuery(api.audits.getById, { auditId: id });
 
-  if (!audit) return <p className="p-8 text-sm text-gray-500">Carregando…</p>;
+  if (!audit) return <p className="p-8 text-sm text-muted-foreground">Carregando…</p>;
   if (audit.status === 'pending')
-    return <p className="p-8 text-sm text-gray-500">Auditando seu site…</p>;
+    return <p className="p-8 text-sm text-muted-foreground">Auditando seu site…</p>;
   if (audit.status === 'failed')
-    return <p className="p-8 text-sm text-red-600">Falha: {audit.errorMessage}</p>;
+    return <p className="p-8 text-sm text-[var(--brand-danger)]">Falha: {audit.errorMessage}</p>;
 
   const output: AeoOutput = JSON.parse(audit.outputFiles ?? '{}');
   const score = output.score ?? 0;
-  const scoreColor =
-    score >= 70 ? 'text-green-600' : score >= 40 ? 'text-yellow-600' : 'text-red-600';
 
   const criticalCount = output.findings?.filter((f) => f.severity === 'critical').length ?? 0;
   const highCount = output.findings?.filter((f) => f.severity === 'high').length ?? 0;
 
   return (
-    <main className="max-w-2xl mx-auto py-12 px-4 space-y-8">
+    <main className="max-w-2xl mx-auto py-12 px-4">
       {/* Score header */}
-      <div>
-        <p className="text-sm text-gray-500 mb-1">{audit.url}</p>
-        <h1 className="text-4xl font-bold">
-          Score AEO: <span className={scoreColor}>{score}/100</span>
-        </h1>
+      <div className="border-b border-border pb-8 mb-8">
+        <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mb-3 uppercase tracking-[0.1em]">
+          {audit.url}
+        </p>
+        <div className="flex items-end gap-6">
+          <div>
+            <h1 className="font-[family-name:var(--font-bebas)] text-[80px] leading-none">
+              <span className={scoreColorClass(score)}>{score}</span>
+              <span className="text-muted-foreground text-[40px]">/100</span>
+            </h1>
+            <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground uppercase tracking-[0.15em] mt-1">
+              Pontuação AEO
+            </p>
+          </div>
+        </div>
         {output.algorithmicBase != null && (
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mt-3">
             Base algorítmica {output.algorithmicBase}
             {output.scoreAdjustment != null && output.scoreAdjustment !== 0 && (
-              <span className={output.scoreAdjustment > 0 ? 'text-green-500' : 'text-red-500'}>
+              <span
+                className={
+                  output.scoreAdjustment > 0
+                    ? 'text-[var(--brand-text)]'
+                    : 'text-[var(--brand-danger)]'
+                }
+              >
                 {' '}
                 {output.scoreAdjustment > 0 ? '+' : ''}
                 {output.scoreAdjustment} ajuste de conteúdo (IA)
@@ -107,21 +135,32 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
           </p>
         )}
         {(criticalCount > 0 || highCount > 0) && (
-          <p className="text-xs text-red-500 mt-1">
-            {criticalCount > 0 && `${criticalCount} crítico${criticalCount > 1 ? 's' : ''}`}
-            {criticalCount > 0 && highCount > 0 && ' · '}
-            {highCount > 0 && `${highCount} alta prioridade`}
-          </p>
+          <div className="flex gap-1.5 mt-3">
+            {criticalCount > 0 && (
+              <span
+                className={`font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 ${SEVERITY_CHIP.critical}`}
+              >
+                {criticalCount} crítico{criticalCount > 1 ? 's' : ''}
+              </span>
+            )}
+            {highCount > 0 && (
+              <span
+                className={`font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 ${SEVERITY_CHIP.high}`}
+              >
+                {highCount} alto{highCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
       {/* Brand signals */}
       {output.brandSignals && (
-        <section>
-          <div className="flex items-baseline gap-2 mb-3">
-            <h2 className="font-semibold">Presença de marca</h2>
-          </div>
-          <div className="flex flex-wrap gap-3">
+        <section className="border-b border-border pb-8 mb-8">
+          <h2 className="font-[family-name:var(--font-bebas)] text-[24px] mb-4">
+            Presença de Marca
+          </h2>
+          <div className="flex flex-wrap gap-2">
             {(['wikipedia', 'reddit', 'youtube'] as const).map((platform) => {
               const url = output.brandSignals[platform];
               return url ? (
@@ -130,46 +169,58 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm hover:bg-green-100 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 border border-[var(--brand-success-border)] bg-[var(--brand-success-muted)] text-[var(--brand-success)] text-sm hover:opacity-80 transition-opacity"
                 >
                   <span>✓</span>
-                  <span className="capitalize">{platform}</span>
-                  <span className="text-green-500 text-xs">↗</span>
+                  <span className="capitalize font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.05em]">
+                    {platform}
+                  </span>
                 </a>
               ) : (
                 <div
                   key={platform}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-sm"
+                  className="flex items-center gap-2 px-3 py-2 border border-border bg-muted text-muted-foreground text-sm"
                 >
                   <span>✗</span>
-                  <span className="capitalize">{platform}</span>
+                  <span className="capitalize font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.05em]">
+                    {platform}
+                  </span>
                 </div>
               );
             })}
             <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
+              className={`flex items-center gap-2 px-3 py-2 border text-sm ${
                 output.rslPresent
-                  ? 'border-green-200 bg-green-50 text-green-700'
-                  : 'border-gray-200 bg-gray-50 text-gray-400'
+                  ? 'border-[var(--brand-success-border)] bg-[var(--brand-success-muted)] text-[var(--brand-success)]'
+                  : 'border-border bg-muted text-muted-foreground'
               }`}
             >
               <span>{output.rslPresent ? '✓' : '✗'}</span>
-              <span>RSL 1.0</span>
+              <span className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.05em]">
+                RSL 1.0
+              </span>
             </div>
           </div>
         </section>
       )}
 
       {/* Findings */}
-      <section>
-        <h2 className="font-semibold mb-3">Problemas encontrados</h2>
+      <section className="border-b border-border pb-8 mb-8">
+        <h2 className="font-[family-name:var(--font-bebas)] text-[24px] mb-4">
+          Problemas Encontrados
+        </h2>
         <ul className="space-y-2">
-          {output.findings?.map((f, i) => (
+          {output.findings?.map((f) => (
             <li
-              key={i}
-              className={`text-sm p-3 rounded-lg border ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.low}`}
+              key={`${f.severity}-${f.message}`}
+              className={`text-sm p-3 border ${SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.low}`}
             >
-              <span className="font-medium capitalize">{f.severity}:</span> {f.message}
+              <span
+                className={`font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-1.5 py-0.5 mr-2 ${SEVERITY_CHIP[f.severity] ?? SEVERITY_CHIP.low}`}
+              >
+                {f.severity}
+              </span>
+              {f.message}
             </li>
           ))}
         </ul>
@@ -177,21 +228,24 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
 
       {/* CMS Instructions */}
       {output.cmsInstructions?.length > 0 && (
-        <section>
-          <h2 className="font-semibold mb-3">Passos de implementação</h2>
+        <section className="border-b border-border pb-8 mb-8">
+          <h2 className="font-[family-name:var(--font-bebas)] text-[24px] mb-4">
+            Passos de Implementação
+          </h2>
           <ol className="space-y-3">
             {output.cmsInstructions.map((ins, i) => (
-              <li key={i} className="border rounded-lg overflow-hidden text-sm">
-                <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
+              // biome-ignore lint/suspicious/noArrayIndexKey: no stable id
+              <li key={i} className="border border-border overflow-hidden text-sm">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted border-b border-border">
                   <span className="font-medium">
                     {i + 1}. {ins.step}
                   </span>
-                  <span className="text-xs text-gray-400 bg-white border rounded px-2 py-0.5">
+                  <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.05em] text-muted-foreground">
                     {TOOL_LABEL[ins.tool] ?? ins.tool}
                   </span>
                 </div>
                 {ins.code && (
-                  <pre className="p-3 text-xs bg-gray-900 text-green-400 overflow-x-auto whitespace-pre-wrap">
+                  <pre className="p-3 text-xs bg-[#0d1117] text-[var(--brand-text)] overflow-x-auto whitespace-pre-wrap">
                     {ins.code.replace(/\\n/g, '\n').replace(/\\"/g, '"')}
                   </pre>
                 )}
@@ -202,9 +256,9 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
       )}
 
       {/* Downloads */}
-      <section>
-        <h2 className="font-semibold mb-3">Arquivos gerados</h2>
-        <div className="grid grid-cols-2 gap-3">
+      <section className="border-b border-border pb-8 mb-8">
+        <h2 className="font-[family-name:var(--font-bebas)] text-[24px] mb-4">Arquivos Gerados</h2>
+        <div className="grid grid-cols-2 gap-px border border-border">
           <DownloadCard
             title="llms.txt"
             description="Para ChatGPT, Claude, Perplexity"
@@ -233,18 +287,25 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Rewritten passages */}
       {output.rewrittenPassages?.length > 0 && (
-        <section>
-          <h2 className="font-semibold mb-3">Trechos otimizados para IA</h2>
-          <div className="space-y-4">
+        <section className="border-b border-border pb-8 mb-8">
+          <h2 className="font-[family-name:var(--font-bebas)] text-[24px] mb-4">
+            Trechos Otimizados para IA
+          </h2>
+          <div className="space-y-px border border-border">
             {output.rewrittenPassages.map((p, i) => (
-              <div key={i} className="border rounded-lg overflow-hidden text-sm">
-                <div className="bg-red-50 p-3 border-b">
-                  <p className="text-xs font-medium text-red-600 mb-1">Original</p>
-                  <p className="text-gray-700">{p.original}</p>
+              // biome-ignore lint/suspicious/noArrayIndexKey: no stable id
+              <div key={i} className="overflow-hidden text-sm">
+                <div className="bg-[var(--brand-danger-muted)] p-3 border-b border-border">
+                  <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--brand-danger)] mb-1">
+                    Original
+                  </p>
+                  <p className="text-foreground">{p.original}</p>
                 </div>
-                <div className="bg-green-50 p-3">
-                  <p className="text-xs font-medium text-green-600 mb-1">Otimizado para IA</p>
-                  <p className="text-gray-700">{p.optimized}</p>
+                <div className="bg-[var(--brand-success-muted)] p-3">
+                  <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--brand-success)] mb-1">
+                    Otimizado para IA
+                  </p>
+                  <p className="text-foreground">{p.optimized}</p>
                 </div>
               </div>
             ))}
@@ -255,17 +316,19 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
       {/* Pages crawled */}
       {output.pages?.length > 0 && (
         <section>
-          <h2 className="font-semibold mb-3">Páginas analisadas</h2>
-          <ul className="space-y-1">
-            {output.pages.map((p, i) => (
+          <h2 className="font-[family-name:var(--font-bebas)] text-[24px] mb-4">
+            Páginas Analisadas
+          </h2>
+          <ul>
+            {output.pages.map((p) => (
               <li
-                key={i}
-                className="flex items-center justify-between text-sm py-1.5 border-b last:border-0"
+                key={p.url}
+                className="flex items-center justify-between text-sm py-2 border-b border-border last:border-0"
               >
-                <span className="text-gray-600 truncate mr-4">
+                <span className="text-muted-foreground font-[family-name:var(--font-mono)] text-[11px] truncate mr-4">
                   {new URL(p.url).pathname || '/'}
                 </span>
-                <span className="text-xs text-gray-400 shrink-0 bg-gray-100 rounded px-2 py-0.5">
+                <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.05em] shrink-0 bg-muted text-muted-foreground border border-border px-2 py-0.5">
                   {PAGE_TYPE_LABEL[p.pageType] ?? p.pageType}
                 </span>
               </li>
@@ -281,19 +344,22 @@ function DownloadCard({
   title,
   description,
   onClick,
-}: {
-  title: string;
-  description: string;
-  onClick: () => void;
-}) {
+}: { title: string; description: string; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="border rounded-lg p-4 text-left hover:bg-gray-50 transition-colors"
+      className="p-4 text-left hover:bg-muted transition-colors w-full"
     >
-      <p className="font-medium text-sm">{title}</p>
-      <p className="text-xs text-gray-500 mt-1">{description}</p>
-      <p className="text-xs text-blue-600 mt-2">↓ Baixar</p>
+      <p className="font-[family-name:var(--font-bebas)] text-[18px] leading-none text-foreground">
+        {title}
+      </p>
+      <p className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground mt-1">
+        {description}
+      </p>
+      <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] mt-2">
+        ↓ BAIXAR
+      </p>
     </button>
   );
 }

@@ -10,3 +10,6 @@ dist/
 # AgentOps session artifacts
 .agents/
 .gstack/
+
+# Convex tooling sometimes creates a recursive self-symlink
+convex/convex

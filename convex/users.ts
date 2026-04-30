@@ -119,6 +119,15 @@ export const getMyCreditsBalance = queryGeneric({
   },
 });
 
+export const getMe = queryGeneric({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    return { email: identity.email ?? null };
+  },
+});
+
 export const getById = queryGeneric({
   args: { userId: v.string() },
   handler: async (ctx, args) => {

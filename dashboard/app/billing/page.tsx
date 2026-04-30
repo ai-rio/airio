@@ -3,7 +3,6 @@
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from 'airio-convex/_generated/api';
 import { useAction, useQuery } from 'convex/react';
-import { useConvexAuth } from 'convex/react';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
@@ -14,7 +13,6 @@ const PACKS = [
 ];
 
 export default function BillingPage() {
-  const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
   const success = searchParams.get('success') === '1';
   const [loading, setLoading] = useState<string | null>(null);
@@ -30,8 +28,6 @@ export default function BillingPage() {
       setLoading(null);
     }
   }
-
-  if (!isAuthenticated) return null;
 
   return (
     <main className="max-w-xl mx-auto py-16 px-4">

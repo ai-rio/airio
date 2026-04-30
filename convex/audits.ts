@@ -109,3 +109,19 @@ export const listBySite = queryGeneric({
       .take(args.limit ?? 12);
   },
 });
+
+export const latestBySite = queryGeneric({
+  args: { siteId: v.id('sites') },
+  handler: async (ctx, { siteId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const userId = identity.subject.split('|')[0];
+    const site = await anyDb(ctx).get(siteId);
+    if (!site || site.userId !== userId) return null;
+    return await anyDb(ctx)
+      .query('audits')
+      .withIndex('by_site', (q: any) => q.eq('siteId', siteId))
+      .order('desc')
+      .first();
+  },
+});

@@ -1,13 +1,14 @@
 'use client';
 
-import { PsosGauge } from '@/components/psos-gauge';
-import { PsosSparkline } from '@/components/psos-sparkline';
+import { TabNav } from '@/components/site/tab-nav';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { api } from 'airio-convex/_generated/api';
 import type { Id } from 'airio-convex/_generated/dataModel';
 import { useMutation, useQuery } from 'convex/react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -32,16 +33,6 @@ interface Audit {
   score: number | null;
   outputFiles: string | undefined;
   _creationTime: number;
-}
-
-interface VisibilityReport {
-  _id: Id<'visibilityReports'>;
-  psos: number;
-  ciLower: number;
-  ciUpper: number;
-  citationCount: number;
-  totalSamples: number;
-  generatedAt: number;
 }
 
 interface Finding {
@@ -153,79 +144,6 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-// ── PSOS section ──────────────────────────────────────────────────────────────
-
-function PsosSection({
-  siteId,
-  report,
-  history,
-  hasBasket,
-}: {
-  siteId: string;
-  report: VisibilityReport | null | undefined;
-  history: VisibilityReport[] | undefined;
-  hasBasket: boolean;
-}) {
-  const router = useRouter();
-
-  if (!hasBasket) {
-    return (
-      <div className="px-8 py-8 border-b border-border">
-        <p className="text-sm font-medium text-foreground mb-1">Visibilidade em IA</p>
-        <p className="text-xs text-muted-foreground mb-3">
-          Configure prompts para medir com que frequência sua marca aparece no Perplexity.
-        </p>
-        <button
-          type="button"
-          onClick={() => router.push(`/sites/${siteId}/prompts`)}
-          className="text-xs font-medium text-foreground border border-border bg-muted hover:bg-muted rounded px-3 py-1.5 transition-colors"
-        >
-          Configurar monitoramento →
-        </button>
-      </div>
-    );
-  }
-
-  if (!report) {
-    return (
-      <div className="px-8 py-8 border-b border-border">
-        <p className="text-sm font-medium text-foreground mb-1">Visibilidade em IA</p>
-        <p className="text-xs text-muted-foreground">Aguardando primeira medição semanal...</p>
-        <button
-          type="button"
-          onClick={() => router.push(`/sites/${siteId}/prompts`)}
-          className="mt-2 text-xs text-muted-foreground hover:text-muted-foreground transition-colors block"
-        >
-          Gerenciar prompts →
-        </button>
-      </div>
-    );
-  }
-
-  const orderedHistory = [...(history ?? [])].reverse();
-
-  return (
-    <div className="px-8 py-8 border-b border-border space-y-3">
-      <p className="text-sm font-medium text-foreground">Visibilidade em IA (PSOS)</p>
-      <PsosGauge
-        psos={report.psos}
-        ciLower={report.ciLower}
-        ciUpper={report.ciUpper}
-        citationCount={report.citationCount}
-        totalSamples={report.totalSamples}
-      />
-      <PsosSparkline reports={orderedHistory} />
-      <button
-        type="button"
-        onClick={() => router.push(`/sites/${siteId}/prompts`)}
-        className="text-xs text-muted-foreground hover:text-muted-foreground transition-colors"
-      >
-        Gerenciar prompts →
-      </button>
-    </div>
-  );
-}
-
 // ── Alert config section ──────────────────────────────────────────────────────
 
 function AlertConfigSection({ site, siteId }: { site: Site; siteId: string }) {
@@ -291,17 +209,8 @@ export default function SiteDetailPage() {
     siteId: siteId as Id<'sites'>,
     limit: 12,
   });
-  const latestReport = useQuery(api.visibilityReports.latestBySite, {
-    siteId: siteId as Id<'sites'>,
-  });
-  const reportHistory = useQuery(api.visibilityReports.listBySite, {
-    siteId: siteId as Id<'sites'>,
-    limit: 8,
-  });
-  const baskets = useQuery(api.promptBaskets.listBySite, {
-    siteId: siteId as Id<'sites'>,
-  });
   const createReport = useMutation(api.shareableReports.create);
+  const [tab, setTab] = useState<'auditoria' | 'visibilidade'>('auditoria');
 
   if (site === undefined || audits === undefined) {
     return (
@@ -399,94 +308,117 @@ export default function SiteDetailPage() {
         )}
       </div>
 
-      {/* ── Severity chips ── */}
-      {findings.length > 0 && (
-        <div className="px-8 py-4 border-b border-border flex gap-2 flex-wrap">
-          {chipOrder.map((sev) => {
-            const count = severityCounts[sev];
-            if (!count) return null;
-            return (
-              <span
-                key={sev}
-                className={cn(
-                  'font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2.5 py-1',
-                  SEVERITY_CHIP[sev]
-                )}
-              >
-                {count} {SEVERITY_CHIP_LABEL[sev]}
-                {count > 1 && sev !== 'medium' ? 'S' : ''}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Score history chart ── */}
-      {audits.length > 0 && (
-        <div className="px-8 py-8 border-b border-border">
-          <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] uppercase tracking-[0.15em] mb-4">
-            Histórico de scores
-          </p>
-          <ScoreChart audits={audits as Audit[]} />
-        </div>
-      )}
-
-      {/* ── Findings ── */}
-      {findings.length > 0 && (
-        <div className="px-8 py-8 border-b border-border">
-          <p className="font-[family-name:var(--font-bebas)] text-[24px] mb-5">
-            Problemas encontrados
-          </p>
-          {findings.map((f, i) => (
-            <div
-              // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
-              key={i}
-              className="flex gap-4 items-start py-4 border-b border-border last:border-b-0"
-            >
-              <span
-                className={cn(
-                  'font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2.5 py-1 shrink-0',
-                  SEVERITY_CHIP[f.severity] ?? SEVERITY_CHIP.low
-                )}
-              >
-                {SEVERITY_CHIP_LABEL[f.severity] ?? f.severity}
-              </span>
-              <div>
-                <p
-                  className={cn(
-                    'text-sm font-medium',
-                    SEVERITY_ROW[f.severity] ?? 'text-foreground'
-                  )}
-                >
-                  {f.type}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">{f.message}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── GEO visibility ── */}
-      <PsosSection
-        siteId={siteId}
-        report={latestReport ?? null}
-        history={reportHistory}
-        hasBasket={(baskets?.length ?? 0) > 0}
+      {/* ── Tabs ── */}
+      <TabNav
+        tabs={[
+          { id: 'auditoria', label: 'Auditoria' },
+          { id: 'visibilidade', label: 'Visibilidade IA' },
+        ]}
+        activeTab={tab}
+        onChange={(t) => setTab(t as 'auditoria' | 'visibilidade')}
       />
 
-      {/* ── Alert config ── */}
-      <AlertConfigSection site={site as Site} siteId={siteId} />
+      {/* ── Auditoria tab ── */}
+      {tab === 'auditoria' && (
+        <>
+          {/* Severity chips */}
+          {findings.length > 0 && (
+            <div className="px-8 py-4 border-b border-border flex gap-2 flex-wrap">
+              {chipOrder.map((sev) => {
+                const count = severityCounts[sev];
+                if (!count) return null;
+                return (
+                  <span
+                    key={sev}
+                    className={cn(
+                      'font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2.5 py-1',
+                      SEVERITY_CHIP[sev]
+                    )}
+                  >
+                    {count} {SEVERITY_CHIP_LABEL[sev]}
+                    {count > 1 && sev !== 'medium' ? 'S' : ''}
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
-      {/* ── Actions ── */}
-      {latestAudit && (
-        <div className="px-8 py-8 border-b border-border flex gap-4 flex-wrap">
-          <Button variant="default" onClick={() => router.push(`/audit/${latestAudit._id}`)}>
-            Ver auditoria completa →
-          </Button>
-          <Button variant="outline" onClick={handleShare}>
-            Compartilhar relatório
-          </Button>
+          {/* Score history chart */}
+          {audits.length > 0 && (
+            <div className="px-8 py-8 border-b border-border">
+              <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] uppercase tracking-[0.15em] mb-4">
+                Histórico de scores
+              </p>
+              <ScoreChart audits={audits as Audit[]} />
+            </div>
+          )}
+
+          {/* Findings */}
+          {findings.length > 0 && (
+            <div className="px-8 py-8 border-b border-border">
+              <p className="font-[family-name:var(--font-bebas)] text-[24px] mb-5">
+                Problemas encontrados
+              </p>
+              {findings.map((f, i) => (
+                <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
+                  key={i}
+                  className="flex gap-4 items-start py-4 border-b border-border last:border-b-0"
+                >
+                  <span
+                    className={cn(
+                      'font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] px-2.5 py-1 shrink-0',
+                      SEVERITY_CHIP[f.severity] ?? SEVERITY_CHIP.low
+                    )}
+                  >
+                    {SEVERITY_CHIP_LABEL[f.severity] ?? f.severity}
+                  </span>
+                  <div>
+                    <p
+                      className={cn(
+                        'text-sm font-medium',
+                        SEVERITY_ROW[f.severity] ?? 'text-foreground'
+                      )}
+                    >
+                      {f.type}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{f.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <AlertConfigSection site={site as Site} siteId={siteId} />
+
+          {/* Actions */}
+          {latestAudit && (
+            <div className="px-8 py-8 border-b border-border flex gap-4 flex-wrap">
+              <Button variant="default" onClick={() => router.push(`/audit/${latestAudit._id}`)}>
+                Ver auditoria completa →
+              </Button>
+              <Button variant="outline" onClick={handleShare}>
+                Compartilhar relatório
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Visibilidade tab ── */}
+      {tab === 'visibilidade' && (
+        <div className="px-8 py-8">
+          <p className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--brand-text)] uppercase tracking-[0.15em] mb-4">
+            VISIBILIDADE EM IA
+          </p>
+          <p className="font-sans text-muted-foreground text-[14px] mb-4">
+            Configure e acompanhe a presença da sua marca em buscas de IA.
+          </p>
+          <Link href={`/sites/${siteId}/monitoring`}>
+            <Button className="bg-[var(--brand)] text-[var(--brand-fg)] font-[family-name:var(--font-bebas)] text-[18px] h-12 px-8 hover:opacity-90 transition-opacity">
+              VER MONITORAMENTO →
+            </Button>
+          </Link>
         </div>
       )}
     </div>

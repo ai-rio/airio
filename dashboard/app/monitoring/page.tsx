@@ -1,11 +1,13 @@
 'use client';
 
+import { AddSiteModal } from '@/components/add-site-modal';
 import { PsosSparkline } from '@/components/psos-sparkline';
 import { STALE_THRESHOLD_MS } from '@/lib/monitoring-constants';
 import { api } from 'airio-convex/_generated/api';
 import type { Id } from 'airio-convex/_generated/dataModel';
 import { useQuery } from 'convex/react';
 import Link from 'next/link';
+import { useState } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,7 +32,7 @@ type VisibilityReport = {
 // EmptyStateMonitoring
 // ---------------------------------------------------------------------------
 
-function EmptyStateMonitoring() {
+function EmptyStateMonitoring({ onAddSite }: { onAddSite: () => void }) {
   return (
     <div className="px-8 py-16 border-b border-border">
       <p className="font-[family-name:var(--font-bebas)] text-[32px] text-muted-foreground">
@@ -39,12 +41,13 @@ function EmptyStateMonitoring() {
       <p className="font-sans text-muted-foreground text-[14px] mt-2">
         Ative o monitoramento em um site para ver a visibilidade em IA aqui.
       </p>
-      <Link
-        href="/"
-        className="mt-6 inline-flex items-center bg-[var(--brand)] text-[var(--brand-fg)] font-[family-name:var(--font-bebas)] text-[18px] h-12 px-8 hover:opacity-90 transition-opacity"
+      <button
+        type="button"
+        onClick={onAddSite}
+        className="mt-6 inline-flex items-center bg-[var(--brand)] text-[var(--brand-fg)] font-[family-name:var(--font-bebas)] text-[18px] h-12 px-8 hover:bg-[var(--brand-fg)] hover:text-[var(--brand)] transition-colors cursor-pointer"
       >
         ATIVAR MONITORAMENTO →
-      </Link>
+      </button>
     </div>
   );
 }
@@ -175,6 +178,7 @@ function MonitoringCard({ site }: { site: Site }) {
 
 export default function MonitoringPage() {
   const sites = useQuery(api.sites.listByUser);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const monitoredSites =
     sites !== undefined ? sites.filter((s: Site) => s.monitoringEnabled === true) : undefined;
@@ -211,7 +215,7 @@ export default function MonitoringPage() {
           </div>
         </div>
       ) : monitoredSites.length === 0 ? (
-        <EmptyStateMonitoring />
+        <EmptyStateMonitoring onAddSite={() => setModalOpen(true)} />
       ) : (
         <div className="px-8 py-8 border-b border-border">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-px border border-border">
@@ -221,6 +225,7 @@ export default function MonitoringPage() {
           </div>
         </div>
       )}
+      {modalOpen && <AddSiteModal onCloseAction={() => setModalOpen(false)} />}
     </div>
   );
 }

@@ -67,7 +67,7 @@ bun run lint
 ### Authentication
 - **Always** wrap API routes and server components with `ConvexAuthNextjsServerProvider`
 - **Always** wrap client components needing auth with `ConvexClientProvider`
-- Never access user data without verifying authentication state
+- **Never** add `if (!isAuthenticated) return null` guards in client components — middleware already protects all routes. Client-side `isAuthenticated` is false during Convex auth initialization (hydration), so these guards cause components to flash or never render even for authenticated users.
 
 ### Data Fetching
 - Use Convex reactive queries (`useQuery`, `useMutation`) for real-time updates

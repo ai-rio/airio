@@ -212,6 +212,128 @@ Use shadcn `Tooltip` or `title` attribute.
 5. DashboardNav shows 3 links, "Monitoramento" active on `/monitoring`
 6. Dashboard site cards show PSOS dot if monitoring enabled
 
+---
+
+## Phase 5 — Dashboard Layout Restructure (sidebar + proper app shell)
+
+**Context:** Dashboard currently renders an LP-style hero ("SUA PRESENÇA NO CHATGPT" at 120px Bebas) as the primary empty-state UI. Reference redesign: shadcn-admin pattern (left sidebar + sticky header + stats cards + content). Shadcn components already installed: `sidebar`, `sheet`, `tooltip`, `skeleton`, `avatar`, `use-mobile`.
+
+### 5A. Root layout — TooltipProvider
+**File:** `dashboard/app/layout.tsx`
+Wrap children with `<TooltipProvider>` (required by shadcn tooltips used in nav dropdown). No SidebarProvider needed — we're keeping top-nav.
+
+### 5B. DashboardNav restructure (not replacement)
+**File:** `dashboard/components/dashboard-nav.tsx`
+**Keep top navbar.** Restructure nav items and add avatar dropdown.
+
+**Primary nav links (left):**
+- Dashboard → `/`
+- Auditar Site → `/audit/new`
+- Monitoramento → `/monitoring`
+- Histórico → `/audits` (audit history — cross-site list; see 5H)
+
+**Remove from primary nav:** Faturamento (moves to avatar dropdown).
+
+**Right side:** Avatar dropdown (see 5C). Replace current static avatar/logout with proper dropdown.
+
+### 5C. Avatar dropdown in DashboardNav
+**Within** `dashboard/components/dashboard-nav.tsx` (or extracted to `nav-user.tsx` if file grows).
+Uses existing `<DropdownMenu>` (already installed). Query `api.users.getMe` (already exists).
+
+**Avatar:** `<Avatar>` with user initials fallback (first letter of email). Loading: `<Skeleton className="w-8 h-8" />`.
+
+**Dropdown items:**
+- User email (non-clickable, muted label at top)
+- separator
+- Faturamento → `/billing` (icon: CreditCard)
+- separator
+- Sair → `useAuthActions().signOut()` (icon: LogOut)
+
+**Design tokens:** `<DropdownMenu>` inherits zero radius globally. Avatar: `w-8 h-8 border border-border`.
+
+### 5D. Main dashboard page — conditional hero/app layout
+**File:** `dashboard/app/_page-client.tsx`
+
+**Conditional on `sites.length`:**
+
+**Zero sites state** (`sites.length === 0`): Keep existing hero section. Clean it up:
+- Keep "SEUS SITES. SUA PRESENÇA NO CHATGPT." headline + brand copy
+- Keep ticker strip (it belongs on the dashboard as brand signal for new users)
+- Keep "ADICIONAR SITE →" CTA
+- Keep "AUDITAR SITE →" secondary CTA
+- Remove: the `EmptyStateDashboard` section with "SITES MONITORADOS" header below hero (redundant; the hero IS the empty state)
+
+**1+ sites state** (`sites.length > 0`): Replace hero with:
+
+**Compact page header:**
+```
+px-8 py-4 border-b border-border flex items-center justify-between
+Left: "DASHBOARD" (font-bebas text-[28px] leading-none)
+Right: "+ ADICIONAR SITE →" (primary button, h-9 px-6)
+```
+
+**Stats row** (4 cells, `grid grid-cols-2 lg:grid-cols-4 border-b border-border`):
+```
+| SITES | MÉDIA AEO | MÉDIA PSOS | ALERTAS |
+| 3     | 72        | 45%        | 2       |
+```
+Each cell: `px-8 py-5 border-r border-border last:border-r-0`.
+Label: `font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground uppercase tracking-[0.15em] mb-1`.
+Value: `font-[family-name:var(--font-bebas)] text-[40px] leading-none`.
+At 0 sites (impossible in this branch): all show `—`.
+
+**Data sources for stats:**
+- Sites count: `sites.length`
+- Média AEO: avg of `latestAudit.score` per site (requires 5G)
+- Média PSOS: avg of `latestReport.psos` per site (`api.visibilityReports.latestBySite`)
+- Alertas ativos: count of sites where `previousReport.psos - latestReport.psos > threshold`
+
+**Site rows** (replaces SiteCard grid):
+```
+border border-border (table wrapper)
+Each row: grid grid-cols-[1fr_auto_auto_auto_auto] gap-6 px-8 py-4 border-b border-border hover:bg-muted/50
+```
+Columns:
+1. Site name (font-sans font-medium) + URL (font-mono text-[11px] text-muted-foreground)
+2. AEO: Bebas 32px score + `<PsosChangeBadge>` (reuse existing pattern)
+3. PSOS: Bebas 32px % + `<PsosSparkline>` (64px wide) — `—` if monitoring disabled
+4. Alert count badge (if > 0: `bg-[var(--brand-danger)] text-white font-mono text-[10px] px-1.5`)
+5. "GERENCIAR →" link (mono 11px brand-text)
+
+### 5E. Add `audits.latestBySite` Convex query (prerequisite for 5D stats)
+**File:** `convex/audits.ts` (add new query)
+Required for "Média AEO" stat. Check if `by_siteId` index exists first.
+```ts
+export const latestBySite = queryGeneric({
+  args: { siteId: v.id('sites') },
+  handler: async (ctx, { siteId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const userId = identity.subject.split('|')[0];
+    const site = await anyDb(ctx).get(siteId);
+    if (!site || site.userId !== userId) return null;
+    return await anyDb(ctx).query('audits')
+      .withIndex('by_site', q => q.eq('siteId', siteId))
+      .order('desc').first();
+  },
+});
+```
+
+### 5H. Audit history page (new route, low scope)
+**File:** `dashboard/app/audits/page.tsx` (new)
+Cross-site audit list. Simple table: site name | date | AEO score | status | "Ver →" link.
+Data: `api.audits.listByUser` — check if this query exists; if not, add alongside 5E.
+Nav link added in 5B: "Histórico → /audits".
+
+### Implementation order (safe sequence)
+1. **5E** — add `audits.latestBySite` (+ `listByUser` if needed for 5H) to Convex
+2. **5A** — layout.tsx: TooltipProvider wrap
+3. **5B + 5C** — DashboardNav restructure + avatar dropdown (self-contained; no layout change)
+4. **5D** — dashboard conditional hero/stats/rows (depends on 5E)
+5. **5H** — audit history page (independent, can ship after 5B)
+
+---
+
 ## NOT in Scope (this branch)
 - Upgrade/paywall gating UI (canEnableMonitoring check) — defer (no subscription product)
 - Multi-engine monitoring toggle — defer (basket engine field needs schema expansion)
@@ -270,6 +392,13 @@ Use shadcn `Tooltip` or `title` attribute.
 | 32 | Eng | useCountUp progressive enhancement clarified | Mechanical | P5 | Phase 1 uses plain display; Phase 3D wraps — no import dependency | — |
 | 33 | Eng | Cross-model: client-side monitoringEnabled filter → NOT IN SCOPE | Mechanical | P3 pragmatic | Both voices flag; acceptable at current scale; server-side index deferred | — |
 | 34 | Final Gate | Phase 3D + 4A + 4B USER CHALLENGE → KEPT | Taste | User | User: polish supports conversion for unvalidated product tier | Cut |
+| 35 | P5 CEO | audits.latestBySite missing → add as 5G prerequisite | Mechanical | P5 | Stats row "Média AEO" has no data source without this query | Skip stats |
+| 36 | P5 CEO | 5D + 5F must ship atomically | Mechanical | P5 | Dual nav render is broken state; can't be split across commits | — |
+| 37 | P5 CEO | Split 5 into: 5G → 5A → 5B+5C+5D+5F → 5E | Mechanical | P3 | Reduces risk of shipping broken shell; each step is verifiable | One big PR |
+| 38 | P5 CEO | Stats row at 0 sites → show zeros with labels, no hide | Mechanical | P5 | Empty shell worse than zeros with labels for new users | Hide section |
+| 39 | P5 Final | USER CHALLENGE: sidebar → TOP-NAV | User | User | User chose top-nav, Faturamento under avatar, add audit history nav | Sidebar |
+| 40 | P5 Final | USER CHALLENGE: hero → KEEP for zero-sites | User | User | Hero stays when sites.length === 0; stats+table when sites > 0 | Remove entirely |
+| 41 | P5 Final | Add Histórico /audits route to nav | Mechanical | P1 | User requested audit history nav item; low scope | — |
 
 ---
 
@@ -285,3 +414,8 @@ Use shadcn `Tooltip` or `title` attribute.
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
 **VERDICT:** CEO + ENG + DESIGN CLEARED — all phases in scope. Ready to implement.
+
+---
+<!-- PHASE 5 REVIEW — autoplan 2026-04-29 -->
+| Phase 5 CEO | dual-voice | Strategy | 1 | ISSUES | 2 user challenges, 4 mechanical fixes |
+| Phase 5 Eng | subagent | Architecture | 1 | CLEAR | 2 hard blockers fixed in plan |

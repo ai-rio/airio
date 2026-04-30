@@ -1,4 +1,5 @@
 import { DashboardNav } from '@/components/dashboard-nav';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ConvexAuthNextjsServerProvider } from '@convex-dev/auth/nextjs/server';
 import type { Metadata } from 'next';
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body>
           <ConvexClientProvider>
             <DashboardNav />
-            {children}
+            <TooltipProvider>{children}</TooltipProvider>
           </ConvexClientProvider>
         </body>
       </html>

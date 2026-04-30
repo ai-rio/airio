@@ -77,6 +77,7 @@ export default defineSchema({
     engine: v.union(v.literal('perplexity')),
     runsPerPrompt: v.number(),
     enabled: v.boolean(),
+    competitors: v.optional(v.array(v.string())), // competitor brand names to track
     createdAt: v.number(),
   }).index('by_site', ['siteId']),
 
@@ -89,6 +90,8 @@ export default defineSchema({
     brandDetected: v.boolean(),
     responseSnippet: v.string(),
     sampledAt: v.number(),
+    citationPosition: v.optional(v.number()), // 0 = not cited, 1+ = sentence rank of first brand mention
+    brandName: v.optional(v.string()), // undefined = own brand, set = competitor brand name
   })
     .index('by_site_and_sampled_at', ['siteId', 'sampledAt'])
     .index('by_basket', ['basketId']),
@@ -104,6 +107,7 @@ export default defineSchema({
     citationCount: v.number(),
     windowDays: v.number(),
     generatedAt: v.number(),
+    avgPosition: v.optional(v.number()), // average citation position across cited samples only
   })
     .index('by_site', ['siteId'])
     .index('by_site_and_generated_at', ['siteId', 'generatedAt'])

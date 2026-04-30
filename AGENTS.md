@@ -118,3 +118,22 @@ For detailed, domain-specific rules, see the files in `.agents/rules/`:
 - `.agents/rules/observability.md` - Logging, monitoring, and alerting requirements
 
 You need to mention the location of these files in claude.md so Claude knows they exist. For example, if you want Claude to follow certain specific instructions when writing APIs, you can add those in a rule file for them so that when Claude is working on them, it can load those instructions and use them directly.
+
+<claude-mem-context>
+# Memory Context
+
+# [airio] recent context, 2026-04-29 5:18pm GMT-3
+
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 3 obs (1,577t read) | 32,319t work | 95% savings
+
+### Apr 29, 2026
+3508 8:02a 🔵 airio Dashboard PLAN.md — Independent UI/UX Design Review: Critical Findings
+3510 8:04a 🔵 airio PLAN.md — Full Content Confirmed: 195 Lines, Phase Structure + Decision Audit Trail
+3582 12:07p 🔵 CEO Review Session — Backend Schema + API Surface Confirmed
+
+Access 32k tokens of past work via get_observations([IDs]) or mem-search skill.
+</claude-mem-context>

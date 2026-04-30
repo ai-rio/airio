@@ -1,5 +1,5 @@
 {
-  "name": "airio",
+  "name": "tagsmith",
   "private": true,
   "workspaces": ["site", "dashboard", "convex"],
   "scripts": {

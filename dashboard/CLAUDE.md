@@ -1,6 +1,6 @@
-# Dashboard - Airio App (seo.ai.rio.br)
+# Dashboard - Tagsmith App
 
-This is the Next.js 15 application for the Airio dashboard, accessible at seo.ai.rio.br.
+Next.js 15 dashboard for Tagsmith. Domain configured via `NEXT_PUBLIC_DASHBOARD_URL` env (no hardcoded host).
 
 ## Purpose
 - User authentication and session management (via @convex-dev/auth + Resend)

@@ -1,5 +1,5 @@
 {
-  "name": "airio-site",
+  "name": "tagsmith-site",
   "private": true,
   "scripts": {
     "dev": "next dev --port 3003",

@@ -1,6 +1,6 @@
-# Airio - AI-Powered SEO Audit Tool
+# Tagsmith - SEO Toolkit (Schema + OG + AEO Citation Tracker)
 
-This project uses [Convex](https://convex.dev) as its backend for AI-powered SEO audits where users submit URLs to get audit scores and AI-generated fixes.
+Three URL-paste utilities sharing one account: Schema Markup Generator (lead), OG Image Generator, AEO Citation Tracker. Pivoted from `airio` codebase (Convex + Next.js + Dodo Payments). Folder name `airio` is a legacy artifact — brand is Tagsmith. Pivot plan: `docs/tiiny-research/_pivot-plan.md`. PRD: `docs/tiiny-research/_prd-tagsmith.md`.
 
 ## Token Optimization
 

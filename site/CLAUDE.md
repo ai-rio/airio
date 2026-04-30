@@ -1,6 +1,6 @@
-# Site - Airio Marketing Landing Page (ai.rio.br)
+# Site - Tagsmith Marketing Landing Page
 
-This is the Next.js 15 application for the Airio marketing landing page, accessible at ai.rio.br.
+Next.js 15 marketing site for Tagsmith. Domain configured via `TAGSMITH_BASE_URL` env (no hardcoded host).
 
 ## Purpose
 - Present Airio's value proposition: AI-powered SEO audits for AI search visibility

@@ -1,6 +1,6 @@
-# Convex - Airio Backend
+# Convex - Tagsmith Backend
 
-This directory contains the Convex backend for Airio, providing the database, authentication, serverless functions (actions, mutations, queries), billing integrations, and scheduled jobs.
+Convex backend for Tagsmith: database, auth, serverless functions (actions, mutations, queries), billing, scheduled jobs. Internal symlink alias `airio-convex` retained as legacy import path.
 
 ## Purpose
 - Store and manage data: users, audits, sites, credits, etc.

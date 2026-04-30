@@ -64,7 +64,7 @@ export default function SignInPage() {
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           Ao entrar, você concorda com nossos{' '}
-          <a href="https://ai.rio.br/termos" className="underline">
+          <a href={`${process.env.NEXT_PUBLIC_TAGSMITH_BASE_URL ?? 'https://ai.rio.br'}/termos`} className="underline">
             Termos de Uso
           </a>
           .

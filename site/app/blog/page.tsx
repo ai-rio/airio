@@ -5,7 +5,7 @@ import { blog } from '@/lib/source'
 export const metadata: Metadata = {
   title: 'Blog — AEO, IA e visibilidade digital | AIRio',
   description: 'Guias sobre AEO, otimização para ChatGPT, Gemini e Perplexity, e como aparecer nas respostas de IA.',
-  alternates: { canonical: 'https://ai.rio.br/blog' },
+  alternates: { canonical: `${process.env.TAGSMITH_BASE_URL ?? 'https://ai.rio.br'}/blog` },
 }
 
 export default function BlogIndexPage() {

@@ -7,10 +7,12 @@ async function sendEmail(apiKey: string, to: string, subject: string, html: stri
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: 'airio <alertas@ai.rio.br>', to, subject, html }),
+    body: JSON.stringify({ from: process.env.ALERT_EMAIL_FROM ?? 'airio <alertas@ai.rio.br>', to, subject, html }),
   });
   if (!res.ok) console.error('Resend error:', await res.text());
 }
+
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://seo.ai.rio.br';
 
 export const checkAndSendAlerts = actionGeneric({
   args: { siteId: v.string(), auditId: v.string() },
@@ -34,7 +36,7 @@ export const checkAndSendAlerts = actionGeneric({
     const user = (await ctx.runQuery(anyApi.users.getById, { userId: site.userId })) as any;
     if (!user?.email) return;
 
-    const detailUrl = `https://seo.ai.rio.br/sites/${siteId}`;
+    const detailUrl = `${DASHBOARD_URL}/sites/${siteId}`;
 
     if (
       typeof current.score === 'number' &&
@@ -113,7 +115,7 @@ export const checkAndSendPsosAlert = internalActionGeneric({
     if (!user?.email) return;
 
     const pct = (val: number) => `${Math.round(val * 100)}%`;
-    const detailUrl = `https://seo.ai.rio.br/sites/${siteId}`;
+    const detailUrl = `${DASHBOARD_URL}/sites/${siteId}`;
 
     await sendEmail(
       resendKey,

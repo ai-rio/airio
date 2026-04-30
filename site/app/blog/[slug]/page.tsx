@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${page.data.title} | AIRio Blog`,
     description: page.data.description,
-    alternates: { canonical: `https://ai.rio.br/blog/${slug}` },
+    alternates: { canonical: `${process.env.TAGSMITH_BASE_URL ?? 'https://ai.rio.br'}/blog/${slug}` },
     openGraph: {
       title: page.data.title,
       description: page.data.description,

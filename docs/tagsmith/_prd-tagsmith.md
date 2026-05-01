@@ -31,7 +31,7 @@ All three tools complete their job in under 30 seconds without configuration:
 
 - **Schema Markup Generator (lead)** — Paste any URL → static-first parser (cheerio: existing JSON-LD, microdata, OG/Twitter meta, semantic HTML) emits JSON-LD for the 10 highest-value schema types (Article, Product, FAQ, LocalBusiness, Recipe, Event, Review, HowTo, Organization, Person). Anthropic Haiku fallback only for ambiguous entities. Includes validator against schema.org spec + Google Rich Results heuristic. SERP incumbents are form-fill tools (TechnicalSEO, RankRanger, Attrock); URL-paste + AI auto-detect + free CLI = clear UX wedge.
 - **OG Image Generator (companion)** — Paste any URL → tool extracts title/description/site-name → renders branded OG image via 3 starter templates. Pro tier unlocks custom font, color, logo, A/B variant endpoint. Positioning: included in toolkit so non-dev marketers don't pay Pictify ($39/mo API engine) or wire Vercel OG. Not a standalone OG product.
-- **AEO Citation Tracker (moat)** — Enter your brand + 3-5 prompts → tool checks ChatGPT / Claude / Perplexity weekly to see whether your brand appears in their answers. Alerts on first appearance and disappearance. Reuses existing airio PSOS pipeline; renamed and repositioned for Tagsmith bundle. Zero direct competitors at indie price; highest CPC in scoreboard (R$50.84). Promoted to homepage secondary hero slot to claim category before incumbents emerge.
+- **AEO Citation Tracker (moat)** — Paste URL + brand → tool auto-generates 3-5 specialized prompts from category/content (no user prompt authoring) → checks Gemini / ChatGPT / Claude / Perplexity to see whether your brand appears in their answers. Alerts on first appearance, disappearance, and position deltas. Reuses existing airio PSOS pipeline; renamed and repositioned for Tagsmith bundle. Zero direct competitors at indie price; highest CPC in scoreboard (R$50.84). Promoted to homepage secondary hero slot to claim category before incumbents emerge.
 
 ### Impact
 
@@ -292,10 +292,10 @@ Tagsmith pivots from existing `airio` codebase (Convex + Next.js + Dodo Payments
 
 (Already built in airio; rename only — no new code.)
 
-- **Free tier**: enter brand → check 3 prompts in 1 LLM (ChatGPT or Claude) — 1 check/week
-- **Pro tier**: unlimited prompts × 3 LLMs (ChatGPT, Claude, Perplexity), weekly tracking, alerts on first appearance/disappearance, 5-site monitor (shared with Schema)
+- **Free tier**: paste URL + brand → tool auto-generates 3 prompts → checks Gemini + ChatGPT — 1 check/week
+- **Pro tier**: auto-generates up to 10 prompts × 4 LLMs (Gemini, ChatGPT, Claude, Perplexity), daily tracking, alerts on first appearance/disappearance + position deltas, 5-site monitor (shared with Schema)
 - **Agency tier**: 50-site monitor, competitor benchmarking, white-label, API endpoint
-- **Acceptance**: Pro user can add a brand + 5 prompts → daily LLM check runs → email alert when brand citation status changes
+- **Acceptance**: Pro user can add a brand + URL → tool auto-generates prompts → daily 4-engine check runs → email alert when brand citation status or position changes
 
 ### Out of scope (still v1)
 

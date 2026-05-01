@@ -1,0 +1,172 @@
+/* Tagsmith design tokens v1
+ * Source of truth: _design-system.md
+ * Drop into apps/airio/site/app/globals.css and apps/airio/dashboard/app/globals.css
+ */
+
+:root {
+  /* Color — surfaces */
+  --bg: #FAF7F2;
+  --surface: #FFFFFF;
+  --surface-2: #F1ECE3;
+
+  /* Color — text */
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+
+  /* Color — borders */
+  --border: #E2E8F0;
+  --border-strong: #0F172A;
+
+  /* Color — accent (ember) — primary CTA, links, focus */
+  --accent: #EA580C;
+  --accent-hover: #C2410C;
+  --accent-soft: #FFEDD5;
+
+  /* Color — accent-2 (sky) — data viz, charts, info, secondary surfaces */
+  --accent-2: #80DBFF;
+  --accent-2-soft: #CAF0FF;
+  --accent-2-deep: #0693E3;
+
+  /* Color — status */
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --info: #0693E3;
+
+  /* Color — code (dark slot in light theme) */
+  --code-bg: #0F172A;
+  --code-text: #E2E8F0;
+  --code-key: #A3E635;
+  --code-string: #FCD34D;
+  --code-comment: #64748B;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* Radius */
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-full: 9999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.06), 0 1px 2px rgb(15 23 42 / 0.04);
+  --shadow-lg: 0 12px 28px rgb(15 23 42 / 0.08), 0 2px 6px rgb(15 23 42 / 0.04);
+  --shadow-pop: 0 0 0 4px rgb(234 88 12 / 0.18);
+
+  /* Typography */
+  --font-display: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-body: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+
+  --fs-display-xl: 64px;
+  --fs-display-l: 44px;
+  --fs-h1: 32px;
+  --fs-h2: 24px;
+  --fs-h3: 20px;
+  --fs-body: 16px;
+  --fs-small: 14px;
+  --fs-caption: 12px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.05;
+  --lh-snug: 1.2;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.6;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.06em;
+
+  /* Motion */
+  --t-micro: 120ms;
+  --t-component: 200ms;
+  --t-page: 280ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --container-marketing: 1200px;
+  --container-dashboard: 1440px;
+  --gutter-mobile: 24px;
+  --gutter-desktop: 48px;
+}
+
+/* Base resets */
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Typography utility classes */
+.t-display-xl {
+  font-size: var(--fs-display-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.t-display-l {
+  font-size: var(--fs-display-l);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-tight);
+}
+.t-h1 { font-size: var(--fs-h1); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+.t-h2 { font-size: var(--fs-h2); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+.t-h3 { font-size: var(--fs-h3); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+.t-body { font-size: var(--fs-body); line-height: var(--lh-relaxed); }
+.t-small { font-size: var(--fs-small); line-height: var(--lh-normal); }
+.t-caption {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-normal);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  line-height: var(--lh-relaxed);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus ring (default for any focusable element) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-pop);
+  border-radius: var(--r-sm);
+}

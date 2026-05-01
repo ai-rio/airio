@@ -1,6 +1,6 @@
 # Tagsmith - SEO Toolkit (Schema + OG + AEO Citation Tracker)
 
-Three URL-paste utilities sharing one account: Schema Markup Generator (lead), OG Image Generator, AEO Citation Tracker. Pivoted from `airio` codebase (Convex + Next.js + Dodo Payments). Folder name `airio` is a legacy artifact — brand is Tagsmith. Pivot plan: `docs/tiiny-research/_pivot-plan.md`. PRD: `docs/tiiny-research/_prd-tagsmith.md`.
+Three URL-paste utilities sharing one account: Schema Markup Generator (lead), OG Image Generator, AEO Citation Tracker. Pivoted from `airio` codebase (Convex + Next.js + Dodo Payments). Folder name `airio` is a legacy artifact — brand is Tagsmith. Pivot plan: `docs/tagsmith/_pivot-plan.md`. PRD: `docs/tagsmith/_prd-tagsmith.md`.
 
 ## Token Optimization
 

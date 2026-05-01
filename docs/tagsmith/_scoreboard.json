@@ -1,0 +1,1104 @@
+[
+  {
+    "key": "converter",
+    "label": "9. HEIC → JPG Converter",
+    "total_keywords": 2765,
+    "total_volume": 12061200,
+    "en_volume": 10432350,
+    "pt_volume": 1628850,
+    "competition": {
+      "low": 2364,
+      "med": 301,
+      "high": 28
+    },
+    "avg_cpc_high": 5.11,
+    "avg_cpc_low": 0.95,
+    "top_en": [
+      {
+        "kw": "heic to jpg",
+        "vol": 5000000,
+        "comp": "Baixo",
+        "cpc_high": 0.36
+      },
+      {
+        "kw": "heic to png",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 0.4
+      },
+      {
+        "kw": "convert heic to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "convert heci to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "convert hei to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "convert heic format to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "convert hif to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "convert to heic to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "konvertor heic to jpg",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.63
+      },
+      {
+        "kw": "heic to jpeg",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 0.41
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "heic to jpg converter",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.05
+      },
+      {
+        "kw": "heic jpg converter",
+        "vol": 500000,
+        "comp": "Baixo",
+        "cpc_high": 1.05
+      },
+      {
+        "kw": "imazing heic converter",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 2.54
+      },
+      {
+        "kw": "heic converter",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 1.03
+      },
+      {
+        "kw": "heic to jpg converter free",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 1.84
+      },
+      {
+        "kw": "online heic to jpg converter",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 1.03
+      },
+      {
+        "kw": "heic converter+",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 1.03
+      },
+      {
+        "kw": "heic to jpg converter freeware",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 1.84
+      },
+      {
+        "kw": "converter heic para jpg",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 0.59
+      },
+      {
+        "kw": "heic para jpg",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 0.5
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-29 at 23_56_23.csv",
+      "Keyword Stats 2026-04-29 at 23_49_51.csv"
+    ],
+    "score": 88
+  },
+  {
+    "key": "markup-generator",
+    "label": "5. Schema Markup Generator",
+    "total_keywords": 147,
+    "total_volume": 239050,
+    "en_volume": 238950,
+    "pt_volume": 100,
+    "competition": {
+      "low": 140,
+      "med": 1,
+      "high": 0
+    },
+    "avg_cpc_high": 42.57,
+    "avg_cpc_low": 5.95,
+    "top_en": [
+      {
+        "kw": "schema markup generator",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 45.98
+      },
+      {
+        "kw": "schema markup validator",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 40.05
+      },
+      {
+        "kw": "schema markup validation",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 40.05
+      },
+      {
+        "kw": "schema organization generator",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 20.04
+      },
+      {
+        "kw": "faq schema generator",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 39.02
+      },
+      {
+        "kw": "google schema validator",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 13.98
+      },
+      {
+        "kw": "schema org validator",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 17.53
+      },
+      {
+        "kw": "json ld generator",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 25.68
+      },
+      {
+        "kw": "structured data generator",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 64.92
+      },
+      {
+        "kw": "product schema generator",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "how to do schema markup in wordpress",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "video schema markup generator",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-29 at 23_43_32.csv"
+    ],
+    "score": 76
+  },
+  {
+    "key": "resume-portfolio",
+    "label": "3. Hosted Resume / Portfolio",
+    "total_keywords": 4016,
+    "total_volume": 20908050,
+    "en_volume": 19643000,
+    "pt_volume": 1265050,
+    "competition": {
+      "low": 884,
+      "med": 1551,
+      "high": 1314
+    },
+    "avg_cpc_high": 12.15,
+    "avg_cpc_low": 1.42,
+    "top_en": [
+      {
+        "kw": "free online resume builder",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 36.56
+      },
+      {
+        "kw": "cv maker",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 14.64
+      },
+      {
+        "kw": "free resume builder",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 36.56
+      },
+      {
+        "kw": "cv maker free",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 9.21
+      },
+      {
+        "kw": "resume maker free",
+        "vol": 500000,
+        "comp": "Médio",
+        "cpc_high": 3.92
+      },
+      {
+        "kw": "cv builder free",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 11.22
+      },
+      {
+        "kw": "cv creator free",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 11.22
+      },
+      {
+        "kw": "cv maker online free",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 11.22
+      },
+      {
+        "kw": "resume generator free",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 36.56
+      },
+      {
+        "kw": "cv generator free",
+        "vol": 500000,
+        "comp": "Alto",
+        "cpc_high": 11.22
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "curriculo gratis",
+        "vol": 50000,
+        "comp": "Alto",
+        "cpc_high": 3.43
+      },
+      {
+        "kw": "currículo online",
+        "vol": 50000,
+        "comp": "Alto",
+        "cpc_high": 3.3
+      },
+      {
+        "kw": "fazer curriculo gratis",
+        "vol": 50000,
+        "comp": "Alto",
+        "cpc_high": 3.49
+      },
+      {
+        "kw": "criar curriculo gratis",
+        "vol": 50000,
+        "comp": "Alto",
+        "cpc_high": 3.31
+      },
+      {
+        "kw": "fazer currículo online",
+        "vol": 50000,
+        "comp": "Médio",
+        "cpc_high": 3.1
+      },
+      {
+        "kw": "currículo online grátis",
+        "vol": 50000,
+        "comp": "Alto",
+        "cpc_high": 3.11
+      },
+      {
+        "kw": "fazer um currículo online",
+        "vol": 50000,
+        "comp": "Médio",
+        "cpc_high": 3.1
+      },
+      {
+        "kw": "curriculo online fazer",
+        "vol": 50000,
+        "comp": "Médio",
+        "cpc_high": 3.1
+      },
+      {
+        "kw": "fazer um curriculo gratis",
+        "vol": 50000,
+        "comp": "Alto",
+        "cpc_high": 3.49
+      },
+      {
+        "kw": "currículo fazer online",
+        "vol": 50000,
+        "comp": "Médio",
+        "cpc_high": 3.1
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-30 at 00_01_42.csv",
+      "Keyword Stats 2026-04-29 at 23_40_16.csv"
+    ],
+    "score": 76
+  },
+  {
+    "key": "yt-summary",
+    "label": "1. YouTube → Summary / Notes",
+    "total_keywords": 113,
+    "total_volume": 537700,
+    "en_volume": 184300,
+    "pt_volume": 353400,
+    "competition": {
+      "low": 66,
+      "med": 33,
+      "high": 1
+    },
+    "avg_cpc_high": 18.08,
+    "avg_cpc_low": 0.74,
+    "top_en": [
+      {
+        "kw": "youtube summarizer",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 4.57
+      },
+      {
+        "kw": "summarize youtube videos",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 6.74
+      },
+      {
+        "kw": "summarize youtube",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 4.57
+      },
+      {
+        "kw": "youtube transcript ai",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 7.0
+      },
+      {
+        "kw": "ai that summarizes youtube videos",
+        "vol": 5000,
+        "comp": "Médio",
+        "cpc_high": 10.02
+      },
+      {
+        "kw": "ai to summarize youtube videos",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 8.49
+      },
+      {
+        "kw": "youtube summary ai",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 6.9
+      },
+      {
+        "kw": "ai youtube summarizer",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 4.28
+      },
+      {
+        "kw": "youtube ai summary",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 6.26
+      },
+      {
+        "kw": "ai that summarizes videos",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 12.99
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "summarize youtube video",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 6.74
+      },
+      {
+        "kw": "youtube video summarizer",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 6.33
+      },
+      {
+        "kw": "video summarizer ai",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 7.44
+      },
+      {
+        "kw": "ai video summarizer",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 10.12
+      },
+      {
+        "kw": "transcrever video youtube",
+        "vol": 50000,
+        "comp": "Médio",
+        "cpc_high": 1.62
+      },
+      {
+        "kw": "ai video summary",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 8.79
+      },
+      {
+        "kw": "video summary ai",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 10.02
+      },
+      {
+        "kw": "ai summarize youtube video",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 7.62
+      },
+      {
+        "kw": "summarize youtube video ai",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 7.98
+      },
+      {
+        "kw": "ai youtube video summarizer",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 10.02
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-30 at 00_03_26.csv",
+      "Keyword Stats 2026-04-29 at 23_35_52.csv"
+    ],
+    "score": 71
+  },
+  {
+    "key": "og-image",
+    "label": "2. OG Image Generator",
+    "total_keywords": 60,
+    "total_volume": 129750,
+    "en_volume": 129750,
+    "pt_volume": 0,
+    "competition": {
+      "low": 54,
+      "med": 1,
+      "high": 0
+    },
+    "avg_cpc_high": 42.25,
+    "avg_cpc_low": 4.12,
+    "top_en": [
+      {
+        "kw": "open graph image",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 23.6
+      },
+      {
+        "kw": "og image",
+        "vol": 50000,
+        "comp": "Baixo",
+        "cpc_high": 23.6
+      },
+      {
+        "kw": "og image generator",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 12.49
+      },
+      {
+        "kw": "og image checker",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 46.95
+      },
+      {
+        "kw": "og image tester",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 21.87
+      },
+      {
+        "kw": "open graph preview",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 66.12
+      },
+      {
+        "kw": "twitter card generator",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "create open graph image",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "facebook og debugger",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 179.55
+      },
+      {
+        "kw": "facebook og image",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 66.12
+      }
+    ],
+    "top_pt": [],
+    "files": [
+      "Keyword Stats 2026-04-29 at 23_38_46.csv"
+    ],
+    "score": 68
+  },
+  {
+    "key": "price-tracker",
+    "label": "4. BR Ecom Price Tracker",
+    "total_keywords": 191,
+    "total_volume": 38500,
+    "en_volume": 27350,
+    "pt_volume": 11150,
+    "competition": {
+      "low": 57,
+      "med": 27,
+      "high": 75
+    },
+    "avg_cpc_high": 10.83,
+    "avg_cpc_low": 2.02,
+    "top_en": [
+      {
+        "kw": "camelcamelcamel alternative",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 16.82
+      },
+      {
+        "kw": "price drop notification",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 14.28
+      },
+      {
+        "kw": "amazon price alert",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 19.42
+      },
+      {
+        "kw": "black friday price tracker",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "price tracker chrome extension",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 37.64
+      },
+      {
+        "kw": "amazon price tracker chrome",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "chrome extension price tracker",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 37.64
+      },
+      {
+        "kw": "amazon price tracker api",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 28.53
+      },
+      {
+        "kw": "price tracker extension chrome",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 37.64
+      },
+      {
+        "kw": "amazon price tracker chrome extension",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 23.58
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "rastreador de precos",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 1.08
+      },
+      {
+        "kw": "rastreador de carros preço",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 5.21
+      },
+      {
+        "kw": "rastreador veicular preço",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 5.19
+      },
+      {
+        "kw": "rastreador sascar com teclado preço",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 6.45
+      },
+      {
+        "kw": "rastreador omnilink preço",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 6.6
+      },
+      {
+        "kw": "preço rastreador veicular",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 5.19
+      },
+      {
+        "kw": "monitorar preço de produto",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 1.64
+      },
+      {
+        "kw": "rastreador de carro valor",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 4.41
+      },
+      {
+        "kw": "rastreador preço",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 4.61
+      },
+      {
+        "kw": "monitorar preços de produtos",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 1.64
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-29 at 23_41_56.csv",
+      "Keyword Stats 2026-04-30 at 00_00_11.csv"
+    ],
+    "score": 47
+  },
+  {
+    "key": "csv-cleaner",
+    "label": "6. CSV / Spreadsheet AI Cleaner",
+    "total_keywords": 41,
+    "total_volume": 4400,
+    "en_volume": 1350,
+    "pt_volume": 3050,
+    "competition": {
+      "low": 25,
+      "med": 0,
+      "high": 0
+    },
+    "avg_cpc_high": 20.02,
+    "avg_cpc_low": 4.14,
+    "top_en": [
+      {
+        "kw": "csv cleaner",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 50.59
+      },
+      {
+        "kw": "remove duplicates csv",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "clean csv file online",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "csv cleaner online",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "csv dedupe",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "csv duplicate finder",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "csv duplicate remover",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": 42.89
+      },
+      {
+        "kw": "csv file cleaner",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": 13.23
+      },
+      {
+        "kw": "csv remove duplicates online",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "find duplicates in csv",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "csv para json",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "converter csv em json",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "converter csv para json",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 0.88
+      },
+      {
+        "kw": "converter json em csv",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 1.51
+      },
+      {
+        "kw": "converter json para csv",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 2.25
+      },
+      {
+        "kw": "json para csv",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "converter json para csv python",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-29 at 23_45_04.csv",
+      "Keyword Stats 2026-04-29 at 23_58_44.csv"
+    ],
+    "score": 43
+  },
+  {
+    "key": "visibility",
+    "label": "10. AEO Brand Citation Tracker",
+    "total_keywords": 22,
+    "total_volume": 7150,
+    "en_volume": 6600,
+    "pt_volume": 550,
+    "competition": {
+      "low": 6,
+      "med": 2,
+      "high": 0
+    },
+    "avg_cpc_high": 50.84,
+    "avg_cpc_low": 10.07,
+    "top_en": [
+      {
+        "kw": "generative engine optimization tool",
+        "vol": 5000,
+        "comp": "Baixo",
+        "cpc_high": 71.51
+      },
+      {
+        "kw": "geo data explorer",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 15.38
+      },
+      {
+        "kw": "ai visibility tracker",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 86.28
+      },
+      {
+        "kw": "how to rank in ai search",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 89.23
+      },
+      {
+        "kw": "prtg geo map",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "geo monitoring tool",
+        "vol": 50,
+        "comp": "Médio",
+        "cpc_high": 33.45
+      },
+      {
+        "kw": "check brand in chatgpt",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      },
+      {
+        "kw": "chatgpt brand monitoring",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      },
+      {
+        "kw": "perplexity citation tracker",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      },
+      {
+        "kw": "profound ai alternative",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      }
+    ],
+    "top_pt": [
+      {
+        "kw": "seo para ia",
+        "vol": 500,
+        "comp": "Médio",
+        "cpc_high": 9.17
+      },
+      {
+        "kw": "como aparecer no chatgpt",
+        "vol": 50,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "monitorar marca no chatgpt",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      },
+      {
+        "kw": "otimizacao para chatgpt",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      },
+      {
+        "kw": "otimizar site para perplexity",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      },
+      {
+        "kw": "monitorar marca perplexity",
+        "vol": 0,
+        "comp": "Desconhecido",
+        "cpc_high": null
+      }
+    ],
+    "files": [
+      "Keyword Stats 2026-04-29 at 23_50_56.csv",
+      "Keyword Stats 2026-04-29 at 23_53_34.csv"
+    ],
+    "score": 40
+  },
+  {
+    "key": "anaon-feedback",
+    "label": "7. Anonymous Feedback Link",
+    "total_keywords": 48,
+    "total_volume": 6100,
+    "en_volume": 6100,
+    "pt_volume": 0,
+    "competition": {
+      "low": 15,
+      "med": 12,
+      "high": 12
+    },
+    "avg_cpc_high": 45.43,
+    "avg_cpc_low": 10.64,
+    "top_en": [
+      {
+        "kw": "ngl alternative",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "suggestion box online",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 38.73
+      },
+      {
+        "kw": "virtual suggestion box",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 44.05
+      },
+      {
+        "kw": "digital suggestion box",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 57.54
+      },
+      {
+        "kw": "online anonymous suggestion box",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 35.56
+      },
+      {
+        "kw": "electronic suggestion box",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 38.73
+      },
+      {
+        "kw": "feedback box online",
+        "vol": 500,
+        "comp": "Alto",
+        "cpc_high": 38.73
+      },
+      {
+        "kw": "online suggestion box template",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": null
+      },
+      {
+        "kw": "online suggestion box anonymous",
+        "vol": 500,
+        "comp": "Baixo",
+        "cpc_high": 35.56
+      },
+      {
+        "kw": "anonymous feedback link",
+        "vol": 50,
+        "comp": "Alto",
+        "cpc_high": 53.83
+      }
+    ],
+    "top_pt": [],
+    "files": [
+      "anon-feedback.csv"
+    ],
+    "score": 31
+  },
+  {
+    "key": "time-monitor",
+    "label": "8. Uptime Monitor",
+    "total_keywords": 0,
+    "total_volume": 0,
+    "en_volume": 0,
+    "pt_volume": 0,
+    "competition": {
+      "low": 0,
+      "med": 0,
+      "high": 0
+    },
+    "avg_cpc_high": 0.0,
+    "avg_cpc_low": 0.0,
+    "top_en": [],
+    "top_pt": [],
+    "files": [
+      "time_series_Worldwide_20031231-2200_20260421-1341.csv"
+    ],
+    "score": 6
+  }
+]

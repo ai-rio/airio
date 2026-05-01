@@ -64,7 +64,7 @@ export interface CrawlResult {
 async function fetchText(url: string, maxBytes?: number): Promise<string | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'AIRio-AEO-Audit/1.0' },
+      headers: { 'User-Agent': 'Tagsmith-AEO-Audit/1.0' },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
@@ -327,7 +327,7 @@ async function checkWikipedia(domain: string): Promise<string | null> {
 async function checkReddit(domain: string): Promise<string | null> {
   const clientId = process.env.REDDIT_CLIENT_ID;
   const clientSecret = process.env.REDDIT_CLIENT_SECRET;
-  const userAgent = process.env.REDDIT_USER_AGENT ?? 'airio/1.0';
+  const userAgent = process.env.REDDIT_USER_AGENT ?? 'tagsmith/1.0';
   if (!clientId || !clientSecret) return null;
   try {
     const creds = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');

@@ -25,7 +25,7 @@ export default function HomePage() {
     <main className="min-h-screen">
       {/* Nav */}
       <nav className="border-b px-6 py-4 flex items-center justify-between max-w-5xl mx-auto">
-        <span className="font-bold text-lg">AIRio</span>
+        <span className="font-bold text-lg">Tagsmith</span>
         <a
           href={DASHBOARD_URL}
           className="bg-black text-white px-5 py-2 rounded-lg text-sm font-medium"
@@ -44,7 +44,7 @@ export default function HomePage() {
           <span className="underline decoration-4 underline-offset-4">você não?</span>
         </h1>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-          AIRio audita seu site em 60 segundos, identifica os problemas que te deixam invisível
+          Tagsmith audita seu site em 60 segundos, identifica os problemas que te deixam invisível
           para IA e gera todos os arquivos de correção prontos para usar.
         </p>
         <a
@@ -80,7 +80,7 @@ export default function HomePage() {
             Não apenas um score. Arquivos prontos para corrigir.
           </h2>
           <p className="text-center text-gray-500 mb-12 text-sm">
-            Outros tools te mostram o problema. AIRio te dá a correção.
+            Outros tools te mostram o problema. Tagsmith te dá a correção.
           </p>
           <div className="grid sm:grid-cols-2 gap-4">
             {FIXES.map(f => (
@@ -147,7 +147,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t px-6 py-8 text-center text-xs text-gray-400">
-        <p>AIRio © {new Date().getFullYear()} · <a href="/termos" className="underline">Termos</a> · <a href="/privacidade" className="underline">Privacidade</a></p>
+        <p>Tagsmith © {new Date().getFullYear()} · <a href="/termos" className="underline">Termos</a> · <a href="/privacidade" className="underline">Privacidade</a></p>
       </footer>
     </main>
   )

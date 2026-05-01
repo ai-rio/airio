@@ -12,7 +12,7 @@ export default function DocsRootLayout({ children }: { children: ReactNode }) {
         nav={{
           title: (
             <span className="flex items-baseline gap-1">
-              <span className="text-sm font-bold tracking-tight">AIRio</span>
+              <span className="text-sm font-bold tracking-tight">Tagsmith</span>
               <span className="font-mono text-[10px] uppercase tracking-widest opacity-50 ml-1">docs</span>
             </span>
           ),

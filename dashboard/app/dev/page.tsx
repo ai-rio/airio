@@ -22,7 +22,7 @@ export default function DevPage() {
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center space-y-4">
         <p className="text-xs uppercase tracking-widest text-gray-400 font-medium">Dev tools</p>
-        <h1 className="text-xl font-bold">AIRio — Dev Access</h1>
+        <h1 className="text-xl font-bold">Tagsmith — Dev Access</h1>
         <div className="flex gap-3 justify-center pt-2">
           <form action={enableBypass}>
             <button

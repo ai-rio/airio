@@ -101,7 +101,7 @@ function SignIn() {
 
   return (
     <main className="max-w-sm mx-auto py-24 px-4 text-center">
-      <h1 className="text-2xl font-bold mb-2">AIRio</h1>
+      <h1 className="text-2xl font-bold mb-2">Tagsmith</h1>
       <p className="text-muted-foreground text-sm mb-8">Entre para auditar seu site</p>
       {sent ? (
         <p className="text-[var(--brand-success)] text-sm">

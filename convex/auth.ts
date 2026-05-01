@@ -3,7 +3,7 @@ import { convexAuth } from '@convex-dev/auth/server';
 
 const resend = Resend({
   apiKey: process.env.AUTH_RESEND_API_KEY,
-  from: process.env.AUTH_EMAIL_FROM ?? 'AIRio <noreply@ai.rio.br>',
+  from: process.env.AUTH_EMAIL_FROM ?? 'Tagsmith <noreply@ai.rio.br>',
 });
 
 const useMock =

@@ -157,7 +157,7 @@ export default function PublicReportPage() {
       <footer className="px-8 py-8 text-center font-[family-name:var(--font-mono)] text-[12px] text-muted-foreground tracking-[0.1em]">
         GERADO POR{' '}
         <a href={process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://seo.ai.rio.br'} className="text-[var(--brand-text)]">
-          AIRIO
+          TAGSMITH
         </a>
       </footer>
     </div>

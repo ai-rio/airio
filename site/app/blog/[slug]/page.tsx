@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!page) notFound()
 
   return {
-    title: `${page.data.title} | AIRio Blog`,
+    title: `${page.data.title} | Tagsmith Blog`,
     description: page.data.description,
     alternates: { canonical: `${process.env.TAGSMITH_BASE_URL ?? 'https://ai.rio.br'}/blog/${slug}` },
     openGraph: {

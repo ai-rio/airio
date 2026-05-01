@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const path = slug?.length ? `/${slug.join('/')}` : ''
   return {
-    title: `${page.data.title} | AIRio Docs`,
+    title: `${page.data.title} | Tagsmith Docs`,
     description: page.data.description,
     alternates: { canonical: `${process.env.TAGSMITH_BASE_URL ?? 'https://ai.rio.br'}/docs${path}` },
   }

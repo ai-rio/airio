@@ -16,7 +16,7 @@ const spaceMono = Space_Mono({
 const bebasNeue = Bebas_Neue({ weight: '400', subsets: ['latin'], variable: '--font-bebas' });
 
 export const metadata: Metadata = {
-  title: 'AIRio — Apareça no ChatGPT',
+  title: 'Tagsmith — Apareça no ChatGPT',
   description: 'Otimize seu site para ser citado por ChatGPT, Gemini e Perplexity.',
 };
 

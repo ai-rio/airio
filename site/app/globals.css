@@ -3,3 +3,136 @@
 body {
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* ---------------------------------------------------------------------------
+ * Tagsmith design tokens v1 (Path A coexistence — `--ts-` prefix)
+ * Source: docs/tiiny-research/_tokens.css and _design-system.md
+ * Migration target: drop the `--ts-` prefix once every site page has been
+ * refit per `_design-system.md` Section 14.
+ * --------------------------------------------------------------------------- */
+:root {
+  /* Surfaces */
+  --ts-bg: #faf7f2;
+  --ts-surface: #ffffff;
+  --ts-surface-2: #f1ece3;
+
+  /* Text */
+  --ts-text: #0f172a;
+  --ts-text-muted: #64748b;
+  --ts-text-subtle: #94a3b8;
+
+  /* Borders */
+  --ts-border: #e2e8f0;
+  --ts-border-strong: #0f172a;
+
+  /* Accent — ember (primary CTA, links, focus) */
+  --ts-accent: #ea580c;
+  --ts-accent-hover: #c2410c;
+  --ts-accent-soft: #ffedd5;
+
+  /* Accent-2 — sky (data viz, charts, info) */
+  --ts-accent-2: #80dbff;
+  --ts-accent-2-soft: #caf0ff;
+  --ts-accent-2-deep: #0693e3;
+
+  /* Status */
+  --ts-success: #16a34a;
+  --ts-warning: #d97706;
+  --ts-danger: #dc2626;
+  --ts-info: #0693e3;
+
+  /* Code (dark slot in light theme — JSON-LD output) */
+  --ts-code-bg: #0f172a;
+  --ts-code-text: #e2e8f0;
+  --ts-code-key: #a3e635;
+  --ts-code-string: #fcd34d;
+  --ts-code-comment: #64748b;
+
+  /* Radius */
+  --ts-r-sm: 6px;
+  --ts-r-md: 12px;
+  --ts-r-lg: 16px;
+  --ts-r-xl: 24px;
+  --ts-r-full: 9999px;
+
+  /* Shadow */
+  --ts-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04);
+  --ts-shadow-md: 0 4px 12px rgb(15 23 42 / 0.06), 0 1px 2px rgb(15 23 42 / 0.04);
+  --ts-shadow-lg: 0 12px 28px rgb(15 23 42 / 0.08), 0 2px 6px rgb(15 23 42 / 0.04);
+  --ts-shadow-pop: 0 0 0 4px rgb(234 88 12 / 0.18);
+
+  /* Typography — Geist via next/font (--font-geist-sans + --font-geist-mono) */
+  --ts-font-display: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --ts-font-body: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --ts-font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', monospace;
+
+  --ts-fs-display-xl: 64px;
+  --ts-fs-display-l: 44px;
+  --ts-fs-h1: 32px;
+  --ts-fs-h2: 24px;
+  --ts-fs-h3: 20px;
+  --ts-fs-body: 16px;
+  --ts-fs-small: 14px;
+  --ts-fs-caption: 12px;
+
+  --ts-fw-regular: 400;
+  --ts-fw-medium: 500;
+  --ts-fw-semibold: 600;
+  --ts-fw-bold: 700;
+
+  --ts-lh-tight: 1.05;
+  --ts-lh-snug: 1.2;
+  --ts-lh-normal: 1.5;
+  --ts-lh-relaxed: 1.6;
+
+  --ts-tracking-tight: -0.02em;
+  --ts-tracking-normal: 0;
+  --ts-tracking-wide: 0.06em;
+
+  /* Motion */
+  --ts-t-micro: 120ms;
+  --ts-t-component: 200ms;
+  --ts-t-page: 280ms;
+  --ts-ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --ts-container-marketing: 1200px;
+  --ts-container-dashboard: 1440px;
+  --ts-gutter-mobile: 24px;
+  --ts-gutter-desktop: 48px;
+}
+
+/* Tagsmith typography utility classes (opt-in; `ts-` prefix) */
+.ts-display-xl {
+  font-family: var(--ts-font-display);
+  font-size: var(--ts-fs-display-xl);
+  font-weight: var(--ts-fw-bold);
+  line-height: var(--ts-lh-tight);
+  letter-spacing: var(--ts-tracking-tight);
+}
+.ts-display-l {
+  font-family: var(--ts-font-display);
+  font-size: var(--ts-fs-display-l);
+  font-weight: var(--ts-fw-bold);
+  line-height: var(--ts-lh-snug);
+  letter-spacing: var(--ts-tracking-tight);
+}
+.ts-h1 { font-family: var(--ts-font-display); font-size: var(--ts-fs-h1); font-weight: var(--ts-fw-semibold); line-height: var(--ts-lh-snug); }
+.ts-h2 { font-family: var(--ts-font-display); font-size: var(--ts-fs-h2); font-weight: var(--ts-fw-semibold); line-height: var(--ts-lh-snug); }
+.ts-h3 { font-family: var(--ts-font-display); font-size: var(--ts-fs-h3); font-weight: var(--ts-fw-semibold); line-height: var(--ts-lh-snug); }
+.ts-body { font-family: var(--ts-font-body); font-size: var(--ts-fs-body); line-height: var(--ts-lh-relaxed); }
+.ts-small { font-family: var(--ts-font-body); font-size: var(--ts-fs-small); line-height: var(--ts-lh-normal); }
+.ts-caption {
+  font-family: var(--ts-font-body);
+  font-size: var(--ts-fs-caption);
+  font-weight: var(--ts-fw-medium);
+  line-height: var(--ts-lh-normal);
+  letter-spacing: var(--ts-tracking-wide);
+  text-transform: uppercase;
+  color: var(--ts-text-muted);
+}
+.ts-mono {
+  font-family: var(--ts-font-mono);
+  font-size: var(--ts-fs-small);
+  line-height: var(--ts-lh-relaxed);
+}

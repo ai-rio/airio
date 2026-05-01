@@ -13,3 +13,15 @@ dist/
 
 # Convex tooling sometimes creates a recursive self-symlink
 convex/convex
+
+# graphify knowledge graph (local artifact)
+graphify-out/
+
+# Secrets + local research data
+.env
+docs/tagsmith/.env
+docs/**/serp.db
+docs/**/*.db
+
+# Windows alternate-data-stream junk from WSL/Edge downloads
+*:Zone.Identifier

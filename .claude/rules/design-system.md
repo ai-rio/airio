@@ -1,7 +1,12 @@
 # Design System Rule — Mandatory for All UI/Frontend Tasks
 
+> **Status: TRANSITIONAL (legacy airio enforcement).**
+> Describes tokens currently shipped in `globals.css` (Bebas Neue + Space Mono + `--brand*` vars). Source of truth **only until** `_tokens.css` lands per `docs/tagsmith/_design-system.md` §14 (Geist Sans/Mono migration).
+> When that migration ships, **delete this file** and let `docs/tagsmith/_design-system.md` become canonical.
+> If you edit tokens here, mirror the change in the Tagsmith doc — or escalate the drift.
+
 **Read this before touching any dashboard component, page, or style.**
-Wireframe source of truth: `/home/carlos/.gstack/projects/airio/designs/dashboard-20260428/finalized.html`
+Canonical design source: `docs/tagsmith/_design-system.md`. (Pre-pivot wireframe lives in the local gstack workspace; not committed.)
 
 ## Typography — Non-negotiable
 

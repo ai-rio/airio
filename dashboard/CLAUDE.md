@@ -44,11 +44,17 @@ bun run lint
 5. Protected routes use `ConvexAuthNextjsServerProvider` and `ConvexClientProvider`
 
 ### Audit Viewing Flow
-1. User navigates to `/audit` → lists all audits (from `audits` table)
-2. Clicking an audit → `/audit/[id]` shows:
-   - Audit score and status
-   - Download buttons for generated files (robots.txt, llms.txt, fixes, etc.)
-   - Option to re-run audit (if credits allow)
+1. `/audits` (plural) — lists all audits (from `audits` table).
+2. `/audit/[id]` — audit detail: score, status, download buttons (robots.txt, llms.txt, fixes), re-run option.
+3. `/audit/new` — URL submission entry point.
+
+### Monitoring Flow
+1. `/monitoring` — site monitoring overview (Phase 0-4 monitoring platform).
+2. `/sites/[siteId]` — per-site detail with `Auditoria` + `Visibilidade` tabs (W1-02).
+3. `ATIVAR MONITORAMENTO` opens shared `AddSiteModal`; does not redirect.
+
+### Report Flow
+1. `/report/[id]` — public shareable report view (uses `shareable_reports` table).
 
 ### Billing Flow
 1. User navigates to `/billing` → sees current plan and credit balance
@@ -76,7 +82,7 @@ bun run lint
 
 ### UI Components
 - Use Tailwind 4 utility classes consistently
-- Leverage shadcn/ui primitives from `@base-ui/react` for consistent UI
+- shadcn-style components built on `@base-ui/react` primitives (zero radius, Bebas/Mono typography per design-system rule).
 - Follow existing component patterns in `/components` directory
 - Keep components small and focused; extract reusable UI to `/components/ui`
 
@@ -102,14 +108,12 @@ bun run lint
 - Use `data-testid` attributes for reliable selectors
 
 ## Rule Files
-For detailed, domain-specific rules, see the files in `../../.claude/rules/`:
-- `../../.claude/rules/convex-action-pattern.md` - Convex action pattern requirements
-- `../../.claude/rules/ai-output-handling.md` - Handling AI-generated content safely
-- `../../.claude/rules/credit-billing-integrity.md` - Credit and billing accuracy requirements
-- `../../.claude/rules/seo-aeo-validation.md` - Validating SEO/AEO outputs
-- `../../.claude/rules/observability.md` - Logging, monitoring, and alerting requirements
-
-You need to mention the location of these files in claude.md so Claude knows they exist. For example, if you want Claude to follow certain specific instructions when writing APIs, you can add those in a rule file for them so that when Claude is working on them, it can load those instructions and use them directly.
+For detailed, domain-specific rules, see the files in `../.claude/rules/`:
+- `../.claude/rules/convex-action-pattern.md` - Convex action pattern requirements
+- `../.claude/rules/ai-output-handling.md` - Handling AI-generated content safely
+- `../.claude/rules/credit-billing-integrity.md` - Credit and billing accuracy requirements
+- `../.claude/rules/seo-aeo-validation.md` - Validating SEO/AEO outputs
+- `../.claude/rules/observability.md` - Logging, monitoring, and alerting requirements
 
 ## Maintenance
 Keep this file focused on dashboard-specific guidance. Refer to the root CLAUDE.md for cross-cutting hard rules (Think before coding, Simplicity first, etc.). Update this file as the dashboard evolves.

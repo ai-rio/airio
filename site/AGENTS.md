@@ -1,9 +1,9 @@
-# Site - Airio Marketing Landing Page (ai.rio.br)
+# Site - Tagsmith Marketing Landing Page
 
-This is the Next.js 15 application for the Airio marketing landing page, accessible at ai.rio.br.
+Next.js 15 marketing site for Tagsmith. Domain configured via `TAGSMITH_BASE_URL` env (no hardcoded host).
 
 ## Purpose
-- Present Airio's value proposition: AI-powered SEO audits for AI search visibility
+- Present Tagsmith's value proposition: 3-tool SEO toolkit (Schema Markup, OG Image, AEO Citation Tracker) on one account
 - Explain features: AEO analysis, robots.txt/llms.txt fixes, credit packs
 - Show pricing and call-to-action for signing up
 - Provide documentation and blog content (via fumadocs)
@@ -100,8 +100,7 @@ bun run lint
 - Handle 404 gracefully with a custom page
 
 ### Internationalization
-- Currently the site is in Portuguese (pt-BR). If expanding to other languages, consider using next-i18next or similar.
-- Keep all UI strings in JSON files for easy translation if needed in the future.
+- Currently pt-BR. **next-intl** bootstrap planned (pivot plan Day 5). Treat existing PT-BR strings as source for the pt-BR catalog.
 
 ## Rule Files
 For detailed, domain-specific rules, see the files in `../.agents/rules/`:
@@ -110,8 +109,6 @@ For detailed, domain-specific rules, see the files in `../.agents/rules/`:
 - `../.agents/rules/credit-billing-integrity.md` - Credit and billing accuracy requirements
 - `../.agents/rules/seo-aeo-validation.md` - Validating SEO/AEO outputs
 - `../.agents/rules/observability.md` - Logging, monitoring, and alerting requirements
-
-You need to mention the location of these files in claude.md so Claude knows they exist. For example, if you want Claude to follow certain specific instructions when writing APIs, you can add those in a rule file for them so that when Claude is working on them, it can load those instructions and use them directly.
 
 ### Maintenance
 Keep this file focused on site-specific guidance. Refer to the root CLAUDE.md for cross-cutting hard rules (Think before coding, Simplicity first, etc.). Update this file as the site evolves.

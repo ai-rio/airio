@@ -53,6 +53,7 @@ RTK (Rust Token Killer) is active via global hook — all shell commands are aut
 - `site/` — marketing LP at ai.rio.br (Next.js, port 3003)
 - `dashboard/` — app at seo.ai.rio.br (Next.js, port 3002)
 - `convex/` — backend (DB, auth, actions, billing)
+- Bun workspaces: install at repo root with `bun install` (root `package.json` defines workspaces).
 
 ### Commands
 ```bash
@@ -111,13 +112,12 @@ Keep this file focused and under 300 lines for optimal agent performance. Iterat
 ## Rule Files
 For detailed, domain-specific rules, see the files in `.agents/rules/`:
 - `.agents/rules/design-system.md` - **MANDATORY for any UI/frontend task** — typography, color tokens, layout patterns, forbidden classes
+- `.agents/rules/codebase-graph.md` - **Use `graphify-out/` for wide-scope work** — audits, refactors, orphan detection. Run `/graphify --update` after big restructures.
 - `.agents/rules/convex-action-pattern.md` - Convex action pattern requirements
 - `.agents/rules/ai-output-handling.md` - Handling AI-generated content safely
 - `.agents/rules/credit-billing-integrity.md` - Credit and billing accuracy requirements
 - `.agents/rules/seo-aeo-validation.md` - Validating SEO/AEO outputs
 - `.agents/rules/observability.md` - Logging, monitoring, and alerting requirements
-
-You need to mention the location of these files in claude.md so Claude knows they exist. For example, if you want Claude to follow certain specific instructions when writing APIs, you can add those in a rule file for them so that when Claude is working on them, it can load those instructions and use them directly.
 
 <claude-mem-context>
 # Memory Context

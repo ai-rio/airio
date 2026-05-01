@@ -1,6 +1,6 @@
-# Convex - Airio Backend
+# Convex - Tagsmith Backend
 
-This directory contains the Convex backend for Airio, providing the database, authentication, serverless functions (actions, mutations, queries), billing integrations, and scheduled jobs.
+Convex backend for Tagsmith: database, auth, serverless functions (actions, mutations, queries), billing, scheduled jobs. Internal symlink alias `airio-convex` retained as legacy import path.
 
 ## Purpose
 - Store and manage data: users, audits, sites, credits, etc.
@@ -25,15 +25,18 @@ Defines the database schema using `defineSchema` and `defineTable`. Includes:
 ### `actions/`
 Contains `'use node'` functions for external API calls and side effects:
 - `audit.ts`: Main audit flow (SSRF-protected URL validation, auth, rate limiting, usage gating, crawling, AEO analysis, marking audit complete/failed)
-- `alerts.ts`: Likely handles sending alerts based on audit results
-- `cron.ts`: Entry point for scheduled functions
+- `alerts.ts`: Sends alerts based on audit/monitoring results
+- `monitoring.ts`, `geoMonitoring.ts`: Site monitoring + GEO citation checks (Phase 0-4 monitoring platform)
+- `checkout.ts`, `webhook.ts`: DodoPayments checkout + webhook handlers
+- Subfolders: `aeo/`, `geo/` — feature-specific actions/queries
+- Crons defined at `convex/crons.ts` (top-level), not in `actions/`.
 
 ### `lib/`
 Helper modules used by actions:
-- `crawler.js`: Fetches robots.txt, llms.txt, and homepage HTML with appropriate headers/timeouts
-- `aeoAnalyzer.js`: Calls Anthropic Claude API to generate AEO score and suggested fixes
-- `rateLimit.js`: Implements rate limiting (e.g., 5 requests per minute per user)
-- `users.js`: Contains `checkAndConsumeUsage`, `getOrCreateUser`, etc.
+- `crawler.ts`: Fetches robots.txt, llms.txt, and homepage HTML with appropriate headers/timeouts
+- `aeoAnalyzer.ts`: Calls Anthropic Claude API to generate AEO score and suggested fixes
+- `rateLimit.ts`: Rate limiting helper
+- `users.ts` (top-level, not in lib/): `checkAndConsumeUsage`, `getOrCreateUser`, etc.
 
 ### `auth.ts` & `auth.config.ts`
 Configure Convex Auth with Resend provider for magic-link email authentication.
@@ -126,7 +129,7 @@ This pattern is exemplified in `actions/audit.ts`. Always follow it for new acti
 
 ### Secrets & Environment Variables
 - Never hardcode secrets; use Convex dashboard settings or `.env.local` for development
-- Required vars: OPENROUTER_API_KEY, OPENROUTER_MODEL, RESEND_API_KEY, CONVEX_DEPLOYMENT, etc.
+- Required vars (see `.env.local.example`): ANTHROPIC_API_KEY, AUTH_RESEND_API_KEY, AUTH_REDIRECT_BASE_URL, CONVEX_DEPLOYMENT, NEXT_PUBLIC_CONVEX_URL, DODO_API_KEY, DODO_WEBHOOK_SECRET, DODO_ENV, REDDIT_CLIENT_ID/SECRET/USER_AGENT, YOUTUBE_API_KEY (monitoring citations).
 - In development, set `AUTH_EMAIL_MOCK=1` to avoid sending real emails
 
 ## Maintenance
@@ -139,8 +142,6 @@ For detailed, domain-specific rules, see the files in `../.agents/rules/`:
 - `../.agents/rules/credit-billing-integrity.md` - Credit and billing accuracy requirements
 - `../.agents/rules/seo-aeo-validation.md` - Validating SEO/AEO outputs
 - `../.agents/rules/observability.md` - Logging, monitoring, and alerting requirements
-
-You need to mention the location of these files in claude.md so Claude knows they exist. For example, if you want Claude to follow certain specific instructions when writing APIs, you can add those in a rule file for them so that when Claude is working on them, it can load those instructions and use them directly.
 
 ## Example: Adding a New Action
 1. Create `actions/newFeature.ts` with `'use node'`

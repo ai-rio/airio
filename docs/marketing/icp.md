@@ -233,6 +233,35 @@ Tagsmith serves three buyer profiles, all converging on the same trigger: **AI s
 
 ---
 
+## 🚫 What Tagsmith Does NOT Do
+
+Per Semrush's 2025 AI Visibility Index, AI search runs in two stages:
+
+- **Stage 1 (Discovery):** AI picks the brand shortlist from Reddit, reviews, forums, UGC, social posts.
+- **Stage 2 (Authority):** AI verifies brands via official site, structured data, pricing, Wikipedia, documentation.
+
+**Tagsmith is a Stage-2 authority tool only.** Buyers expecting Stage-1 manipulation are out of ICP.
+
+| ❌ Tagsmith does NOT | ✅ What Tagsmith DOES instead |
+|---|---|
+| Generate fake reviews on G2 / Capterra / Trustpilot | Validates your existing schema so AI parses your real reviews correctly |
+| Post to Reddit / Quora / forums on your behalf | Tracks whether community-driven mentions translate to citations |
+| Game forums or buy upvotes | Audits whether your authority signals match the discovery signals you're earning |
+| Write blog content / Wikipedia entries | Generates the JSON-LD that helps AI parse the content you already wrote |
+| Manipulate sentiment | Tells you when sentiment shifts, so you can respond authentically |
+| Buy backlinks | Validates that the backlinks you have are AI-readable |
+
+**Why this matters as positioning:**
+- Most AEO competitors imply Stage-1 manipulation ("get cited in ChatGPT") — sketchy and fragile
+- Tagsmith promises Stage-2 only — defensible, ethical, ToS-clean
+- Honest scope = trust = conversion. Buyers tired of snake-oil AEO pitches notice.
+
+**Pair Tagsmith with separate UGC strategy** (community engagement, review collection, content marketing). Tagsmith makes that work cite-able. It does not replace it.
+
+---
+
+---
+
 ## 🌍 Geographic + locale notes
 
 Locale is a **distribution variable**, not a buyer attribute. The same three personas exist in São Paulo, Mexico City, Lisbon, Barcelona, Atlanta, Mumbai, and Berlin. Tagsmith ships UI in EN + PT-BR + ES at v1 because:

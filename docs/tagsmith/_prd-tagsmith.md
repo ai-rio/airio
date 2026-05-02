@@ -292,8 +292,8 @@ Tagsmith pivots from existing `airio` codebase (Convex + Next.js + Dodo Payments
 
 (Already built in airio; rename only — no new code.)
 
-- **Free tier**: paste URL + brand → tool auto-generates 3 prompts → checks ChatGPT + Perplexity — 1 check/week
-- **Pro tier**: auto-generates up to 10 prompts × 4 LLMs (ChatGPT, Perplexity, Claude, Gemini), daily tracking, alerts on first appearance/disappearance + position deltas, 5-site monitor (shared with Schema). Gemini included as in-product engine; not advertised on marketing pages (Google AI/ML competitive-use clause hedge — see `_legal-engine-tos.md`).
+- **Free tier**: paste URL + brand → tool auto-generates 3 prompts → checks ChatGPT + Perplexity — 1 check/week. **Single-sample point estimates only** (directional, not decision-grade — cf. Sielinski 2026, `_research-citations.md`).
+- **Pro tier**: auto-generates up to 10 prompts × 4 LLMs (ChatGPT, Perplexity, Claude, Gemini), daily tracking, alerts on first appearance/disappearance + position deltas, 5-site monitor (shared with Schema). Gemini included as in-product engine; not advertised on marketing pages (Google AI/ML competitive-use clause hedge — see `_legal-engine-tos.md`). **Confidence intervals reported** on every citation rate (bootstrap CI95 over rolling 7-day sample window). Position-delta alerts apply significance testing — overlapping CIs do not trigger alerts. This is the only AEO tracker that reports statistically meaningful citation rates (research-grounded; see `_research-citations.md` §1).
 - **Agency tier**: 50-site monitor, competitor benchmarking, white-label, API endpoint
 - **Acceptance**: Pro user can add a brand + URL → tool auto-generates prompts → daily 4-engine check runs → email alert when brand citation status or position changes
 

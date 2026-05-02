@@ -42,26 +42,26 @@ All three tools complete their job in under 30 seconds without configuration:
 | Top-funnel monthly visits (organic) | 12k | 40k |
 | Free-to-Pro conversion | 4-6% | 5-7% |
 | Pro-to-Agency upgrade | 8-12% | 10-15% |
-| LTD seats sold (one-time, week 4 launch) | 100 × $99 = $9.9k cash | n/a |
+| LTD seats sold (one-time, week 4 launch) | 100 × $149 = $14.9k cash | n/a |
 
 ## 4. User Personas
 
 1. **Indie SaaS Founder (primary)**
    - Solo or 2-3 person team, ships landing pages on Next.js / Astro / Webflow / Ghost
    - Hates writing JSON-LD by hand
-   - Pays $19/mo without thinking; rejects $9 as "low-quality" signal
+   - Pays $29/mo without thinking; rejects $9 as "low-quality" signal
    - Cares about SEO ranking + clean social previews
 
 2. **SEO-Focused Marketer / Consultant**
    - Manages 2-15 client sites, mostly non-WordPress
    - Wants white-label output and multi-site monitoring
-   - Pays $49-99/mo per agency seat without hesitation
+   - Pays $79-149/mo per agency seat without hesitation
    - Will buy LTD if positioned as "founding member"
 
 3. **Non-Technical Blogger (EN + PT-BR + ES)**
    - Notion site, Substack, Ghost, custom HTML
    - Doesn't know what JSON-LD is but knows "Google rich results" matters
-   - Free tier likely ceiling; converts only when traffic justifies $19/mo
+   - Free tier likely ceiling; converts only when traffic justifies $29/mo
    - Native-language UX increases trust in PT-BR + LATAM ES markets where most SEO tools are EN-only
 
 ## 5. User Stories
@@ -84,7 +84,7 @@ All three tools complete their job in under 30 seconds without configuration:
 
 - As a **paying user**, I want one account that covers both tools, so I don't manage two subscriptions.
 - As a **prospect**, I want to see clear pricing tiers and a free path to "complete the job", so I can evaluate without giving a credit card.
-- As a **founder buying LTD**, I want a one-time $99 charge to lock Pro forever, so I can support a young product and lock my unit cost.
+- As a **founder buying LTD**, I want a one-time $149 charge to lock Pro forever, so I can support a young product and lock my unit cost.
 
 ### Brand / Domain Flexibility
 
@@ -132,7 +132,7 @@ All three tools complete their job in under 30 seconds without configuration:
 - Email + password auth (Convex auth).
 - Single account covers both tools; tier applies globally.
 - Stripe Checkout for Pro/Agency monthly subscriptions (no annual v1).
-- Stripe Payment Link for LTD ($99 one-time); LTD users flagged with `is_lifetime_pro: true` in users table; no recurring charge.
+- Stripe Payment Link for LTD ($149 one-time); LTD users flagged with `is_lifetime_pro: true` in users table; no recurring charge.
 - Customer portal link (Stripe-hosted) for canceling/updating payment.
 - LTD cap of 100 seats enforced server-side; UI shows live count remaining ("87 of 100 LTD seats left").
 
@@ -151,7 +151,7 @@ All three tools complete their job in under 30 seconds without configuration:
 - **Accessibility**: WCAG 2.1 AA on UI (semantic HTML, keyboard navigation, color contrast).
 - **i18n**: EN + PT-BR + ES strings on launch; copy stored in JSON, not hardcoded.
 - **Observability**: Convex action logs for every URL fetch + LLM call; alert on >5% LLM error rate; track tier upgrades + downgrades + LTD purchases.
-- **Cost ceiling**: Anthropic Haiku spend < $0.03 per Pro user per month at typical use (static-first reduces LLM dependency); throttle if a single account exceeds 1,000 schema generations/day (likely abuse).
+- **Cost ceiling**: Schema gen LLM spend (Haiku fallback) <$0.20/Pro user/mo (static-first reduces LLM dependency); throttle if a single account exceeds 1,000 schema generations/day (likely abuse). **AEO LLM spend** (premium models on consumer-grade endpoints) <$6/Pro user/mo via mixed-cadence engine roster — Gemini Flash daily change-detection + GPT-4o/Sonnet/Sonar Pro weekly full audits. **Per-user LLM spend ceiling enforced server-side**: alert at $10/user/mo, hard cap at $15. **Prompt cache** (24h TTL on prompt+engine pairs) cuts duplicate calls ~30%. Cost dashboard surfaces token + USD spend per user; daily summary email to founder for abuse detection. Engine API errors trigger fallback (Sonnet → GPT-4o), retry queue, never burn user quota on infra failure.
 
 ## 7. Acceptance Criteria
 
@@ -178,7 +178,7 @@ All three tools complete their job in under 30 seconds without configuration:
 - [ ] **Given** a new visitor, **when** they sign up, **then** they have a free account with both tools usable up to free limits.
 - [ ] **Given** a free user, **when** they click upgrade and complete Stripe Checkout, **then** within 60s their account is Pro and free limits are removed.
 - [ ] **Given** Pro/Agency users, **when** they cancel via Stripe portal, **then** at period end they revert to free.
-- [ ] **Given** a visitor during launch week, **when** they purchase LTD ($99), **then** their account is permanently flagged Pro and the LTD counter decrements.
+- [ ] **Given** a visitor during launch week, **when** they purchase LTD ($149), **then** their account is permanently flagged Pro and the LTD counter decrements.
 - [ ] **Given** the LTD counter is at 100, **when** another visitor tries to buy LTD, **then** the LTD purchase page returns 410 and recommends Pro monthly.
 
 ### Brand / Domain
@@ -220,7 +220,7 @@ Full plan: `_distribution-plan.md`. Distribution discipline > build discipline. 
 ### Active channels (in priority)
 
 1. **Programmatic SEO** (own site) — primary compound channel; 50+ landing pages × 3 locales = 150 organic entry points
-2. **AppSumo LTD** (week 4 launch) — $99 × 100 cap = $10k seed cash + reviews + word-of-mouth
+2. **AppSumo LTD** (week 4 launch) — $149 × 100 cap = $14.9k seed cash + reviews + word-of-mouth
 3. **Launch trio** (week 4) — coordinated Product Hunt + Show HN + IndieHackers same week
 4. **Build-in-public** (weeks 0-12) — daily Twitter/LinkedIn posts drive pre-launch waitlist + post-launch trust
 
@@ -234,7 +234,7 @@ These channel bets impose product requirements; v1 must ship them:
 
 - **Schema-first homepage hierarchy** — `/` hero leads with Schema gen demo and primary CTA. OG + AEO appear as secondary cards below the fold. Never give OG or AEO equal headline weight on `/`. AEO occupies the secondary hero slot ("Plus track if AI cites your brand — nobody else does") to claim the category.
 - **Public per-locale, per-schema-type SEO landing pages** — template-driven, shared layout. Required for programmatic SEO to compound. Schema pages outnumber OG pages ≥3:1 in v1; AEO has 1 dedicated moat page.
-- **Bundle-pricing copy on every pricing surface** — pricing page, upgrade modals, and homepage all surface the line *"Schema gen + OG + AEO at $19/mo. Pictify alone is $39."* Bundle math is the conversion wedge.
+- **Bundle-pricing copy on every pricing surface** — pricing page, upgrade modals, and homepage all surface the line *"AI visibility + the fixes that move the needle, at $29/mo. HubSpot AEO is enterprise-only."* Anti-snakeoil + indie-tier wedge is the conversion lever.
 - **Email waitlist capture** during build phase (weeks 1-3); Convex form + Resend (or equivalent) email list. Ship by end of week 1.
 - **Share-back attribution in free-tier output** — `<!-- generated by Tagsmith - {TAGSMITH_BASE_URL}/?ref=schema -->` on free schema output drives backlinks. Pro tier removes.
 - **AppSumo coupon redemption flow** — LTD code accepts both native LTD purchase and AppSumo coupon codes. ~1 day work.
@@ -256,7 +256,7 @@ These channel bets impose product requirements; v1 must ship them:
 - MRR < $1k by week 8 → SEO too slow; test paid Twitter ads ($200/wk)
 - MRR < $3k by week 12 → revisit channel mix; cold-email Agency tier moves up
 - Product breaks in prod during distribution → distribution stops; reliability is GTM gate
-- LTD cap unhit by week 8 → second wave at $149 (AppSumo allows)
+- LTD cap unhit by week 8 → second wave at $199 (AppSumo allows)
 
 ## 10. Codebase Pivot & Reuse Manifest
 
@@ -275,7 +275,7 @@ Tagsmith pivots from existing `airio` codebase (Convex + Next.js + Dodo Payments
 ### What ships from airio (refactor + extend)
 
 - Auth (Convex Auth) — keep
-- Billing (Dodo Payments) — keep, swap product IDs to Pro $19, Agency $49, LTD $99
+- Billing (Dodo Payments) — keep, swap product IDs to Pro $29, Agency $79, LTD $149
 - Sites + monitoring + sharable reports + usage logs + crons + http — keep
 - `audits.ts` pipeline → refactored as schema generator
 - `visibilityReports` + `promptBaskets` + `visibilitySnapshots` → repositioned as **Tool 3: AEO Citation Tracker** (no new code; rename + reposition UI)
@@ -292,8 +292,8 @@ Tagsmith pivots from existing `airio` codebase (Convex + Next.js + Dodo Payments
 
 (Already built in airio; rename only — no new code.)
 
-- **Free tier**: paste URL + brand → tool auto-generates 3 prompts → checks ChatGPT + Perplexity — 1 check/week. **Single-sample point estimates only** (directional, not decision-grade — cf. Sielinski 2026, `_research-citations.md`).
-- **Pro tier**: auto-generates up to 10 prompts × 4 LLMs (ChatGPT, Perplexity, Claude, Gemini), daily tracking, alerts on first appearance/disappearance + position deltas, 5-site monitor (shared with Schema). Gemini included as in-product engine; not advertised on marketing pages (Google AI/ML competitive-use clause hedge — see `_legal-engine-tos.md`). **Confidence intervals reported** on every citation rate (bootstrap CI95 over rolling 7-day sample window). Position-delta alerts apply significance testing — overlapping CIs do not trigger alerts. This is the only AEO tracker that reports statistically meaningful citation rates (research-grounded; see `_research-citations.md` §1).
+- **Free tier**: paste URL + brand → tool auto-generates 3 prompts → checks ChatGPT + Perplexity Sonar — 1 check/week. **Single-sample point estimates only** (directional, not decision-grade — cf. Sielinski 2026, `_research-citations.md`). Cost target: <$0.10/user/mo LLM spend.
+- **Pro tier**: 5 brands × auto-generated 10 prompts × 4 LLMs (Gemini Pro, ChatGPT GPT-4o, Claude Sonnet, Perplexity Sonar Pro). **Mixed cadence per engine cost:** Gemini Flash daily change-detection + GPT-4o / Claude / Sonar Pro weekly full audits. Alerts on first appearance/disappearance + position deltas, 5-site monitor (shared with Schema). Gemini included as in-product engine; not advertised on marketing pages (Google AI/ML competitive-use clause hedge — see `_legal-engine-tos.md`). **Confidence intervals reported** on every citation rate (bootstrap CI95 over rolling 4-week sample window). Position-delta alerts apply significance testing — overlapping CIs do not trigger alerts. The only AEO tracker that reports statistically meaningful citation rates (research-grounded; see `_research-citations.md` §1). Cost target: <$6/user/mo LLM spend, $23 gross margin per Pro user.
 - **Agency tier**: 50-site monitor, competitor benchmarking, white-label, API endpoint
 - **Acceptance**: Pro user can add a brand + URL → tool auto-generates prompts → daily 4-engine check runs → email alert when brand citation status or position changes
 
@@ -313,7 +313,7 @@ Tagsmith pivots from existing `airio` codebase (Convex + Next.js + Dodo Payments
 Tagsmith v1 is "shippable" when **all** acceptance criteria above pass on staging, AND:
 
 - A free user can complete the full job (URL → JSON-LD copy + URL → OG download) without signing up
-- A Pro user can pay $19, get unlimited use, and cancel cleanly
+- A Pro user can pay $29, get unlimited use, and cancel cleanly
 - LTD purchase flow works and counter decrements
 - One marketing page per tool (`/schema-markup-generator`, `/og-image-generator`) ranks for at least one indexed long-tail keyword by week 6 post-launch
 - Convex + Next.js deployed; `TAGSMITH_BASE_URL` env-driven and verified by changing it on staging

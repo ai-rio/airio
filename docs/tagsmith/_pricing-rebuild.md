@@ -1,27 +1,59 @@
-# Pricing Rebuild — Deferred Day 2+ Task
+# Pricing Rebuild — Model C (Mixed Cadence + Calibrated Tiers)
 
-Pivot from airio credit-pack model (10/30/100 audits, BRL) to Tagsmith subscription tiers (USD) per `_prd-tagsmith.md` §6.
+Pivot from airio credit-pack model (10/30/100 audits, BRL) to Tagsmith subscription tiers (USD canonical) per `_prd-tagsmith.md` §6.
 
-## Why deferred
+## Why Model C (locked 2026-05-02)
 
-Pass 3 of the Day 1 scrub was scoped narrowly to currency display. A real conversion is half-day work because:
+Original draft used $19/$49/$99 inherited from indie SaaS folklore. Cost math against real LLM prices showed unit economics break:
 
-1. Backend checkout flow hits Dodo with credit-pack product IDs — UI-only swap leaves the click broken end-to-end
-2. Schema, `users` fields, usage gating, and webhook handlers all encode the credit-pack model
-3. PRD introduces an LTD tier with a 100-seat server-enforced cap that doesn't exist yet
-4. Free-tier limits change shape: 1 audit/month → 5 schema/mo + 10 OG/mo + AEO weekly check
-5. Mid-pivot half-broken state is worse than a clean cut
+- Pro $19/mo with daily × 4 premium engines × 10 prompts × 5 brands = ~$27/user/mo LLM cost → **negative gross margin**
+- Substituting cheap models (Haiku, Flash, GPT-4o-mini) gives wrong scores — buyers see one number on ChatGPT.com and another in Tagsmith, churn fast
+- Cheap-substitute escape hatch is fake; cost has to clear with consumer-grade models
 
-airio is not live, so there's no user-facing regression risk — but committing a half-rebuild creates noise for future agents.
+Model C resolves with two levers:
+1. **Bump prices modestly** — $19→$29 Pro, $49→$79 Agency, $99→$149 LTD — still 27x cheaper than HubSpot AEO enterprise (~$800/seat/mo equivalent)
+2. **Mixed engine cadence** — Gemini Flash daily change-detection + premium engines (GPT-4o, Sonnet, Sonar Pro) weekly full audits. Same 4-engine coverage, 1/4 the cost.
 
-## Target state (PRD-locked)
+Per-Pro-user LLM cost target: <$6/mo. Margin: ~$23/user. Sustainable.
 
-| Tier | Price | Type | Features |
-|------|-------|------|----------|
-| Free | $0 | — | 5 schema gens/mo (watermarked output), 10 OG images/mo (watermarked), 1 AEO check/wk on 1 brand × 3 prompts in 1 LLM |
-| Pro | $19/mo | Subscription (Dodo) | Unlimited schema, unlimited OG (no watermark, custom font/color/logo + A/B endpoint), AEO unlimited prompts × 3 LLMs (ChatGPT, Claude, Perplexity) weekly + alerts, 5-site monitor (shared across Schema + AEO) |
-| Agency | $49/mo | Subscription (Dodo) | Pro + 50-site monitor, white-label monitor email, REST API key auth (`POST /api/v1/schema`, `POST /api/v1/og`), bulk sitemap.xml validate, AEO competitor benchmarking, custom hosted OG domain via CNAME |
-| LTD | $99 | One-time, capped at 100 seats | Pro forever; flag `is_lifetime_pro: true`; UI shows live count remaining ("87 of 100 left"); after 100 sold the LTD purchase route 410s |
+## Target state (PRD-locked, Model C)
+
+| Tier | Price | Type | Features | LLM cost target |
+|------|-------|------|----------|-----------------|
+| Free | $0 | — | 5 schema gens/mo (watermarked), 10 OG images/mo (watermarked), 1 AEO brand × 3 auto-prompts × 2 LLMs (ChatGPT GPT-4o + Perplexity Sonar) × weekly check | <$0.10/user/mo |
+| Pro | **$29/mo** | Subscription (Dodo) | Unlimited schema (static-first + Haiku fallback), unlimited OG (no watermark, custom font/color/logo + A/B endpoint), 5 brands × 10 auto-prompts × 4 LLMs with **mixed cadence** (Gemini Flash daily change-detection + GPT-4o / Claude Sonnet / Sonar Pro weekly full audits) + alerts + **confidence intervals** + 5-site monitor (shared across Schema + AEO) | <$6/user/mo |
+| Agency | **$79/mo** | Subscription (Dodo) | Pro + 20 brands × 50-site monitor, white-label monitor email, REST API key auth (`POST /api/v1/schema`, `POST /api/v1/og`), bulk sitemap.xml validate, AEO competitor benchmarking, custom hosted OG domain via CNAME | <$20/user/mo |
+| LTD | **$149** | One-time, capped at 100 seats | Pro forever; flag `is_lifetime_pro: true`; UI shows live count remaining ("87 of 100 left"); after 100 sold the LTD purchase route 410s. Total seed cash: $14.9k | <$6/user/mo (lifetime ceiling enforced) |
+| Pro annual | $290/yr | 17% off vs $29 × 12 | Same as Pro, paid yearly | — |
+| Agency annual | $790/yr | 17% off vs $79 × 12 | Same as Agency, paid yearly | — |
+
+## Why these specific numbers
+
+**$29 Pro (vs $19 earlier):**
+- Anchor pricing: $19 reads "indie tool I'll cancel." $29 reads "real product I'm using." AppSumo + indie SaaS data supports $29 minimum tier.
+- Margin headroom for support, infra growth, model price increases.
+- Solo founder time has value. $19 with $14 margin × 100 customers = $1.4k/mo (unsustainable). $29 with $23 margin × 100 = $2.3k/mo (path to $10k MRR clearer).
+
+**$79 Agency (vs $49 earlier):**
+- Agency reseller charges client $200-500/site/mo. They absorb $79 trivially.
+- 20-brand monitoring × 5 engines × calibrated cadence = real cost ~$15-20/user. $79 = $59-64 margin per agency seat.
+- Doubles per-customer LTV vs $49 with no perceived friction at this buyer tier.
+
+**$149 LTD × 100 cap (vs $99 earlier):**
+- LTD = lifetime LLM cost exposure (~$5/mo × forever). $99 LTD pays back month 4; everything past = pure cost. $149 LTD pays back month 6, cleaner runway.
+- Cap stays at 100. Total seed cash: $14.9k vs $9.9k. Funds two rounds of work.
+- Second wave (if cap unhit by week 8) at $199.
+
+## Cost-control engineering (non-negotiable)
+
+| Mechanism | Purpose | Implementation |
+|---|---|---|
+| Per-user LLM spend ceiling | Block runaway accounts | Convex action checks `user.llmSpendThisMonth`; alert at $10, hard cap at $15 |
+| 24h prompt cache | Cut duplicate calls ~30% | Cache key = SHA(prompt + engine + model); TTL 86400s |
+| Per-tier rate limits | Soft-throttle abuse | Pro hits 5,000 calls/mo → soft throttle, surface upgrade |
+| Engine fallback | Don't burn user quota on infra | Sonnet error → GPT-4o; both error → retry queue |
+| Cost dashboard (founder + user) | Visibility = the moat against bleed | Convex action logs `tokensIn`, `tokensOut`, `costUsd`, `engine`, `userId`; daily summary email to founder; user-facing dashboard surfaces cost |
+| Manual abuse review queue | Flag accounts >$25/mo cost | Likely abuse or bug; reach out before billing cycle |
 
 ## Backend work to land this
 
@@ -57,7 +89,7 @@ airio is not live, so there's no user-facing regression risk — but committing 
 - `site/app/page.tsx` PLANS array → 3 subscription tiers + LTD callout banner with live counter
 - `dashboard/app/billing/page.tsx` products array → tier upgrade buttons + Stripe portal link + LTD purchase card with seat counter
 - Pricing modals + upgrade prompts on free-tier ceilings (5/10/1 hits)
-- "Bundle math" copy on every pricing surface — *"Schema gen + OG + AEO at $19/mo. Pictify alone is $39."*
+- "Anti-snakeoil" copy on every pricing surface — *"AI visibility + the fixes that move the needle, at $29/mo. HubSpot AEO is enterprise-only."* Plus per-card cost-target footnote ("Why $29? Real LLM cost ~$6/user/mo. We're transparent about margin.").
 - LTD page route returning 410 once cap reached
 
 ### Marketing surfaces (PRD §9)

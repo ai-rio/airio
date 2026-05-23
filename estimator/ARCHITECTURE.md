@@ -13,6 +13,15 @@ one rule. Validated against 3 real BR projects (SENAC, Boticário, APEX) — uns
 
 You need **both documents**. Neither alone is a full takeoff — same as reading them by hand.
 
+### Cable length has TWO sources (the halves complete each other)
+The schedule always gives the **gauge** per circuit/feeder. The **length**:
+- if the table carries `COMP`/`DIST` → use it (cable metres straight from the schedule);
+- if it doesn't (common on **smaller projects** — a real, frequent case) → length comes
+  from the **plan route** (the reconciler joins circuit→route geometry), or HITL if no plan.
+
+So `cabo_m = (length: table ∨ plan-route) × conductors(polaridade, F+N+T) × paralelos`.
+A schedule without lengths still yields a **gauge inventory**; metres are filled by the plan.
+
 ## The diagram
 
 ```

@@ -15,6 +15,7 @@ sys.path.insert(0, str(EST))                   # so `import schedule` etc. work
 SENAC_SUBSOLO_ELE = PDF / "senac/compatibilizados/02 - 1°SUBSOLO/02-ELETRICA/PDF/SIA-COM-ELE-EX-F02-1SS-SJ-R00.pdf"
 BOTICARIO_PE02 = PDF / "boticario/PDF/J&J-LB-ELE-PE02_UNI.R04.pdf"
 BOTICARIO_PE03_TER = PDF / "boticario/PDF/J&J-LB-ELE-PE03_TER.R09.pdf"
+BOTICARIO_PE06_1PAV = PDF / "boticario/PDF/J&J-LB-ELE-PE06_1PAV.R09.pdf"
 APEX_PLAN_2PV = PDF / "apex/APEX-AUDI-021-ELETRICA-2PV-R01.pdf"
 APEX_SCHED_024 = PDF / "apex/APEX-AUDI-024-ELETRICA-ALI-R00.pdf"
 
@@ -38,6 +39,11 @@ def boticario_pe02():
 @pytest.fixture
 def boticario_ter():
     return _need(BOTICARIO_PE03_TER)
+
+
+@pytest.fixture
+def boticario_pe06():
+    return _need(BOTICARIO_PE06_1PAV)
 
 
 @pytest.fixture

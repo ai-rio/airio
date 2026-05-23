@@ -6,6 +6,7 @@ import pytest
 import schedule
 import ele
 import join
+import points
 
 pytestmark = pytest.mark.integration
 
@@ -71,6 +72,21 @@ def test_apex_panel_single_gauge(apex_sched):
     # single-gauge → terra derived via ABNT (e.g. 25mm² fase → 16mm² terra)
     terras = {r.get("cond_terra_mm2") for r in rows if r.get("cond_terra_mm2")}
     assert terras, "single-gauge circuits must derive a terra (ABNT PE), not leave it blank"
+
+
+# --- POINTS: device-symbol counting by glyph (Boticário PE06_1PAV) ---
+def test_boticario_points(boticario_pe06):
+    """Count device POINTS by glyph (tomada = circle-path; emergência/aterramento =
+    stroke-cluster), on the project's confirmed device layers — all other ELE_* are
+    infra (eletroduto/calha/perfilado), NOT points. Deterministic geometry → exact.
+    Tomadas pinned to 224 under Carlos's rule 'each circle = 1 point' (his Revu initial
+    189 refines UP toward this). Guards the glyph detectors against silent drift."""
+    c = points.count_points(boticario_pe06, points.BOTICARIO_POINTS)
+    assert c["tomada"]["count"] == 224                   # circle-path, each circle = 1 pt
+    assert c["iluminacao_emergencia"]["count"] == 35     # 10–12-stroke glyph cluster
+    assert c["aterramento"]["count"] == 1                # Carlos: "just 1" earthing device
+    # centroids accompany the count (the overlay/HITL proof = WHERE each point is)
+    assert len(c["tomada"]["centroids"]) == 224
 
 
 # --- RECONCILER: APEX schedule (known) ↔ APEX plan, join by name ---

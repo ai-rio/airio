@@ -20,7 +20,7 @@ dev = ["pytest>=8"]
 
 # flat layout: modules live at estimator/ root (count.py, ele.py, schedule.py, …)
 [tool.setuptools]
-py-modules = ["count", "ele", "schedule", "join", "crosscheck", "intel", "app", "app_ele"]
+py-modules = ["count", "ele", "schedule", "join", "crosscheck", "intel", "points", "app", "app_ele"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

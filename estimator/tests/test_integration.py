@@ -85,6 +85,7 @@ def test_boticario_points(boticario_pe06):
     assert c["tomada"]["count"] == 224                   # circle-path, each circle = 1 pt
     assert c["iluminacao_emergencia"]["count"] == 35     # 10–12-stroke glyph cluster
     assert c["aterramento"]["count"] == 1                # Carlos: "just 1" earthing device
+    assert c["luminaria"]["count"] == 238                # all fixture symbols = install pts; Revu 244 (Δ6 HITL)
     # centroids accompany the count (the overlay/HITL proof = WHERE each point is)
     assert len(c["tomada"]["centroids"]) == 224
 

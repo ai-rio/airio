@@ -16,10 +16,12 @@ PROJECT-AGNOSTIC engine; the layer→(device, glyph) map is CONFIG (new project 
 see ARCHITECTURE.md) — same seam as glossary.py (infra) / header_glossary.py (cable). The
 RUN layers (eletroduto/eletrocalha/perfilado) are NOT points — they belong to ele.metragem.
 
-Validated on Boticário PE06_1PAV: tomadas = 224 vs a Revu audit (~189 initial, refining up
-under the "each circle = 1 point" rule Carlos set). HITL: the human confirms the count on
-the OVERLAY (a pin per detected device) — the oracle and the correction seam in one, same
-accountability model as count.py and the metragem scale gate.
+Validated on Boticário PE06_1PAV: tomadas = 224 (Revu ~189 initial, refining up under the
+"each circle = 1 point" rule Carlos set); luminárias = 238 install points (Revu 244 after
+refine — Δ6, the deterministic geometry sits in a 236-240 band; the residual is likely a
+few long battens the frame filter drops, left for HITL not param-torture). HITL: the human
+confirms the count on the OVERLAY (a pin per detected device) — the oracle and the
+correction seam in one, same accountability model as count.py and the metragem scale gate.
 
 Usage:
     python points.py <plan.pdf> [--out OUTDIR] [--page N]
@@ -55,7 +57,11 @@ def _detect_circle(drs: list, spec: dict) -> list:
 
 
 def _connected(rects: list, tol: float) -> list:
-    """Single-linkage connected components by bbox proximity (union-find)."""
+    """Single-linkage connected components by bbox proximity (union-find), pruned by a
+    spatial grid so it stays ~O(n) on dense layers — luminotécnica carries ~10k strokes
+    where the naive O(n²) pass times out. Each rect is bucketed into every grid cell it
+    covers (so long strokes/leaders are never missed); only rects sharing a cell are
+    tested. Same result as the brute-force pass, just without the far-pair comparisons."""
     n = len(rects)
     par = list(range(n))
 
@@ -65,11 +71,25 @@ def _connected(rects: list, tol: float) -> list:
             a = par[a]
         return a
 
-    for i in range(n):
-        ri = rects[i] + (-tol, -tol, tol, tol)
-        for j in range(i + 1, n):
-            if ri.intersects(rects[j]):
-                par[find(i)] = find(j)
+    cell = 16.0
+
+    def cells(r):
+        for cx in range(int(r.x0 // cell), int(r.x1 // cell) + 1):
+            for cy in range(int(r.y0 // cell), int(r.y1 // cell) + 1):
+                yield (cx, cy)
+
+    grid: dict = collections.defaultdict(list)
+    for i, r in enumerate(rects):
+        for c in cells(r):
+            grid[c].append(i)
+    for i, r in enumerate(rects):
+        ri = r + (-tol, -tol, tol, tol)
+        seen = set()
+        for c in cells(ri):
+            for j in grid.get(c, ()):
+                if j > i and j not in seen and ri.intersects(rects[j]):
+                    seen.add(j)
+                    par[find(i)] = find(j)
     groups = collections.defaultdict(list)
     for i in range(n):
         groups[find(i)].append(i)
@@ -78,16 +98,25 @@ def _connected(rects: list, tol: float) -> list:
 
 def _detect_cluster(drs: list, spec: dict) -> list:
     """A device = a connected group of strokes whose count is in [nlo,nhi] (the glyph's
-    tessellation degree). Rejects 1-stroke ticks/leaders and over-merged blobs."""
+    tessellation degree). Rejects 1-stroke ticks/leaders and over-merged blobs; an
+    optional `frame_min` also rejects a cluster whose SMALLER bbox side exceeds it — a
+    boxed text/legend frame (both sides large) as opposed to a thin fixture or batten."""
     tol = spec.get("tol", 8.0)
     nlo, nhi = spec.get("nlo", 1), spec.get("nhi", 10 ** 9)
+    frame_min = spec.get("frame_min", float("inf"))
     rects = [dr["rect"] for dr in drs]
     out = []
     for g in _connected(rects, tol):
-        if nlo <= len(g) <= nhi:
-            xs = [(rects[i].x0 + rects[i].x1) / 2 for i in g]
-            ys = [(rects[i].y0 + rects[i].y1) / 2 for i in g]
-            out.append((sum(xs) / len(xs), sum(ys) / len(ys)))
+        if not (nlo <= len(g) <= nhi):
+            continue
+        gr = [rects[i] for i in g]
+        bw = max(r.x1 for r in gr) - min(r.x0 for r in gr)
+        bh = max(r.y1 for r in gr) - min(r.y0 for r in gr)
+        if min(bw, bh) > frame_min:
+            continue
+        xs = [(r.x0 + r.x1) / 2 for r in gr]
+        ys = [(r.y0 + r.y1) / 2 for r in gr]
+        out.append((sum(xs) / len(xs), sum(ys) / len(ys)))
     return out
 
 
@@ -113,10 +142,16 @@ def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
 # Boticário device-point config (its self-describing layers, confirmed by Carlos):
 #   ELE_ST = tomadas (circle ⊘), ELE_SQ = iluminação de emergência, ELE_LEP = aterramento.
 #   ALL OTHER ELE_* layers are infrastructure (eletroduto/calha/perfilado) — NOT points.
+#   Luminárias live on MMM-LUMINOTÉCNICA as several fixture glyphs (downlight ⊘9, batten,
+#   ⊕ corridor, arandela…). They are counted as ONE total = the install POINTS ("drops"):
+#   the customer buys the fixtures, the installer prices the drop (caixa + eletroduto +
+#   condutor + mão-de-obra), which is type-blind — so fixture SKU is a downstream BOM split,
+#   not a points concern. frame_min drops the boxed text/legend frames on the layer.
 BOTICARIO_POINTS = {
     "ELE_ST":  {"device": "tomada", "glyph": "circle", "lo": 7, "hi": 15, "min_curves": 2},
     "ELE_SQ":  {"device": "iluminacao_emergencia", "glyph": "cluster", "tol": 8, "nlo": 8, "nhi": 14},
     "ELE_LEP": {"device": "aterramento", "glyph": "cluster", "tol": 8, "nlo": 1, "nhi": 200},
+    "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},
 }
 
 _COLORS = [(1, 0, 0), (0, 0.55, 0), (0, 0, 1), (1, 0.5, 0), (0.6, 0, 0.6)]

@@ -19,7 +19,10 @@ RUN layers (eletroduto/eletrocalha/perfilado) are NOT points — they belong to 
 Validated on Boticário PE06_1PAV: tomadas = 224 (Revu ~189 initial, refining up under the
 "each circle = 1 point" rule Carlos set); luminárias = 238 install points (Revu 244 after
 refine — Δ6, the deterministic geometry sits in a 236-240 band; the residual is likely a
-few long battens the frame filter drops, left for HITL not param-torture). HITL: the human
+few long battens the frame filter drops, left for HITL not param-torture); interruptores =
+97 (Revu raw 103 WITH legend → Δ−6; plan-only ≈ 99 once the 5 legend samples are dropped,
+Δ−2 there is a coincidence of composition — the legend FPs roughly offset a few missed plan
+glyphs, so trust the Δ−6 same-composition number, not the lucky Δ−2). HITL: the human
 confirms the count on the OVERLAY (a pin per detected device) — the oracle and the
 correction seam in one, same accountability model as count.py and the metragem scale gate.
 
@@ -120,7 +123,27 @@ def _detect_cluster(drs: list, spec: dict) -> list:
     return out
 
 
-_DETECTORS = {"circle": _detect_circle, "cluster": _detect_cluster}
+def _detect_symbol(drs: list, spec: dict) -> list:
+    """A device = a single self-contained path whose bbox falls in the glyph size window
+    [wlo,whi]×[hlo,hhi] — the simplest detector: no curve/square requirement, just size.
+    For one-path glyphs that aren't circles (the interruptor 'S', drawn as one polyline).
+    The size window rejects the layer's leader ticks (≈0.1pt-wide stubs) and flat conduit
+    segments (≈1pt-tall) without separating co-drawn legend samples (same size as the plan
+    glyphs) — those few stay in, and the HITL drops them on the overlay (they cluster in
+    the symbology strip). The window is per-project CONFIG (new layer/project retunes the
+    numbers, not this mechanism), same seam as glossary.py — see ARCHITECTURE.md."""
+    wlo, whi = spec.get("wlo", 5), spec.get("whi", 20)
+    hlo, hhi = spec.get("hlo", 3), spec.get("hhi", 15)
+    out = []
+    for dr in drs:
+        r = dr["rect"]
+        if wlo <= r.width <= whi and hlo <= r.height <= hhi:
+            out.append(((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2))
+    return out
+
+
+_DETECTORS = {"circle": _detect_circle, "cluster": _detect_cluster,
+              "symbol": _detect_symbol}
 
 
 def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
@@ -147,11 +170,17 @@ def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
 #   the customer buys the fixtures, the installer prices the drop (caixa + eletroduto +
 #   condutor + mão-de-obra), which is type-blind — so fixture SKU is a downstream BOM split,
 #   not a points concern. frame_min drops the boxed text/legend frames on the layer.
+#   ELE_SI = interruptores (confirmed by the PE06 symbology legend: 5 variants — simples,
+#   simples 2 seções, simples condulete, paralelo, paralelo condulete — all the blue 'S').
+#   Counted as drops via the size-window "symbol" detector. UNLIKE luminárias, the installer
+#   SUPPLIES interruptores, so the correct BOM splits per variant (paralelo costs more: 3-way
+#   wire + 2 boxes); that per-variant split is the next refinement, no per-variant oracle yet.
 BOTICARIO_POINTS = {
     "ELE_ST":  {"device": "tomada", "glyph": "circle", "lo": 7, "hi": 15, "min_curves": 2},
     "ELE_SQ":  {"device": "iluminacao_emergencia", "glyph": "cluster", "tol": 8, "nlo": 8, "nhi": 14},
     "ELE_LEP": {"device": "aterramento", "glyph": "cluster", "tol": 8, "nlo": 1, "nhi": 200},
     "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},
+    "ELE_SI":  {"device": "interruptor", "glyph": "symbol", "wlo": 5, "whi": 20, "hlo": 3, "hhi": 15},
 }
 
 _COLORS = [(1, 0, 0), (0, 0.55, 0), (0, 0, 1), (1, 0.5, 0), (0.6, 0, 0.6)]

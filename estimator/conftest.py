@@ -16,6 +16,7 @@ SENAC_SUBSOLO_ELE = PDF / "senac/compatibilizados/02 - 1°SUBSOLO/02-ELETRICA/PD
 BOTICARIO_PE02 = PDF / "boticario/PDF/J&J-LB-ELE-PE02_UNI.R04.pdf"
 BOTICARIO_PE03_TER = PDF / "boticario/PDF/J&J-LB-ELE-PE03_TER.R09.pdf"
 APEX_PLAN_2PV = PDF / "apex/APEX-AUDI-021-ELETRICA-2PV-R01.pdf"
+APEX_SCHED_024 = PDF / "apex/APEX-AUDI-024-ELETRICA-ALI-R00.pdf"
 
 
 def _need(path: Path) -> str:
@@ -42,3 +43,8 @@ def boticario_ter():
 @pytest.fixture
 def apex_plan():
     return _need(APEX_PLAN_2PV)
+
+
+@pytest.fixture
+def apex_sched():
+    return _need(APEX_SCHED_024)

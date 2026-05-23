@@ -1,8 +1,11 @@
 # Estimator — Architecture (the anchor)
 
 Single reference to stop re-deriving this every session. Two halves, two sources,
-one rule. Validated against 3 real BR projects (SENAC, Boticário, APEX) — unstructured
-2D AutoCAD, varying layer/header vocabularies. This is the reality, not an idealization.
+one rule. Exercised against 3 real BR projects (SENAC, Boticário, APEX) — unstructured
+2D AutoCAD, varying layer/header vocabularies; this is the reality, not an idealization.
+**Validation is partial — see the status table for what's actually proven vs pending**
+(SENAC infra = Revu-validated; Boticário cable = validated; Boticário infra = smoke-only;
+APEX = join only). Don't read "exercised" as "fully validated".
 
 ## The two halves (each has its OWN source of truth)
 

@@ -32,6 +32,19 @@ def test_unknown_polarity_flagged():
     assert agg["cabo_polaridade_indefinida"]      # surfaced for HITL, not silently guessed
 
 
+def test_to_float_br_number_formats():
+    """B6: '.' is decimal in THIS project (500.00, 185.0) but thousands in BR
+    (1.500 = 1500). Disambiguate by trailing-group-of-3, don't blindly strip."""
+    f = schedule._to_float
+    assert f("6") == 6                    # plain int
+    assert f("500.00") == 500             # US-style decimal (must NOT become 50000)
+    assert f("185,0") == 185              # BR decimal comma
+    assert f("1.500") == 1500             # BR thousands (the bug: was 1.5)
+    assert f("1.234.567") == 1234567      # BR thousands, multi-group
+    assert f("1.5") == 1.5                # decimal (1 trailing digit, not thousands)
+    assert f("12.345,6") == 12345.6       # BR thousands + decimal
+
+
 def test_crosscheck_flags_per_bitola():
     """The per-Ø wall as a regression guard: well-separated Ø agree; the
     overlapping pair diverges; the off-layer feeder is schedule-only."""

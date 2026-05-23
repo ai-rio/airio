@@ -33,6 +33,9 @@ import tempfile
 
 import fitz
 
+import abnt              # NBR 5410 terra sizing for single-gauge circuits
+import header_glossary  # header → canonical field (the cable config seam)
+
 DEFAULT_MODEL = "sonnet"         # haiku is faster but returned EMPTY on a dense 40-row
                                  # table — too weak; sonnet reads it. Trimmed schema (below)
                                  # cuts output ~35% to keep sonnet under the timeout.
@@ -163,8 +166,18 @@ def _classify_columns(flat: list) -> dict:
                 and j not in used]
     comp = max(int_cols) if int_cols else None       # comp = last bare-int column
     qtd = next((j for j in int_cols if j != comp), None)
+    # explicit conductor columns from the gauge group (positional, no header):
+    #  1 col = single seção (panel) → derive N+T via ABNT; 2 = F+T; 3 = F/N/T.
+    if len(gauges) == 1:
+        fase_i, neutro_i, terra_i = gauges[0], None, None
+    elif len(gauges) == 2:
+        fase_i, neutro_i, terra_i = gauges[0], None, gauges[1]
+    else:
+        fase_i, neutro_i, terra_i = (gauges + [None, None, None])[:3]
     return {"eletroduto": elet, "comp": comp, "qtd": qtd, "gauges": gauges,
-            "voltage": volt, "iso": iso, "ncol": ncol}
+            "voltage": volt, "iso": iso, "ncol": ncol,
+            "fase": fase_i, "neutro": neutro_i, "terra": terra_i,
+            "single_gauge": len(gauges) == 1}
 
 
 def _polaridade_from_volt(v: str) -> str:
@@ -172,58 +185,102 @@ def _polaridade_from_volt(v: str) -> str:
     return "tri" if v in {"380", "440", "480", "208"} else ("mono" if v == "220" else "")
 
 
+def _gauge_fmt(x: float) -> str:
+    return f"{x:g}"                                   # 16.0→"16", 2.5→"2.5"
+
+
+def _looks_numeric(v: str) -> bool:
+    return _to_float(v) is not None
+
+
+def _header_colmap(flat: list) -> dict | None:
+    """If one of the first rows is a header, return a column map from its text via
+    header_glossary (authoritative, project-agnostic). Else None → content heuristic."""
+    for row in flat[:8]:                              # panel tables have metadata rows before the header
+        hm = header_glossary.map_columns([c or "" for c in row])
+        if "fase" in hm and ("nome" in hm or "comp" in hm or "eletroduto" in hm):
+            ncol = len(row)
+            return {"eletroduto": hm.get("eletroduto"), "comp": hm.get("comp"),
+                    "qtd": hm.get("qtd"), "voltage": hm.get("voltage"),
+                    "iso": None, "ncol": ncol, "gauges": [],
+                    "nome": hm.get("nome", 0),
+                    "fase": hm.get("fase"), "neutro": hm.get("neutro"), "terra": hm.get("terra"),
+                    "single_gauge": "neutro" not in hm and "terra" not in hm}
+    return None
+
+
 def _rows_to_feeders(flat: list, cm: dict) -> list:
-    """Build feeder dicts from classified rows. gauges in column order →
-    fase/neutro/terra (3 = F/N/T; 2 = F/T, motor no-neutro on a tri sheet)."""
-    g = cm.get("gauges", [])
+    """Build conductor rows from a column-mapped table (header- OR content-derived).
+    A single-gauge circuit (one SEÇÃO column) → neutro = fase, terra = ABNT PE(fase).
+    A row is data when its fase cell is a gauge number (skips the header/blank rows);
+    comp is OPTIONAL (panel schedules without DIST yield a gauge inventory)."""
+    nome_i = cm.get("nome", 0)
+    def cell(i):
+        return r[i].strip() if (i is not None and 0 <= i < len(r)) else ""
     out = []
     for r in flat:
-        if cm.get("comp") is None or cm["comp"] >= len(r):
+        fase = cell(cm.get("fase"))
+        elet = cell(cm.get("eletroduto"))
+        comp = cell(cm.get("comp"))
+        # data row: a real conductor gauge (or, lengths-only oddity, an Ø+comp).
+        if not (fase and _looks_numeric(fase)) and not (elet and comp):
             continue
-        comp = r[cm["comp"]]
-        if not _is_int(comp) and not re.fullmatch(r"\d+[.,]\d+", comp or ""):
-            continue                                  # not a data row (header/blank)
-        fase = r[g[0]] if len(g) >= 1 and g[0] < len(r) else ""
-        neutro = r[g[1]] if len(g) >= 3 and g[1] < len(r) else ""
-        terra = r[g[-1]] if len(g) >= 2 and g[-1] < len(r) else ""
-        volt = r[cm["voltage"]] if cm.get("voltage") is not None and cm["voltage"] < len(r) else ""
+        if cm.get("single_gauge") and fase:
+            neutro = fase                            # full neutro
+            fv = _to_float(fase)
+            terra = _gauge_fmt(abnt.abnt_pe_gauge(fv)) if fv else ""   # B1: ABNT PE
+        else:
+            neutro = cell(cm.get("neutro"))
+            terra = cell(cm.get("terra"))
+        volt = cell(cm.get("voltage"))
         out.append({
-            "nome": r[0] if r else "",                # col0 (may merge origem/destino)
+            "nome": cell(nome_i),
             "cond_fase_mm2": fase, "cond_neutro_mm2": neutro, "cond_terra_mm2": terra,
-            "qtd_cabos": r[cm["qtd"]] if cm.get("qtd") is not None and cm["qtd"] < len(r) else "1",
+            "qtd_cabos": cell(cm.get("qtd")) or "1",
             "polaridade": _polaridade_from_volt(volt),
-            "eletroduto_pol": r[cm["eletroduto"]] if cm.get("eletroduto") is not None
-                              and cm["eletroduto"] < len(r) else "",
+            "eletroduto_pol": elet,
             "comp_m": comp,
         })
     return out
 
 
 def _extract_via_find_tables(pdf_path: str, page_index: int = 0) -> dict | None:
-    """Try every detected table, score by schedule signal, build feeders from the
-    best. Returns None if no table looks like a schedule (→ caller falls back to LLM)."""
+    """Try every detected table; prefer a header-mapped column scheme (panel tables,
+    project-agnostic), else the content heuristic (feeder, clipped header). Build
+    conductor rows from the best-scoring table. None → caller falls back to LLM."""
     pg = fitz.open(pdf_path)[page_index]
-    best, best_score = None, 0
+    best_h, best_c = (None, 0), (None, 0)            # header-mapped vs content-heuristic
     for t in pg.find_tables().tables:
         flat = _explode(t.extract())
         if len(flat) < 3:
             continue
-        cm = _classify_columns(flat)
-        # signal = needs a Ø column + at least one gauge column + a comp column
-        if cm.get("eletroduto") is None or not cm.get("gauges") or cm.get("comp") is None:
-            continue
-        feeders = _rows_to_feeders(flat, cm)
-        sc = len([f for f in feeders if f["eletroduto_pol"] and f["comp_m"]])
-        if sc > best_score:
-            best, best_score = (feeders, cm), sc
+        hcm = _header_colmap(flat)
+        if hcm and hcm.get("fase") is not None:       # a real schedule (named gauge column)
+            feeders = _rows_to_feeders(flat, hcm)
+            sc = len([f for f in feeders if f["cond_fase_mm2"]])
+            if sc > best_h[1]:
+                best_h = ((feeders, hcm), sc)
+        else:                                         # content path: strict feeder gate (Ø + comp)
+            cm = _classify_columns(flat)
+            if cm.get("eletroduto") is None or cm.get("comp") is None:
+                continue
+            feeders = _rows_to_feeders(flat, cm)
+            sc = len([f for f in feeders if f["cond_fase_mm2"] or f["eletroduto_pol"]])
+            if sc > best_c[1]:
+                best_c = ((feeders, cm), sc)
+    # prefer the header-mapped schedule (clean, panel) over heuristic noise
+    chosen, best_via = (best_h, "header") if best_h[1] >= 3 else (best_c, "heuristic")
+    best, best_score = chosen
     if not best or best_score < 3:
         return None
     feeders, cm = best
     return {
-        "feeders": feeders, "panels": [], "confidence": 0.9, "method": "find_tables",
-        "notes": f"find_tables: {len(feeders)} linhas; colunas {cm}. "
-                 "Polaridade inferida da tensão (380→tri); confirmar. "
-                 "Linhas duplicadas (tabela vs chamada no desenho) NÃO deduplicadas — revisar.",
+        "feeders": feeders, "panels": [], "confidence": 0.9,
+        "method": f"find_tables ({best_via})",
+        "notes": f"find_tables via {best_via}: {len(feeders)} linhas. "
+                 f"single_gauge={cm.get('single_gauge')} (terra via ABNT NBR 5410). "
+                 "Polaridade inferida da tensão (380→tri); comprimento da tabela quando "
+                 "presente, senão da planta (rota). Duplicatas NÃO deduplicadas — revisar.",
     }
 
 
@@ -322,7 +379,21 @@ def _norm_pol(p: str) -> str:
 
 
 def _to_float(s: str) -> float | None:
-    s = (s or "").strip().replace(".", "").replace(",", ".") if "," in (s or "") else (s or "").strip()
+    """Parse a BR/US numeric cell. Comma = decimal → '.' are thousands ('1.234,5'→
+    1234.5). Dot-only is ambiguous: this project uses '.' as DECIMAL ('500.00'→500,
+    '185.0'→185), but BR writes thousands with '.' ('1.500'→1500). Disambiguate:
+    dot-only is THOUSANDS only when every group after the first is exactly 3 digits
+    (1.500, 1.234.567); otherwise it's a decimal point."""
+    s = (s or "").strip()
+    if not s:
+        return None
+    if "," in s:                                   # comma decimal → strip thousands dots
+        s = s.replace(".", "").replace(",", ".")
+    elif "." in s:
+        parts = s.split(".")
+        if parts[0].isdigit() and all(len(p) == 3 and p.isdigit() for p in parts[1:]):
+            s = "".join(parts)                     # thousands-grouped integer
+        # else: leave as-is — it's a decimal point
     try:
         return float(s)
     except ValueError:

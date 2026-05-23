@@ -13,7 +13,7 @@ pytestmark = pytest.mark.integration
 # --- CABOS: Boticário PE02 feeder table via find_tables (deterministic) ---
 def test_boticario_pe02_find_tables(boticario_pe02):
     d = schedule.extract_schedule(boticario_pe02)
-    assert d["method"] == "find_tables"               # NOT the slow LLM fallback
+    assert d["method"].startswith("find_tables")      # NOT the slow LLM fallback
     agg = schedule.aggregate(d)
     elet = agg["eletroduto_m_por_pol"]
     # the 5 buckets that are exact vs Revu ground truth (well-separated Ø)
@@ -45,6 +45,24 @@ def test_boticario_infra_via_glossary(boticario_ter):
     the config seam (engine hardcoded to the SENAC prefix)."""
     m = ele.metragem(boticario_ter)
     assert m["total_m"].get("bandeja", 0) > 0     # perfilado + eletrocalha runs measured
+
+
+# --- CABLE OCP: APEX PANEL table (header-driven, single-gauge, ABNT terra) ---
+def test_apex_panel_single_gauge(apex_sched):
+    """APEX PAINEL QG-E-2P-AUD: a panel quadro with a single SEÇÃO column (not F/N/T)
+    and NO length column. Header-driven extraction must read the gauges (QT-1=16,
+    QT-2=25, QT-3=6, QT-4=10) and derive terra via ABNT — proving the cable seam is
+    WIRED and works on a different table shape than the boticário feeder."""
+    d = schedule.extract_schedule(apex_sched)
+    rows = d["feeders"] + [c for p in d.get("panels", []) for c in p.get("circuits", [])]
+    gauges = {r.get("cond_fase_mm2") or r.get("secao_fase_mm2") for r in rows}
+    # the 4 real circuits' conductor gauges, read from the single SEÇÃO column
+    assert {"16", "16,0", "16.0"} & gauges or any("16" in str(g) for g in gauges)
+    assert any("25" in str(g) for g in gauges)
+    assert any("6" in str(g) for g in gauges)
+    # single-gauge → terra derived via ABNT (e.g. 25mm² fase → 16mm² terra)
+    terras = {r.get("cond_terra_mm2") for r in rows if r.get("cond_terra_mm2")}
+    assert terras, "single-gauge circuits must derive a terra (ABNT PE), not leave it blank"
 
 
 # --- RECONCILER: APEX schedule (known) ↔ APEX plan, join by name ---

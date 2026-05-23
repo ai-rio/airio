@@ -14,16 +14,17 @@ projects — a deterministic per-format parser returned 0 cross-format). On dens
 sheets (diagram + table + legend) the linear text stream SCRAMBLES, so reading
 the rendered image generalizes where text-parsing fails. Claude reads any layout.
 
-Routed through the `claude -p` CLI (like intel.py) so it authenticates with the
-user's Claude subscription OAuth — no billed API key. The image is handed to the
-model via an `@path` mention, so the Read tool is ALLOWED (only Read).
-
-NOTE (ToS / portability): the subscription licenses interactive Claude Code use;
-fine for local demo/discovery, but a shipped/CI build must switch to a billed
-sk-ant- key + the anthropic SDK (vision messages API).
+The vision fallback (only when find_tables can't read a grid) has TWO interchangeable
+backends, selected by ANTHROPIC_API_KEY (see `_extract_via_llm`):
+- no key  → the `claude` CLI subprocess, authed by the user's subscription OAuth (free,
+  local; the dev default). Image via an `@path` mention, Read tool allowed.
+- key set → the anthropic SDK, base64 image inline (billed sk-ant-, no `claude` binary)
+  → container/CI-deployable. This removes the earlier ship-blocker without forcing API
+  spend in dev (ToS note: the subscription licenses interactive use; deploy uses the key).
 """
 from __future__ import annotations
 
+import base64
 import collections
 import json
 import os
@@ -40,6 +41,11 @@ DEFAULT_MODEL = "sonnet"         # haiku is faster but returned EMPTY on a dense
                                  # table — too weak; sonnet reads it. Trimmed schema (below)
                                  # cuts output ~35% to keep sonnet under the timeout.
 RENDER_LONG_EDGE = 3000          # target px long edge — legible tables, fast vision
+
+# SDK path only: short model alias → full billed model id (CLI accepts the alias itself).
+_SDK_MODELS = {"sonnet": "claude-sonnet-4-6", "haiku": "claude-haiku-4-5-20251001",
+               "opus": "claude-opus-4-7"}
+_SDK_MAX_TOKENS = 16000          # a dense 40-row schedule ≈ 13k output tokens (see docstring)
 
 INSTRUCTIONS = """\
 You read Brazilian electrical schedules from construction drawings and extract \
@@ -116,12 +122,18 @@ def _explode(rows: list) -> list:
 
 
 def _gnorm(v: str) -> str:
-    return v.replace(",", ".").rstrip("0").rstrip(".") if v else ""
+    """Normalise a gauge token to its catalog form. Strip trailing zeros ONLY in the
+    fractional part ('185.0'→'185', '2,5'→'2.5'); a bare integer is left intact
+    ('50'→'50', not '5' — the B3 bug: unconditional rstrip('0') corrupted it)."""
+    if not v:
+        return ""
+    v = v.replace(",", ".")
+    return v.rstrip("0").rstrip(".") if "." in v else v
 
 
-def _is_gauge(v: str) -> bool:                       # decimal mm²: "185.0","2,5"
+def _is_gauge(v: str) -> bool:                       # mm²: decimal '185.0','2,5' OR bare-int '185','16'
     v = (v or "").strip().replace("mm²", "").replace("mm2", "").strip()
-    return ("." in v or "," in v) and _gnorm(v) in GAUGE_SET
+    return _gnorm(v) in GAUGE_SET
 def _is_inch(v: str) -> bool:                        # Ø token: 4, 1.1/4, 3/4, 2.1/2
     return bool(re.fullmatch(r'\d|\d\.\d/\d|\d/\d', (v or "").strip().replace('"', "")))
 def _is_int(v: str) -> bool:
@@ -311,29 +323,84 @@ def _render_page(pdf_path: str, page_index: int, out_png: str) -> tuple[int, int
     return pix.width, pix.height
 
 
+def _llm_system() -> str:
+    """The shared vision system prompt (instructions + the JSON-Schema contract)."""
+    return (INSTRUCTIONS
+            + "\n\nReturn ONLY a single JSON object (no markdown, no prose) "
+              "conforming to this JSON Schema. Set confidence 0..1 = how sure you "
+              "are the table was read completely and correctly:\n" + json.dumps(SCHEMA))
+
+
+def _parse_llm_json(raw: str) -> dict:
+    """Untrusted model text → validated dict. Strips a ```fence and, failing that,
+    salvages the first {...} object. Shared by both the SDK and CLI paths."""
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```[a-zA-Z]*\n?|\n?```$", "", raw).strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not m:
+            raise RuntimeError(f"no JSON in LLM result: {raw[:200]!r}")
+        data = json.loads(m.group(0))
+    _validate(data)
+    return data
+
+
 def _extract_via_llm(pdf_path: str, page_index: int = 0,
                      model: str = DEFAULT_MODEL) -> dict:
-    """FALLBACK: render the sheet → Claude vision (CLI) → validated dict. Used only
-    when find_tables can't detect a usable grid (borderless/scanned tables). Slow +
-    output-bound (a 40-row table ≈ 13k tokens ≈ minutes) — that's why it's the fallback."""
+    """FALLBACK (render sheet → Claude vision → validated dict): used only when
+    find_tables can't detect a usable grid (borderless/scanned tables). Slow +
+    output-bound (a 40-row table ≈ 13k tokens ≈ minutes) — that's why it's the fallback.
+
+    DEPLOYABILITY (B5): routes by ANTHROPIC_API_KEY. Key set → the anthropic SDK
+    (base64 image, no `claude` binary) — the container/CI-deployable, billed path.
+    No key → the `claude` CLI subprocess — local, free on the user's subscription
+    (the default for dev). Same prompt + schema + parse on both."""
     png = os.path.join(tempfile.gettempdir(), f"sched_{os.getpid()}_{page_index}.png")
     _render_page(pdf_path, page_index, png)
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return _via_sdk(png, model)
+    return _via_cli(png, model)
 
-    system = (INSTRUCTIONS
-              + "\n\nReturn ONLY a single JSON object (no markdown, no prose) "
-                "conforming to this JSON Schema. Set confidence 0..1 = how sure you "
-                "are the table was read completely and correctly:\n" + json.dumps(SCHEMA))
-    # Image is the source of truth (vision generalises across layouts; the linear
-    # text stream scrambles on dense sheets). No text dump → leaner + faster call.
+
+def _via_sdk(png: str, model: str) -> dict:
+    """Deployable path: anthropic SDK vision (billed sk-ant- key, read from the env).
+    The image is sent inline as a base64 block — no filesystem/CLI dependency, so it
+    runs in a container. `anthropic` is an optional/deploy dep (imported lazily)."""
+    import anthropic                                     # optional dep — only the deploy path needs it
+
+    with open(png, "rb") as f:
+        img_b64 = base64.standard_b64encode(f.read()).decode()
+    model_id = _SDK_MODELS.get(model, model)
+    msg = anthropic.Anthropic().messages.create(
+        model=model_id, max_tokens=_SDK_MAX_TOKENS, system=_llm_system(),
+        messages=[{"role": "user", "content": [
+            {"type": "image",
+             "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
+            {"type": "text", "text": "Extract the electrical schedule from this sheet image."},
+        ]}],
+    )
+    raw = "".join(b.text for b in msg.content if getattr(b, "type", None) == "text")
+    data = _parse_llm_json(raw)
+    u = msg.usage
+    data["_usage"] = {"input": u.input_tokens, "output": u.output_tokens,
+                      "cost_usd": None, "model": model_id}     # billed; cost not returned by SDK
+    return data
+
+
+def _via_cli(png: str, model: str) -> dict:
+    """Local/free path: the `claude` CLI subprocess, authed by the user's subscription
+    OAuth (no billed key). The image is handed in via an `@path` mention (Read tool)."""
     prompt = f"Extract the electrical schedule from this sheet image: @{png}"
-
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     try:
         proc = subprocess.run(
             ["claude", "-p", prompt,
              "--model", model,
              "--output-format", "json",
-             "--system-prompt", system,
+             "--system-prompt", _llm_system(),
              "--allowedTools", "Read"],
             text=True, capture_output=True, cwd=tempfile.gettempdir(),
             env=env, timeout=420,
@@ -345,17 +412,7 @@ def _extract_via_llm(pdf_path: str, page_index: int = 0,
     env_out = json.loads(proc.stdout)
     if env_out.get("is_error") or env_out.get("subtype") != "success":
         raise RuntimeError(f"claude CLI error: subtype={env_out.get('subtype')}")
-    raw = env_out["result"].strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```[a-zA-Z]*\n?|\n?```$", "", raw).strip()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        if not m:
-            raise RuntimeError(f"no JSON in CLI result: {raw[:200]!r}")
-        data = json.loads(m.group(0))
-    _validate(data)
+    data = _parse_llm_json(env_out["result"])
     u = env_out.get("usage", {})
     data["_usage"] = {"input": u.get("input_tokens", 0), "output": u.get("output_tokens", 0),
                       "cost_usd": env_out.get("total_cost_usd", 0), "model": model}

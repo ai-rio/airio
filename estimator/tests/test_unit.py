@@ -32,6 +32,21 @@ def test_unknown_polarity_flagged():
     assert agg["cabo_polaridade_indefinida"]      # surfaced for HITL, not silently guessed
 
 
+def test_is_gauge_bare_integer():
+    """B3: a gauge may be written as a bare integer ('185','16','50'), not only a
+    decimal ('185.0'). _is_gauge must accept catalog ints, and _gnorm must NOT
+    corrupt them (the bug: rstrip('0') turned '50'→'5', '150'→'15'). Non-catalog
+    ints stay False; decimals keep working."""
+    g = schedule._is_gauge
+    assert g("185") and g("16") and g("4") and g("6")        # bare-int catalog gauges (B3)
+    assert g("50") and g("150") and g("500")                 # trailing-zero ints (the _gnorm trap)
+    assert g("185.0") and g("2,5") and g("16.0")             # decimals still resolve
+    assert not g("17") and not g("7") and not g("1000")      # not in the catalog
+    assert not g("") and not g("foo")
+    assert schedule._gnorm("50") == "50" and schedule._gnorm("150") == "150"   # not "5"/"15"
+    assert schedule._gnorm("185.0") == "185" and schedule._gnorm("2,5") == "2.5"
+
+
 def test_to_float_br_number_formats():
     """B6: '.' is decimal in THIS project (500.00, 185.0) but thousands in BR
     (1.500 = 1500). Disambiguate by trailing-group-of-3, don't blindly strip."""

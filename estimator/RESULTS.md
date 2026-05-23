@@ -238,6 +238,54 @@ The table = a **FROM→TO feeder list (QGBT → Quadros Alimentadores)**; header
 
 **Lesson:** library-first for the bulk (deterministic/instant/free), LLM only for the residual it can't parse — mirrors layers-first. Don't default to an LLM for structured tabular data.
 
+## Council bugs B3–B5 fixed + perfilado split (2026-05-23, TDD)
+Closed the last 3 council findings (B1/B2/B6 were fixed prior session). Each as a
+red→green slice; suite 26 → **31 green, 0 skipped**.
+
+**B3 — bare-integer gauges (`schedule.py`).** `_is_gauge("185")` returned False — the
+content-heuristic only accepted decimal strings, so a schedule that writes gauges as
+bare ints (`16`,`50`,`185`) lost its conductor columns. Root cause was deeper than the
+handoff said: `_gnorm` did an unconditional `rstrip("0")`, corrupting `"50"→"5"`,
+`"150"→"15"`. Fix: strip trailing zeros only in the fractional part; `_is_gauge` now
+gates solely on `_gnorm(v) in GAUGE_SET`. Regression guard = `test_boticario_pe02_find_tables`
+(the only content-path test) — stayed green, so the comp-column false-positive risk didn't bite.
+
+**B4 — discipline-blind glossary + perfilado≠eletrocalha (`glossary.py`).**
+Two parts:
+- *Discipline scoping.* The glossary mapped ANY `conduto`/`duto` to eletroduto, so a
+  CFTV/dados layer counted as electrical conduit. This was REAL on the Revu-validated
+  SENAC sheet: `CE-Condutos DADOS (Piso)`. Added an EXCLUDE for other-discipline markers
+  (`ce-`,`sdai`,`cftv`,`dados`,`voz`). Measured impact on SENAC eletroduto = **0 m** (that
+  layer has no qualifying paired geometry), so the Revu `393 m` pin held — but the fix is
+  correct/defensive for sheets where a discipline conduit carries real geometry.
+- *perf word-boundary.* `perf` (abbrev. of perfilado, e.g. `ELE_PERF`) must not match
+  `perfuração`/`perfeito`. Used regex `perf(?![a-z])` + the substring `perfilad` for the
+  full word. `ELE_PERF` still resolves.
+- *Taxonomy (Carlos's correction).* perfilado, eletrocalha, leito are DISTINCT products
+  (bought/priced separately) — they were all collapsed into one `bandeja` bucket. Split
+  into 5 canonical kinds: `eletrocalha` (=bandeja/calha generic), `perfilado`, `leito`,
+  `eletroduto`, `barramento`. `ele.py` consumes the kinds via a defaultdict; tray per-size
+  is now nested per kind (`tray_por_bitola_m: {kind: {width: m}}`, replaces
+  `bandeja_por_bitola_m`). `total_m` output by kind. `eletroduto_por_bitola_m` unchanged
+  (the only metragem key `app_ele.py` reads).
+  - SENAC: AL-BANDEJA all → eletrocalha; numbers unchanged (eletrocalha 431.7, eletroduto 393, barramento 186.4).
+  - Boticário PE03_TER: the old combined `bandeja 293.6 m` splits into **perfilado 207.8 + eletrocalha 85.8** — the lump was hiding that perfilado dominates.
+
+**Smoke-bind (was a `>0` smoke).** `test_boticario_infra_via_glossary` now pins
+perfilado ≈ 208 / eletrocalha ≈ 86 (denom=50, the detect_scale fallback). This is a
+**regression pin, NOT Revu-validated** — guards against silent drift; replace with a
+ground-truth number when one exists.
+
+**B5 — LLM fallback deployability, dual-path (`schedule.py`).** `_extract_via_llm` shelled
+out to the `claude` CLI (subscription OAuth) → undeployable in a container. Now a router
+on `ANTHROPIC_API_KEY`: key set → anthropic SDK (base64 image inline, billed) =
+container/CI-deployable; no key → the CLI subprocess (free, subscription) = the dev
+default. No forced API spend. `anthropic` is an optional `[deploy]` dep (lazy import).
+Verified by MOCKED routing tests (request shape: base64 image block, alias→full model id,
+no subprocess on the SDK branch) — the SDK **surface is portable + mock-verified; a live
+billed call is unverified** (Carlos's no-spend constraint). Fallback is rarely hit anyway:
+primary `find_tables` is free + deterministic.
+
 ## Files
 - `estimator/count.py` — engine (RULES = legend tuned to this sheet)
 - `estimator/out/takeoff.json` — structured counts + coverage

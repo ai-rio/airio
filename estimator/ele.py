@@ -68,6 +68,12 @@ DIAM_RE = re.compile(r"Ø[\d./\"]+")                                 # Ø3/4"  �
 MIN_SEG_PT = 20.0                  # ignore sub-segments below this (fitting tessellation)
 PAIR_GAP_MAX_PT = 25.0             # max edge-gap to treat two parallels as one run
 
+# Tray-family kinds (glossary canonical): drawn as two parallel edges with a physical
+# WIDTH, so they share the paired-edge measure + width-from-gap bucketing. Each is a
+# DISTINCT product (perfilado ≠ eletrocalha ≠ leito) → its own takeoff line. Eletroduto
+# is also paired-edge but bucketed by Ø; barramento has no per-size.
+TRAY_KINDS = ("eletrocalha", "perfilado", "leito")
+
 # Fire device words that should NOT be on an elétrica sheet except via the
 # compatibilizado overlay — their presence is a collision-check candidate.
 FIRE_WORDS = ("extintor", "hidrante")
@@ -166,8 +172,8 @@ def sizes(pdf_path: str, page_index: int = 0) -> dict:
     return {
         "tray_sizes_label_freq": dict(tray.most_common()),
         "conduit_diam_label_freq": dict(diam.most_common()),
-        "_note": "frequência de RÓTULOS (cross-check). Metros-por-bitola da bandeja "
-                 "= metragem.bandeja_por_bitola_m (via gap entre bordas).",
+        "_note": "frequência de RÓTULOS (cross-check). Metros-por-bitola da bandeja/calha "
+                 "= metragem.tray_por_bitola_m (via gap entre bordas).",
     }
 
 
@@ -263,26 +269,27 @@ def metragem(pdf_path: str, page_index: int = 0, scale_denom: int | None = None,
     diam_mms = sorted(diam_catalog)
 
     def label_buckets(buckets, kind):
-        if kind == "bandeja":
+        if kind in TRAY_KINDS:
             return {f"{w}mm": round(p * mpp, 1) for w, p in sorted(buckets.items())}
         if kind == "eletroduto" and diam_mms:
             return {diam_catalog[w]: round(p * mpp, 1) for w, p in sorted(buckets.items())}
         return {}
 
     layers = []
-    tot = {"bandeja": 0.0, "eletroduto": 0.0, "barramento": 0.0, "outro": 0.0}
-    size_m: dict[str, float] = collections.defaultdict(float)   # "bandeja 200mm" -> m
+    tot: dict[str, float] = collections.defaultdict(float)      # kind -> centerline m
+    # tray sizes are kept PER KIND (perfilado ≠ eletrocalha): {kind: {"200mm": m}}
+    tray_size_m: dict[str, dict[str, float]] = collections.defaultdict(lambda: collections.defaultdict(float))
     diam_m: dict[str, float] = collections.defaultdict(float)   # "Ø2\"" -> m
     for lay, segs in sorted(by_layer.items()):
         kind = glossary.layer_kind(lay)
-        catalog = tray_widths if kind == "bandeja" else (diam_mms if kind == "eletroduto" else None)
+        catalog = tray_widths if kind in TRAY_KINDS else (diam_mms if kind == "eletroduto" else None)
         center_pt, single_pt, buckets = measure(segs, catalog)
         run_m = center_pt * mpp
         tot[kind] += run_m
         per_size = label_buckets(buckets, kind)
-        if kind == "bandeja":
+        if kind in TRAY_KINDS:
             for w, p_pt in buckets.items():
-                size_m[f"{w}mm"] += p_pt * mpp
+                tray_size_m[kind][f"{w}mm"] += p_pt * mpp
         elif kind == "eletroduto" and diam_mms:
             for w, p_pt in buckets.items():
                 diam_m[diam_catalog[w]] += p_pt * mpp
@@ -300,15 +307,20 @@ def metragem(pdf_path: str, page_index: int = 0, scale_denom: int | None = None,
         "scale": sc,                            # needs_confirmation=True; human owns it
         "scale_used_denom": denom,
         "scale_corroborada": "gaps de bandeja batem com larguras 100/150/200mm → escala plausível",
-        "excludes_layers": "EL-Conexões* (grafismo de conexão) e EL-Quadro* (caixa do quadro)",
+        "excludes_layers": "conexões (grafismo), quadros (caixa), aterramento/SPDA, e "
+                           "condutos de OUTRAS disciplinas (dados/CFTV `CE-`, incêndio `SDAI`) — "
+                           "só infra ELÉTRICA de potência é medida",
         "by_layer": layers,
         "total_m": {k: round(v, 1) for k, v in tot.items() if v},
-        "bandeja_por_bitola_m": {k: round(v, 1) for k, v in sorted(size_m.items())},
+        # per-size width histogram PER tray product (perfilado/eletrocalha/leito kept apart)
+        "tray_por_bitola_m": {kind: {k: round(v, 1) for k, v in sorted(sz.items())}
+                              for kind, sz in sorted(tray_size_m.items())},
         "eletroduto_por_bitola_m": {k: round(v, 1) for k, v in sorted(diam_m.items())},
         "quote_com_margem_m": quote,
         "quote_margin": quote_margin,
         "_method": "cada traçado = 2 bordas → centerline = pareado÷2 (somar 2 bordas = 2× ERRO). "
-                   "Bitola da bandeja vem do gap entre bordas (gap×escala=largura). "
+                   "Bitola da família de bandejas (eletrocalha/perfilado/leito — produtos "
+                   "distintos, linhas separadas) vem do gap entre bordas (gap×escala=largura). "
                    "Margem over-estimate aplicada DEPOIS do ÷2.",
     }
 
@@ -385,8 +397,8 @@ def main() -> None:
         print(f"  {L['kind']:<11} {L['layer'][:40]:<40} "
               f"{L['centerline_m']:>7} m*  ({L['segments']} segs{unp}){ps}")
     print(f"  TOTAIS (centerline): " + ", ".join(f"{k} {v} m" for k, v in m["total_m"].items()))
-    if m.get("bandeja_por_bitola_m"):
-        print(f"  bandeja por bitola: " + ", ".join(f"{k}={v}m" for k, v in m["bandeja_por_bitola_m"].items()))
+    for kind, sizes in m.get("tray_por_bitola_m", {}).items():
+        print(f"  {kind} por bitola: " + ", ".join(f"{k}={v}m" for k, v in sizes.items()))
     if m.get("eletroduto_por_bitola_m"):
         print(f"  eletroduto por Ø:   " + ", ".join(f"{k}={v}m" for k, v in m["eletroduto_por_bitola_m"].items()))
     print(f"  QUOTE (+{int(m['quote_margin']*100)}% over-estimate): "

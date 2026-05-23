@@ -10,6 +10,11 @@ dependencies = [
     "python-multipart>=0.0.9", # form uploads in app_ele
 ]
 
+[project.optional-dependencies]
+# only the deployable LLM-fallback path (ANTHROPIC_API_KEY set) needs the SDK;
+# dev uses the free `claude` CLI subscription path, so this stays optional.
+deploy = ["anthropic>=0.40"]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 

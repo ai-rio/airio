@@ -11,7 +11,7 @@ APEX = join only). Don't read "exercised" as "fully validated".
 
 | Half | What | Source document | Why not the other source |
 |---|---|---|---|
-| **Infraestrutura** (eletrocalha, eletroduto, perfilado, busway) | metros por bitola — the *housing* | **PLANTA** (CAD geometry) | a table never carries the physical runs |
+| **Infraestrutura** (eletrocalha, perfilado, leito, eletroduto, busway — distinct products) | metros por bitola — the *housing* | **PLANTA** (CAD geometry) | a table never carries the physical runs |
 | **Cabos** (condutores) | metros por bitola — F/N/T × polaridade × paralelos | **QUADRO DE CARGAS / DIAGRAMA** (table) | geometry can't resolve gauge/Ø/count (the per-Ø wall) |
 
 You need **both documents**. Neither alone is a full takeoff — same as reading them by hand.
@@ -70,20 +70,22 @@ clean case (LLM/HITL only when layers are dirty or headers non-standard).
 
 | Project | Infra layers | infra mapped? | Cable table | cable mapped? |
 |---|---|---|---|---|
-| **SENAC** | `EL-Condutos`, `EL-Barramento` | ✅ done (Revu-validated) | — (no schedule) | — |
-| **Boticário** | `ELE_PERF`, `ELE_CE`, `ELE_ST`… | ❌ not mapped | feeder table (PE02) | ✅ done |
-| **APEX** | (not checked) | ❌ | panel table (PAINEL) | ❌ not mapped |
+| **SENAC** | `EL-Condutos`, `EL-Barramento` | ✅ Revu-validated (eletrocalha/eletroduto/barramento) | — (no schedule) | — |
+| **Boticário** | `ELE_PERF`(perfilado), `ELE_CALHA`(eletrocalha) | ✅ via glossary — **regression-pinned, not Revu** | feeder table (PE02) | ✅ done |
+| **APEX** | (not checked) | — | panel table (PAINEL) | ✅ header-driven + ABNT terra |
 
-**Proven = the MECHANISMS** (paired-edge metragem; find_tables + conductor rule).
-**Not proven = generality** — each engine is currently hardcoded to ONE project's
-vocabulary (SENAC layers in `ele.py`; feeder-header shape in `schedule.py`). No config
-seam exists yet. That's why feeding Boticário's plan to the SENAC-glued infra engine
-returns empty — the source of the "still getting SENAC infra" confusion.
+**The config seam is WIRED** (`glossary.py` for infra layers, `header_glossary.py` +
+`abnt.py` for cable headers). Both engines read the project's self-describing vocabulary;
+SENAC + Boticário infra and Boticário-feeder + APEX-panel cable all run with zero
+per-project code. Canonical infra kinds: `eletrocalha`, `perfilado`, `leito`,
+`eletroduto`, `barramento` — each a **distinct product** (own takeoff line; perfilado ≠
+eletrocalha, Carlos's rule). The glossary is discipline-scoped: other-discipline conduits
+(dados/CFTV `CE-`, fire `SDAI`) are excluded from the elétrica takeoff.
 
-## The fix (one refactor, defined by this diagram)
-
-Pull the two maps OUT of the engines into a per-project config; engines read the map.
-Then: SENAC, Boticário, APEX each = a config entry, and both halves run on all three.
+**Proven = the MECHANISMS** (paired-edge metragem; find_tables + conductor rule) **and**
+the seam's generality (one glossary measures both projects' differing layer names).
+**Still pending validation:** Boticário infra is a regression pin (denom=50 fallback), not
+a Revu ground-truth number — replace when one exists. APEX infra layers unchecked.
 
 ## Commands (scaffold)
 ```

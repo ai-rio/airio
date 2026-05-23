@@ -33,18 +33,26 @@ def test_senac_infra_metragem(senac_ele):
     tot = m["total_m"]
     assert tot["barramento"] == pytest.approx(186, abs=6)     # busway, Revu 186.26
     assert tot["eletroduto"] == pytest.approx(393, abs=10)
-    assert tot["bandeja"] == pytest.approx(432, abs=15)
+    assert tot["eletrocalha"] == pytest.approx(432, abs=15)   # AL-BANDEJA tray (bandeja → eletrocalha)
     # eletrocalha 200mm — Revu manual 259.13 m; engine ÷2 method lands ~254 (≤ truth)
-    assert m["bandeja_por_bitola_m"]["200mm"] == pytest.approx(254, abs=10)
+    assert m["tray_por_bitola_m"]["eletrocalha"]["200mm"] == pytest.approx(254, abs=10)
 
 
 # --- INFRA OCP: a DIFFERENT project's plan, glossary-derived, NO per-project code ---
 def test_boticario_infra_via_glossary(boticario_ter):
-    """Boticário uses ELE_PERF / ELE_CALHA (not SENAC's EL-Condutos). The glossary
-    must measure them with zero per-project config — the OCP win. Was empty before
-    the config seam (engine hardcoded to the SENAC prefix)."""
+    """Boticário uses ELE_PERF (perfilado) + ELE_CALHA (eletrocalha), not SENAC's
+    EL-Condutos. The glossary measures them with zero per-project config (the OCP
+    win — was empty before the config seam), AND keeps the two products SEPARATE
+    (perfilado ≠ eletrocalha, Carlos's rule). The combined run was 293.6 m; the
+    split surfaces that perfilado dominates — hidden when both lumped into one bucket.
+
+    REGRESSION PIN (denom=50, the detect_scale fallback — NOT Revu-validated). These
+    numbers guard against silent drift; replace with a Revu ground-truth when available."""
     m = ele.metragem(boticario_ter)
-    assert m["total_m"].get("bandeja", 0) > 0     # perfilado + eletrocalha runs measured
+    tot = m["total_m"]
+    assert tot["perfilado"] == pytest.approx(208, abs=3)      # ELE_PERF — the dominant run
+    assert tot["eletrocalha"] == pytest.approx(86, abs=3)     # ELE_CALHA — distinct product
+    assert "leito" not in tot                                 # this sheet has no ladder tray
 
 
 # --- CABLE OCP: APEX PANEL table (header-driven, single-gauge, ABNT terra) ---

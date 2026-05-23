@@ -1,0 +1,61 @@
+"""Integration tests — pin the PROVEN numbers on the real project sheets so the
+config-seam refactor can't silently break them. The antidote to false positives.
+Skipped automatically when the PDFs are absent (they're not committed)."""
+import pytest
+
+import schedule
+import ele
+import join
+
+pytestmark = pytest.mark.integration
+
+
+# --- CABOS: Boticário PE02 feeder table via find_tables (deterministic) ---
+def test_boticario_pe02_find_tables(boticario_pe02):
+    d = schedule.extract_schedule(boticario_pe02)
+    assert d["method"] == "find_tables"               # NOT the slow LLM fallback
+    agg = schedule.aggregate(d)
+    elet = agg["eletroduto_m_por_pol"]
+    # the 5 buckets that are exact vs Revu ground truth (well-separated Ø)
+    assert elet['Ø1.1/2"'] == pytest.approx(1118, abs=2)
+    assert elet['Ø1.1/4"'] == pytest.approx(356, abs=2)
+    assert elet['Ø2.1/2"'] == pytest.approx(315, abs=2)
+    assert elet['Ø3"'] == pytest.approx(68, abs=2)
+    assert elet['Ø4"'] == pytest.approx(36, abs=2)     # off-layer feeder — only the schedule has it
+    # total carries the known duplicate-row inflation (3092 raw vs 2949 deduped truth)
+    assert agg["eletroduto_total_m"] == pytest.approx(3092, abs=10)
+    assert agg["cabo_total_m"] > 10000                 # conductor-counted, all tri
+
+
+# --- INFRA: SENAC subsolo elétrica via geometry (Revu-validated) ---
+def test_senac_infra_metragem(senac_ele):
+    m = ele.metragem(senac_ele, scale_denom=75)
+    tot = m["total_m"]
+    assert tot["barramento"] == pytest.approx(186, abs=6)     # busway, Revu 186.26
+    assert tot["eletroduto"] == pytest.approx(393, abs=10)
+    assert tot["bandeja"] == pytest.approx(432, abs=15)
+    # eletrocalha 200mm — Revu manual 259.13 m; engine ÷2 method lands ~254 (≤ truth)
+    assert m["bandeja_por_bitola_m"]["200mm"] == pytest.approx(254, abs=10)
+
+
+# --- INFRA OCP: a DIFFERENT project's plan, glossary-derived, NO per-project code ---
+def test_boticario_infra_via_glossary(boticario_ter):
+    """Boticário uses ELE_PERF / ELE_CALHA (not SENAC's EL-Condutos). The glossary
+    must measure them with zero per-project config — the OCP win. Was empty before
+    the config seam (engine hardcoded to the SENAC prefix)."""
+    m = ele.metragem(boticario_ter)
+    assert m["total_m"].get("bandeja", 0) > 0     # perfilado + eletrocalha runs measured
+
+
+# --- RECONCILER: APEX schedule (known) ↔ APEX plan, join by name ---
+def test_apex_join(apex_plan):
+    sched = {"feeders": [], "panels": [{"nome": "QG-E-2P-AUD", "circuits": [
+        {"id": "QT-1", "descricao": "QT-E-2P-ILUM.CEN"},
+        {"id": "QT-3", "descricao": "QT-E-2P-B-AUD-2"},
+        {"id": "QT-4", "descricao": "QT-E-2P-B-OBS"},
+    ]}]}
+    r = join.join(sched, apex_plan)
+    matched = {m["name"] for m in r["matched"]}
+    assert "QG-E-2P-AUD" in matched                   # panel placed on the plan
+    plan_only = {m["name"] for m in r["plan_only"]}
+    assert any("PDC" in n for n in plan_only)         # QT-E-2P-B-PDC: on plan, not scheduled (HITL)

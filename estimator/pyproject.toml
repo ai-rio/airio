@@ -1,0 +1,25 @@
+[project]
+name = "estimator"
+version = "0.1.0"
+description = "BR electrical takeoff — infra (geometry) + cabos (schedule), per ARCHITECTURE.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pymupdf>=1.24",          # fitz: PDF vector geometry, layers, find_tables — the engine
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9", # form uploads in app_ele
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+# flat layout: modules live at estimator/ root (count.py, ele.py, schedule.py, …)
+[tool.setuptools]
+py-modules = ["count", "ele", "schedule", "join", "crosscheck", "intel", "app", "app_ele"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: needs the real project PDFs under docs/pdf/ (skipped if absent)",
+]
+addopts = "-q"

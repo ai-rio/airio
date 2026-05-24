@@ -20,9 +20,11 @@ Validated on Boticário PE06_1PAV: tomadas = 224 (Revu ~189 initial, refining up
 "each circle = 1 point" rule Carlos set); luminárias = 238 install points (Revu 244 after
 refine — Δ6, the deterministic geometry sits in a 236-240 band; the residual is likely a
 few long battens the frame filter drops, left for HITL not param-torture); interruptores =
-97 (Revu raw 103 WITH legend → Δ−6; plan-only ≈ 99 once the 5 legend samples are dropped,
-Δ−2 there is a coincidence of composition — the legend FPs roughly offset a few missed plan
-glyphs, so trust the Δ−6 same-composition number, not the lucky Δ−2). HITL: the human
+77 DROPS (boxes) — Revu per-variant oracle 78 (simples 55 / 2 seções 9 / paralelo 14 /
+condulete 0), Δ−1. The raw "symbol" count is 97 (each 'S' path) = the easy-way OVER-count,
+since a multi-section interruptor draws ≥2 S's per box; "symbol_box" collapses them to the
+device. simples-vs-paralelo is NOT geometric (identical 'S', differs by 3-way circuit) =
+HITL tag-once. HITL: the human
 confirms the count on the OVERLAY (a pin per detected device) — the oracle and the
 correction seam in one, same accountability model as count.py and the metragem scale gate.
 
@@ -142,8 +144,52 @@ def _detect_symbol(drs: list, spec: dict) -> list:
     return out
 
 
+def _cluster_pts(pts: list, tol: float) -> list:
+    """Single-linkage connected components of POINTS by Chebyshev distance ≤ tol (grid-pruned
+    union-find, ~O(n)). Point-analog of _connected (which works on rects)."""
+    n = len(pts)
+    par = list(range(n))
+
+    def find(a):
+        while par[a] != a:
+            par[a] = par[par[a]]
+            a = par[a]
+        return a
+
+    grid: dict = collections.defaultdict(list)
+    for i, (x, y) in enumerate(pts):
+        grid[(int(x // tol), int(y // tol))].append(i)
+    for i, (x, y) in enumerate(pts):
+        cx, cy = int(x // tol), int(y // tol)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for j in grid.get((cx + dx, cy + dy), ()):
+                    if j > i and abs(pts[j][0] - x) <= tol and abs(pts[j][1] - y) <= tol:
+                        par[find(i)] = find(j)
+    groups: dict = collections.defaultdict(list)
+    for i in range(n):
+        groups[find(i)].append(i)
+    return list(groups.values())
+
+
+def _detect_symbol_box(drs: list, spec: dict) -> list:
+    """Device DROPS (boxes) from a symbol layer: detect the size-window glyphs, then collapse
+    paths within `drops_tol` of each other into ONE box. A multi-section interruptor draws its
+    'S' as several adjacent paths but is ONE wall box = ONE drop (one device to buy/install).
+    The BOM-correct count, vs raw `symbol` which over-counts multi-section glyphs. One centroid
+    per box. VARIANT split (simples/paralelo) is NOT geometric — paralelo is an identical 'S'
+    distinguished only by its 3-way circuit pairing → left to HITL tag-once on the overlay."""
+    pts = _detect_symbol(drs, spec)
+    out = []
+    for g in _cluster_pts(pts, spec.get("drops_tol", 6)):
+        xs = [pts[i][0] for i in g]
+        ys = [pts[i][1] for i in g]
+        out.append((sum(xs) / len(xs), sum(ys) / len(ys)))
+    return out
+
+
 _DETECTORS = {"circle": _detect_circle, "cluster": _detect_cluster,
-              "symbol": _detect_symbol}
+              "symbol": _detect_symbol, "symbol_box": _detect_symbol_box}
 
 
 def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
@@ -172,15 +218,20 @@ def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
 #   not a points concern. frame_min drops the boxed text/legend frames on the layer.
 #   ELE_SI = interruptores (confirmed by the PE06 symbology legend: 5 variants — simples,
 #   simples 2 seções, simples condulete, paralelo, paralelo condulete — all the blue 'S').
-#   Counted as drops via the size-window "symbol" detector. UNLIKE luminárias, the installer
-#   SUPPLIES interruptores, so the correct BOM splits per variant (paralelo costs more: 3-way
-#   wire + 2 boxes); that per-variant split is the next refinement, no per-variant oracle yet.
+#   Counted as DROPS (boxes) via "symbol_box": detect each 'S' (size window), then collapse
+#   adjacent paths (drops_tol) into one box — a multi-section interruptor draws several S
+#   paths but is ONE wall box / ONE device. Boticário PE06 per-variant oracle (Carlos, Revu):
+#   simples 55 / 2 seções 9 / paralelo 14 / condulete 0 = 78 boxes; detector = 77 (Δ−1).
+#   The raw "symbol" detector (no collapse) gives 97 = the over-count the easy-way produces.
+#   UNLIKE luminárias the installer SUPPLIES interruptores, so the BOM needs the per-variant
+#   split — but paralelo is an IDENTICAL 'S' (differs only by its 3-way circuit pairing), so
+#   simples-vs-paralelo is NOT geometric → HITL tag-once on the overlay (the 3rd leg).
 BOTICARIO_POINTS = {
     "ELE_ST":  {"device": "tomada", "glyph": "circle", "lo": 7, "hi": 15, "min_curves": 2},
     "ELE_SQ":  {"device": "iluminacao_emergencia", "glyph": "cluster", "tol": 8, "nlo": 8, "nhi": 14},
     "ELE_LEP": {"device": "aterramento", "glyph": "cluster", "tol": 8, "nlo": 1, "nhi": 200},
     "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},
-    "ELE_SI":  {"device": "interruptor", "glyph": "symbol", "wlo": 5, "whi": 20, "hlo": 3, "hhi": 15},
+    "ELE_SI":  {"device": "interruptor", "glyph": "symbol_box", "wlo": 5, "whi": 20, "hlo": 3, "hhi": 15, "drops_tol": 6},
 }
 
 _COLORS = [(1, 0, 0), (0, 0.55, 0), (0, 0, 1), (1, 0.5, 0), (0.6, 0, 0.6)]

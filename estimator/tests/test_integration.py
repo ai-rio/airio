@@ -91,6 +91,73 @@ def test_boticario_points(boticario_pe06):
     assert len(c["tomada"]["centroids"]) == 224
 
 
+# --- HITL: apply_tags pure-function tests (no PDF needed) ---
+
+def test_apply_tags_variant_split():
+    """Tags split non-dropped pins by label; untagged go to default; dropped are excluded."""
+    spec = {"device": "interruptor", "glyph": "symbol_box",
+            "variants": {"default": "simples", "labels": ["simples", "2secoes", "paralelo", "condulete"]}}
+    dr = {"count": 5, "layer": "ELE_SI", "glyph": "symbol_box",
+          "centroids": [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]}
+    tags = {"0": "paralelo", "1": "paralelo", "4": "drop"}
+    result = points.apply_tags(dr, tags, spec)
+    assert result["total"] == 4
+    assert result["dropped"] == 1
+    assert result["by_variant"] == {"simples": 2, "paralelo": 2}
+
+
+def test_apply_tags_unknown_label_raises():
+    """A label not in variants.labels and not 'drop' must raise ValueError."""
+    spec = {"device": "interruptor", "glyph": "symbol_box",
+            "variants": {"default": "simples", "labels": ["simples", "paralelo"]}}
+    dr = {"count": 3, "layer": "ELE_SI", "glyph": "symbol_box",
+          "centroids": [(0, 0), (1, 1), (2, 2)]}
+    with pytest.raises(ValueError):
+        points.apply_tags(dr, {"0": "bogus"}, spec)
+
+
+def test_apply_tags_bad_index_raises():
+    """A tag index out of range [0, count) must raise ValueError."""
+    spec = {"device": "interruptor", "glyph": "symbol_box",
+            "variants": {"default": "simples", "labels": ["simples", "paralelo"]}}
+    dr = {"count": 3, "layer": "ELE_SI", "glyph": "symbol_box",
+          "centroids": [(0, 0), (1, 1), (2, 2)]}
+    with pytest.raises(ValueError):
+        points.apply_tags(dr, {"99": "simples"}, spec)
+
+
+def test_apply_tags_no_variants():
+    """When spec has no variants, 'drop' tag still excludes pins; by_variant is empty."""
+    spec = {"device": "luminaria", "glyph": "cluster"}
+    dr = {"count": 3, "layer": "MMM-LUMINOTÉCNICA", "glyph": "cluster",
+          "centroids": [(0, 0), (1, 1), (2, 2)]}
+    result = points.apply_tags(dr, {"0": "drop"}, spec)
+    assert result["total"] == 2
+    assert result["dropped"] == 1
+    assert result["by_variant"] == {}
+
+
+def test_count_points_idempotent(boticario_pe06):
+    """Centroid list is stable across two calls — prerequisite for stable tag indices."""
+    c1 = points.count_points(boticario_pe06, points.BOTICARIO_POINTS)
+    c2 = points.count_points(boticario_pe06, points.BOTICARIO_POINTS)
+    assert c1["interruptor"]["centroids"] == c2["interruptor"]["centroids"]
+
+
+def test_load_tags_absent_returns_empty(tmp_path):
+    """load_tags returns {} when no sidecar exists next to the pdf path."""
+    fake_pdf = str(tmp_path / "plan.pdf")
+    assert points.load_tags(fake_pdf) == {}
+
+
+def test_overlay_writes_per_device_png(boticario_pe06, tmp_path):
+    """overlay writes the all-device PNG plus a clean per-variant-device PNG (the tag surface)."""
+    png = tmp_path / "ov.png"
+    points.overlay(boticario_pe06, points.BOTICARIO_POINTS, str(png))
+    assert png.exists()
+    assert (tmp_path / "ov_interruptor.png").exists()   # interruptor has variants configured
+
+
 # --- RECONCILER: APEX schedule (known) ↔ APEX plan, join by name ---
 def test_apex_join(apex_plan):
     sched = {"feeders": [], "panels": [{"nome": "QG-E-2P-AUD", "circuits": [

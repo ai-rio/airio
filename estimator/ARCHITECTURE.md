@@ -101,3 +101,17 @@ uv run --with pymupdf --with fastapi --with python-multipart --with pytest pytes
 - Cabo: confirm **polaridade** (inferred from voltage on feeder tables; read per-circuit
   on panel tables) + **duplicate rows** (table vs drawing callout).
 - Reconciler: **name mismatches** (in one doc, not the other).
+- Points: **tag-once on the numbered overlay** for distinctions geometry can't make
+  (interruptor variant simples/paralelo — identical 'S', differs only by 3-way circuit).
+
+### HITL = two distinct mechanisms (don't conflate — see [[project-estimator-hitl-architecture]])
+1. **Within-project tag-once** (reuse axis = *time*): human tags per-instance once, re-run
+   never re-asks. For NON-geometric distinctions (paralelo has no shape to fingerprint).
+   **Built** (`points.py`, 2026-05-24): sidecar `<pdf_stem>.points_tags.json`
+   (`{device:{str(idx):label}}`, label = variant or `"drop"`) → `apply_tags` → per-variant
+   BOM; `overlay()` numbers each pin so the human reads indices off the PNG. Verified by
+   **idempotency** (same PDF → identical centroid order → stable indices), not a Revu oracle.
+2. **Cross-project glyph→item teaching** (reuse axis = *project*): teach a SHAPE once, machine
+   recognizes it in future projects. For visually-distinct glyphs (curva vs reta, luminária
+   SKUs, new legends) — this is the moat. NOT YET BUILT. Don't build its cross-project map off
+   a #1 case (paralelo) — there's no shape to carry across projects. #1 is the substrate.

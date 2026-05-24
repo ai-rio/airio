@@ -231,27 +231,113 @@ BOTICARIO_POINTS = {
     "ELE_SQ":  {"device": "iluminacao_emergencia", "glyph": "cluster", "tol": 8, "nlo": 8, "nhi": 14},
     "ELE_LEP": {"device": "aterramento", "glyph": "cluster", "tol": 8, "nlo": 1, "nhi": 200},
     "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},
-    "ELE_SI":  {"device": "interruptor", "glyph": "symbol_box", "wlo": 5, "whi": 20, "hlo": 3, "hhi": 15, "drops_tol": 6},
+    "ELE_SI":  {"device": "interruptor", "glyph": "symbol_box", "wlo": 5, "whi": 20, "hlo": 3, "hhi": 15, "drops_tol": 6,
+               "variants": {"default": "simples", "labels": ["simples", "2secoes", "paralelo", "condulete"]}},
 }
+
+def apply_tags(device_result: dict, tags: dict, spec: dict) -> dict:
+    """Apply HITL pin tags to one device's count_points() result.
+
+    tags: {str(index): label} where label is a variant name or "drop".
+    "drop" = false positive (e.g. legend-strip glyph) — excluded from total.
+    Untagged non-dropped pins → spec["variants"]["default"].
+    Validates ALL tags before applying (untrusted input; CLAUDE.md AI-output rule).
+    Returns {"total": int, "dropped": int, "by_variant": dict}."""
+    count = device_result["count"]
+    variants_cfg = spec.get("variants")
+    valid_labels = set(variants_cfg["labels"]) | {"drop"} if variants_cfg else {"drop"}
+
+    # --- validate first, apply after ---
+    parsed: dict[int, str] = {}
+    for k, label in tags.items():
+        try:
+            idx = int(k)
+        except (ValueError, TypeError):
+            raise ValueError(f"tag index {k!r} is not a valid integer string")
+        if not (0 <= idx < count):
+            raise ValueError(f"tag index {idx} out of range [0, {count})")
+        if label not in valid_labels:
+            raise ValueError(
+                f"unknown tag label {label!r}; valid: {sorted(valid_labels)}"
+            )
+        parsed[idx] = label
+
+    dropped = sum(1 for lbl in parsed.values() if lbl == "drop")
+    total = count - dropped
+
+    if not variants_cfg:
+        return {"total": total, "dropped": dropped, "by_variant": {}}
+
+    # split non-dropped pins by label; untagged go to default
+    tally: dict[str, int] = {}
+    default = variants_cfg["default"]
+    for i in range(count):
+        lbl = parsed.get(i, default)
+        if lbl == "drop":
+            continue
+        tally[lbl] = tally.get(lbl, 0) + 1
+    by_variant = {lbl: n for lbl, n in tally.items() if n > 0}
+    return {"total": total, "dropped": dropped, "by_variant": by_variant}
+
+
+def load_tags(pdf_path: str) -> dict:
+    """Load the HITL sidecar for pdf_path, or {} if absent.
+
+    Sidecar = <pdf_stem>.points_tags.json in the same directory.
+    Schema: {device_name: {str(index): label}}.
+    Raises on malformed JSON (don't silently swallow corrupt tag files)."""
+    p = Path(pdf_path)
+    sidecar = p.parent / f"{p.stem}.points_tags.json"
+    if not sidecar.exists():
+        return {}
+    try:
+        return json.loads(sidecar.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"malformed tags file {sidecar}: {e}") from e
+
 
 _COLORS = [(1, 0, 0), (0, 0.55, 0), (0, 0, 1), (1, 0.5, 0), (0.6, 0, 0.6)]
 
 
-def overlay(pdf_path: str, config: dict, out_png: str, page_index: int = 0,
-            long_edge: int = 2600) -> dict:
-    """Render the plan with a colored pin per detected device (the HITL proof: WHERE each
-    counted point is). Returns the counts; the human verifies/corrects on this image."""
-    counts = count_points(pdf_path, config, page_index)
+def _device_png(out_png: str, device: str) -> str:
+    """Per-device overlay name: points_overlay.png → points_overlay_interruptor.png."""
+    p = Path(out_png)
+    return str(p.with_name(f"{p.stem}_{device}{p.suffix}"))
+
+
+def _draw_overlay(pdf_path: str, page_index: int, pins: list, long_edge: int, out_png: str) -> None:
+    """Render one PNG: every (color, centroids) gets a pin circle + its 0-based index. Fresh
+    page per call (insert_text/shape mutate the page)."""
     page = fitz.open(pdf_path)[page_index]
     page.set_rotation(0)
     shp = page.new_shape()
-    for i, (_device, r) in enumerate(sorted(counts.items())):
-        for cx, cy in r["centroids"]:
+    for color, cents in pins:
+        for cx, cy in cents:
             shp.draw_circle(fitz.Point(cx, cy), 9)
-        shp.finish(color=_COLORS[i % len(_COLORS)], width=1.8)
+        shp.finish(color=color, width=1.8)
+        for idx, (cx, cy) in enumerate(cents):   # index next to each pin → the tags-file key
+            page.insert_text(fitz.Point(cx + 10, cy), str(idx), fontsize=7, color=color)
     shp.commit()
     z = min(long_edge / max(page.rect.width, page.rect.height), 4)
     page.get_pixmap(matrix=fitz.Matrix(z, z), alpha=False).save(out_png)
+
+
+def overlay(pdf_path: str, config: dict, out_png: str, page_index: int = 0,
+            long_edge: int = 2600) -> dict:
+    """Render numbered device pins (the HITL proof: WHERE each point is + which index to tag).
+    Writes the all-device overlay to out_png, PLUS one CLEAN single-device overlay per
+    variant-configured device — on the full plan all five layers' numbers collide in dense
+    areas, so the per-device PNG is the surface the human actually tags from. Returns counts."""
+    counts = count_points(pdf_path, config, page_index)
+    ordered = sorted(counts.items())
+    colmap = {dev: _COLORS[i % len(_COLORS)] for i, (dev, _r) in enumerate(ordered)}
+    _draw_overlay(pdf_path, page_index,
+                  [(colmap[dev], r["centroids"]) for dev, r in ordered], long_edge, out_png)
+    for spec in config.values():
+        if "variants" in spec:
+            dev = spec["device"]
+            _draw_overlay(pdf_path, page_index, [(colmap[dev], counts[dev]["centroids"])],
+                          long_edge, _device_png(out_png, dev))
     return counts
 
 
@@ -265,12 +351,30 @@ def main() -> None:
     outdir.mkdir(parents=True, exist_ok=True)
     png = str(outdir / "points_overlay.png")
     counts = overlay(args.pdf, BOTICARIO_POINTS, png, args.page)
-    summary = {d: {"count": r["count"], "layer": r["layer"]} for d, r in counts.items()}
+    tags = load_tags(args.pdf)
+    summary: dict = {}
+    for d, r in counts.items():
+        entry: dict = {"count": r["count"], "layer": r["layer"]}
+        spec = next((s for s in BOTICARIO_POINTS.values() if s["device"] == d), {})
+        dev_tags = tags.get(d, {})
+        if dev_tags or spec.get("variants"):
+            tagged = apply_tags(r, dev_tags, spec)
+            entry.update(tagged)
+        summary[d] = entry
     (outdir / "points.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f"# Pontos — {Path(args.pdf).name}")
     for d, r in sorted(counts.items()):
         print(f"  {d:<24} {r['count']:>4}  (layer {r['layer']}, glyph {r['glyph']})")
+        tagged = summary[d].get("by_variant")
+        if tagged:
+            for variant, n in sorted(tagged.items()):
+                print(f"    {variant:<20} {n:>4}")
+        if summary[d].get("dropped"):
+            print(f"    {'[dropped]':<20} {summary[d]['dropped']:>4}")
     print(f"  overlay → {png}")
+    for spec in BOTICARIO_POINTS.values():
+        if "variants" in spec:
+            print(f"  tag overlay → {_device_png(png, spec['device'])}")
 
 
 if __name__ == "__main__":

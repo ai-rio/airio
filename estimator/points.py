@@ -188,8 +188,39 @@ def _detect_symbol_box(drs: list, spec: dict) -> list:
     return out
 
 
+def _detect_square(drs: list, spec: dict) -> list:
+    """A device = a single non-curve path with a ~square bbox in [wlo,whi]×[hlo,hhi] and
+    ≥min_segs line segments (the box outline + diagonal). The ABNT tomada is drawn BOTH as
+    the circle ⊖ AND as a square floor-box ⊠ (caixa de piso) — same device, second glyph.
+    Per-path like _detect_circle (no clustering → stable), keyed off no-bezier + square size."""
+    wlo, whi = spec.get("wlo", 7), spec.get("whi", 14)
+    hlo, hhi = spec.get("hlo", 7), spec.get("hhi", 14)
+    minseg, sqtol = spec.get("min_segs", 4), spec.get("square_tol", 4)
+    out = []
+    for dr in drs:
+        if any(it[0] == "c" for it in dr["items"]):
+            continue
+        if sum(1 for it in dr["items"] if it[0] in ("l", "re")) < minseg:
+            continue
+        r = dr["rect"]
+        if wlo <= r.width <= whi and hlo <= r.height <= hhi and abs(r.width - r.height) <= sqtol:
+            out.append(((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2))
+    return out
+
+
+def _detect_multi(drs: list, spec: dict) -> list:
+    """One device drawn with SEVERAL distinct glyphs on the same layer (e.g. tomada =
+    circle ⊖ + square floor-box ⊠). Run each sub-detector in spec["detectors"] and
+    concatenate centroids. Sub-glyphs are disjoint paths → no double-count."""
+    out = []
+    for sub in spec["detectors"]:
+        out += _DETECTORS[sub["glyph"]](drs, sub)
+    return out
+
+
 _DETECTORS = {"circle": _detect_circle, "cluster": _detect_cluster,
-              "symbol": _detect_symbol, "symbol_box": _detect_symbol_box}
+              "symbol": _detect_symbol, "symbol_box": _detect_symbol_box,
+              "square": _detect_square, "multi": _detect_multi}
 
 
 def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
@@ -209,7 +240,9 @@ def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
 
 
 # Boticário device-point config (its self-describing layers, confirmed by Carlos):
-#   ELE_ST = tomadas (circle ⊘), ELE_SQ = iluminação de emergência, ELE_LEP = aterramento.
+#   ELE_ST = tomadas — TWO glyphs (circle ⊖ wall outlet + square ⊠ floor box), both = 1
+#     outlet (Carlos Revu Casa-28 = 114; whole-page tool = 224 circle + 31 square = 255).
+#   ELE_SQ = iluminação de emergência, ELE_LEP = aterramento.
 #   ALL OTHER ELE_* layers are infrastructure (eletroduto/calha/perfilado) — NOT points.
 #   Luminárias live on MMM-LUMINOTÉCNICA as several fixture glyphs (downlight ⊘9, batten,
 #   ⊕ corridor, arandela…). They are counted as ONE total = the install POINTS ("drops"):
@@ -227,7 +260,10 @@ def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
 #   split — but paralelo is an IDENTICAL 'S' (differs only by its 3-way circuit pairing), so
 #   simples-vs-paralelo is NOT geometric → HITL tag-once on the overlay (the 3rd leg).
 BOTICARIO_POINTS = {
-    "ELE_ST":  {"device": "tomada", "glyph": "circle", "lo": 7, "hi": 15, "min_curves": 2},
+    "ELE_ST":  {"device": "tomada", "glyph": "multi", "detectors": [
+        {"glyph": "circle", "lo": 7, "hi": 15, "min_curves": 2},          # ⊖ wall outlet
+        {"glyph": "square", "wlo": 7, "whi": 14, "hlo": 7, "hhi": 14, "min_segs": 4},  # ⊠ floor box
+    ]},
     "ELE_SQ":  {"device": "iluminacao_emergencia", "glyph": "cluster", "tol": 8, "nlo": 8, "nhi": 14},
     "ELE_LEP": {"device": "aterramento", "glyph": "cluster", "tol": 8, "nlo": 1, "nhi": 200},
     "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},

@@ -82,13 +82,13 @@ def test_boticario_points(boticario_pe06):
     Tomadas pinned to 224 under Carlos's rule 'each circle = 1 point' (his Revu initial
     189 refines UP toward this). Guards the glyph detectors against silent drift."""
     c = points.count_points(boticario_pe06, points.BOTICARIO_POINTS)
-    assert c["tomada"]["count"] == 224                   # circle-path, each circle = 1 pt
+    assert c["tomada"]["count"] == 255                   # 224 circle ⊖ + 31 square floor-box ⊠ (multi); both = 1 outlet
     assert c["iluminacao_emergencia"]["count"] == 35     # 10–12-stroke glyph cluster
     assert c["aterramento"]["count"] == 1                # Carlos: "just 1" earthing device
     assert c["luminaria"]["count"] == 238                # all fixture symbols = install pts; Revu 244 (Δ6 HITL)
     assert c["interruptor"]["count"] == 77               # ELE_SI drops (boxes); Revu per-variant 78 (Δ−1). Raw 'S' symbols=97 = easy-way overcount
     # centroids accompany the count (the overlay/HITL proof = WHERE each point is)
-    assert len(c["tomada"]["centroids"]) == 224
+    assert len(c["tomada"]["centroids"]) == 255
 
 
 # --- HITL: apply_tags pure-function tests (no PDF needed) ---

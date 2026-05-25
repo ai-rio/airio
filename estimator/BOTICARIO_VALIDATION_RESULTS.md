@@ -182,3 +182,36 @@ Tomada now counts circle ⊖ + square ⊠ (multi detector, shipped). Diff vs his
 3. **luminária −63 / corrugado → PULL A SECOND PROJECT.** PE06 geometry is at the deterministic
    ceiling; more tuning = overfit. A 2nd project validates generalization AND supplies the
    fixture/corrugado variety to design against. (Data-gathering thread, separate from this commit.)
+
+## QUADRO DE CARGAS SPINE — `quadro_pontos.py` shipped (2026-05-25)
+
+The deterministic outlet-count spine (Carlos's frame: "the TRI quadro tells the entire technical
+story; the planta tells positions"). New module `estimator/quadro_pontos.py` reads the quadro de
+cargas with `find_tables` (free), CID-anchored (locate CIRC.N per row, read fields at offsets
+relative to it — absorbs the leading-disjuntor column that shifts the grid 16↔17 cols), and joins
+circuits to a casa by the `-T#` board suffix in the circuit NOME.
+
+| sheet | join key | casa | tool (raw qtd-sum) | Carlos Revu | Δ | status |
+|---|---|---|---|---|---|---|
+| PE06_TRI | board `-T2` (suffix) | **casa 28** | **88 pts / 11 circ** | **91** | **Δ3** | ✅ spine validated, PINNED |
+| PE06_TRI | board `-T4` (suffix) | (another casa) | 63 pts / 8 circ | — | — | extracted, unverified |
+| PE07_TRI | — | casa 20 (ADM/COW) | n/a | — | — | TITLE scheme (no `-T#`) → HITL, deferred |
+
+- **Δ3 (parse 88 vs oracle 91) — root cause UNRESOLVED, not chased.** The Q70–Q82 sequence shows
+  visible gaps at Q73/Q80, but their attribution is undetermined from what we have: find_tables MAY
+  have dropped them, OR they don't belong to casa-28, OR they're partial circuits, OR the missing 3
+  points are a no-suffix service circuit that IS casa-28's (the 21 no-suffix tomada rows include
+  "TOM. SERVIÇOS / WC" etc.). Two dropped 8-pt quartos would be Δ16, not Δ3 — so it is NOT simply
+  "2 rows dropped". `_explode` does not change 88 (so it's not `\n`-stacking). Attributing the Δ3
+  needs Carlos's per-circuit Revu breakdown. **The pin is robust regardless** (88 = deterministic
+  raw extraction); per the project rule, don't claim a root cause the data doesn't support.
+- **CID regex now includes I/EM** (lighting/bloco autônomo) — without it iluminação circuits vanish
+  (qprobe under-counted ilum 13→68). This was the one silent-undercount bug from the probes.
+- **Classification (NBR 5410) is SECONDARY — reported, NOT pinned.** VA/pt + FASE(mm²) + NOME:
+  162 VA/pt=10A, 600=20A, ≥3000VA/4mm²/named-equip=dedicado, AC ≤100VA=control (not an outlet).
+  The disjuntor is authoritative but lives in separate 2×2 sub-tables find_tables rarely captures →
+  used as enrichment only (`disj` = columns before CID). casa-28 AC + 20A oracle still PENDING Carlos.
+- **casa-20 needs the TITLE→table spatial join** (rot-270): its circuits are function-named
+  (TOM. ADM, TOMADAS BAR LOUNGE) with no `-T#` tag, so all 34 land in the HITL no-suffix bucket
+  (surfaced, not silently bucketed). PE07_TRI extraction runs with zero per-sheet code (proven).
+- 43 tests green (+3: casa-28 spine pin, classify rules, PE07 generalization).

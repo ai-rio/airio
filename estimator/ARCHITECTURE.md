@@ -82,6 +82,13 @@ per-project code. Canonical infra kinds: `eletrocalha`, `perfilado`, `leito`,
 eletrocalha, Carlos's rule). The glossary is discipline-scoped: other-discipline conduits
 (dados/CFTV `CE-`, fire `SDAI`) are excluded from the elétrica takeoff.
 
+**The quadro is ALSO the device-count spine** (not only cable sizing): `quadro_pontos.py`
+reads the same QUADRO DE CARGAS table for outlet/AC/circuit COUNTS (QTD per circuit), joined
+to a casa by the `-T#` board suffix in the circuit name. Boticário casa-28 tomadas = 88 pts /
+11 circ (find_tables) vs Carlos Revu 91 (Δ3, validated). 1 quadro point ≈ 1 drop (1:1) for
+tomadas/AC — but NOT lighting (1 lighting point : N fixtures; luminária drops come from the
+PLANTA via points.py). The planta gives positions; the two RECONCILE = the verification UI.
+
 **Proven = the MECHANISMS** (paired-edge metragem; find_tables + conductor rule) **and**
 the seam's generality (one glossary measures both projects' differing layer names).
 **Still pending validation:** Boticário infra is a regression pin (denom=50 fallback), not

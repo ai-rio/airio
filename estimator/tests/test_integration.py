@@ -7,6 +7,7 @@ import schedule
 import ele
 import join
 import points
+import quadro_pontos
 
 pytestmark = pytest.mark.integration
 
@@ -193,3 +194,55 @@ def test_apex_join(apex_plan):
     assert "QG-E-2P-AUD" in matched                   # panel placed on the plan
     plan_only = {m["name"] for m in r["plan_only"]}
     assert any("PDC" in n for n in plan_only)         # QT-E-2P-B-PDC: on plan, not scheduled (HITL)
+
+
+# --- QUADRO SPINE: device-point counts from the quadro de cargas (Boticário PE06_TRI) ---
+def test_quadro_pontos_casa28_spine(boticario_pe06_tri):
+    """The deterministic SPINE: outlet counts come from the quadro de cargas (QTD per
+    circuit), joined to casa-28 by the `-T2` board suffix in the circuit NOME. PIN the
+    ROBUST raw qtd-sum (NOT the classifier output) — find_tables reads 88 pts across 11
+    Q##-T2 circuits; Carlos Revu casa-28 = 91 (Δ3 = 2 rows find_tables dropped, Q73/Q80;
+    documented, not chased). Guards the CID-anchored extraction + suffix join against drift."""
+    rows = quadro_pontos.extract_circuits(boticario_pe06_tri)
+    summ = quadro_pontos.summarize(rows)
+    assert summ["by_board"]["T2"] == {"pts": 88, "circ": 11}   # casa-28 spine (Revu 91, Δ3)
+    t2 = quadro_pontos.tally_board(rows, "T2")
+    assert t2["tomada_pts"] == 88
+    assert t2["tomada_circuits"] == 11
+    # the I/EM CID prefix must be captured (else iluminação circuits silently vanish)
+    assert summ["by_class_circuits"].get("iluminacao", 0) >= 10
+    # no-suffix tomada circuits (bar/lounge dedicated + service rooms) are SURFACED for
+    # HITL per-casa assignment, never silently bucketed into a casa
+    assert len(summ["no_suffix_tomada_HITL"]) > 0
+    # CID-anchoring must absorb the leading-disjuntor column (T7: 17 cols vs 16) — some rows
+    # then carry the breaker as `disj` enrichment; guards against a from-table-start regression
+    assert any(r["disj"] for r in rows)
+
+
+def test_quadro_pontos_classify_rules():
+    """classify is the SECONDARY (heuristic) signal — assert the RULES, not pinned counts.
+    NBR 5410: ~162 VA/pt = 10A TUG, 600 VA/pt = 20A TUE, named-equip/4mm² = dedicated."""
+    tug = {"cid": "T1", "nome": "TOMADAS Q82-T2", "qtd": 8, "pot_va": 1300, "fase_mm2": "2.5"}
+    tue = {"cid": "T3", "nome": "TOM. OPEN KITCHEN", "qtd": 4, "pot_va": 2400, "fase_mm2": "2.5"}
+    ded = {"cid": "T2", "nome": "TOM. SECADORA ROUPAS", "qtd": 1, "pot_va": 4500, "fase_mm2": "4.0"}
+    ac_real = {"cid": "AC1", "nome": "AR COND. SPLIT", "qtd": 1, "pot_va": 2000, "fase_mm2": "2.5"}
+    ac_ctrl = {"cid": "AC2", "nome": "AR COND. Q82", "qtd": 1, "pot_va": 40, "fase_mm2": "2.5"}
+    ilum = {"cid": "I.1", "nome": "ILUMINAÇÃO", "qtd": 3, "pot_va": 75, "fase_mm2": "2.5"}
+    assert quadro_pontos.classify(tug) == "tomada_10a"
+    assert quadro_pontos.classify(tue) == "tomada_20a"
+    assert quadro_pontos.classify(ded) == "dedicado_equip"
+    assert quadro_pontos.classify(ac_real) == "ac_real"
+    assert quadro_pontos.classify(ac_ctrl) == "ac_controle"      # ≤100 VA = control signal, not an outlet
+    assert quadro_pontos.classify(ilum) == "iluminacao"
+
+
+def test_quadro_pontos_pe07_generalizes(boticario_pe07_tri):
+    """Extraction generalizes to casa-20's sheet (PE07_TRI) — but casa-20's circuits use
+    the TITLE scheme (function names, NO `-T#` tag), so the suffix join yields no board-T2
+    and every tomada circuit lands in the HITL no-suffix bucket. Confirms the engine runs
+    on a second sheet without per-sheet code; casa-20's title→table join stays deferred."""
+    rows = quadro_pontos.extract_circuits(boticario_pe07_tri)
+    assert len(rows) > 30                                    # circuits extracted, no crash
+    summ = quadro_pontos.summarize(rows)
+    assert "T2" not in summ["by_board"]                      # casa-28 board not on this sheet
+    assert len(summ["no_suffix_tomada_HITL"]) > 0           # casa-20 tomadas need title-join (HITL)

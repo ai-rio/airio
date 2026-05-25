@@ -73,6 +73,15 @@ whole PE06 sheet, validation-scoped (excl legend strip y>2700 + ampliação box)
   wavy single line = many tiny tessellated segments, all < MIN_SEG_PT(20) → dropped. Corrugado needs
   a different measurement mode (single-line path length, handle tessellation) — NOT paired ÷2.
   39 tests green (override is an optional param; SENAC pins unchanged).
+→ **CORRUGADO GEOMETRY (2026-05-25, rendered ELE_TP + ELE_TE) — it is NOT one mode:**
+  • **pead ELE_TP = DASHED single line** (404 segs, 392 short<20pt, 0 curves). Dashes counted,
+    GAPS not → dash-sum 55 vs route 76 (−28% ≈ the gap fraction). Needs dash-route tracing
+    (connect collinear dashes, measure full extent incl. gaps).
+  • **reforç ELE_TE = MIXED** (347 lines + 161 curves): some PAIRED double-line runs, some SINGLE
+    lines w/ tick marks, curved bracket end-caps. paired÷2=64, long-single×1=71, all-segs=92.
+  → A single "corrugado mode" would OVERFIT these 2 layers on one sheet (the param-torture trap).
+  Proper fix = a dedicated single-line + dash-tracing measure validated across MORE corrugado
+  examples. galv (rigid paired, ~70% of eletroduto) is the closed part; **corrugado DEFERRED.**
 
 **DEVICE POINTS (validation-scoped):**
 | device | tool | Revu | Δ | read |

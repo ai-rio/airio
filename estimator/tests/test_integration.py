@@ -87,6 +87,8 @@ def test_boticario_points(boticario_pe06):
     assert c["aterramento"]["count"] == 1                # Carlos: "just 1" earthing device
     assert c["luminaria"]["count"] == 238                # all fixture symbols = install pts; Revu 244 (Δ6 HITL)
     assert c["interruptor"]["count"] == 77               # ELE_SI drops (boxes); Revu per-variant 78 (Δ−1). Raw 'S' symbols=97 = easy-way overcount
+    assert c["caixa_passagem"]["count"] == 67            # ELE_SF hatched-square glyph; scoped 66 = Revu 66 EXACT (whole-page +1 legend)
+    assert c["sensor_presenca"]["count"] == 9            # ELE_SAL PIR glyph; Revu 12 (Δ−3: ELE_SAL has 11 clusters max — ~1 merged + 2 variant, HITL)
     # centroids accompany the count (the overlay/HITL proof = WHERE each point is)
     assert len(c["tomada"]["centroids"]) == 255
 

@@ -91,8 +91,19 @@ whole PE06 sheet, validation-scoped (excl legend strip y>2700 + ampliação box)
 | luminária (Ponto Ilum) | 213 | 276 | −63 UNDER | real detector miss (~23%) — cluster misses fixture glyphs across Casa 20 + mezanino |
 | interruptor | 70 | n/a | — | not counted this round |
 
-**Classes with NO detector yet:** caixa de passagem alu 20x20x20 (66), ponto força AC (35),
-sensor de presença (12).
+**NEW device detectors added (2026-05-25, Carlos gave the layer map):**
+| device | layer | glyph | tool | Revu | Δ |
+|---|---|---|---|---|---|
+| caixa de passagem | ELE_SF | hatched square (~13 strokes, 11×11) | 66 (scoped) | 66 | **0 EXACT** ✅ |
+| sensor de presença | ELE_SAL | PIR dome + 3 waves (~7 strokes, 19×19) | 9 | 12 | −3 (ELE_SALmax 11 clusters: ~1 merged + 2 variant → HITL) |
+
+**Still NO clean detector:**
+- **ponto de força AC (35) = on ELE_ST** (same layer as tomada!) → the tomada +29 over-count IS
+  these AC points lumped in. Splitting tomada vs AC needs glyph discrimination ON ELE_ST → Intel/HITL.
+- **Ponto de Iluminação (276) = MMM-LUMINOTÉCNICA** confirmed, but Carlos: it's a FULL VARIETY of
+  fixture types (spots, trilhos/rails, pendants — Boticário is a HOTEL). One glyph detector
+  inherently under-counts a varied design → the multi-glyph-variety problem (like emergência
+  3-glyph) = Intel/HITL, NOT a param fix. The −63 = missed fixture TYPES, not merging.
 
 **Net:** perfilado exact = the infra mechanism + scale are right. Remaining = (1) glossary one-liner
 for eletroduto ELE_TA; (2) eletrocalha pairing/width refine; (3) luminária under-count (the real

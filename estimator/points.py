@@ -269,6 +269,11 @@ BOTICARIO_POINTS = {
     "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},
     "ELE_SI":  {"device": "interruptor", "glyph": "symbol_box", "wlo": 5, "whi": 20, "hlo": 3, "hhi": 15, "drops_tol": 6,
                "variants": {"default": "simples", "labels": ["simples", "2secoes", "paralelo", "condulete"]}},
+    # caixa de passagem (alu 20x20x20) = hatched square glyph (~13 diagonal-fill strokes, ~11×11pt)
+    # on ELE_SF (Carlos confirmed the layer). frame_min rejects the few big boxed frames on the layer.
+    "ELE_SF":  {"device": "caixa_passagem", "glyph": "cluster", "tol": 8, "nlo": 10, "nhi": 18, "frame_min": 25},
+    # sensor de presença = PIR glyph (dome + 3 detection waves, ~7 strokes, ~19×19pt) on ELE_SAL.
+    "ELE_SAL": {"device": "sensor_presenca", "glyph": "cluster", "tol": 8, "nlo": 5, "frame_min": 30},
 }
 
 def apply_tags(device_result: dict, tags: dict, spec: dict) -> dict:

@@ -100,6 +100,22 @@ whole PE06 sheet, validation-scoped (excl legend strip y>2700 + ampliação box)
 **Still NO clean detector:**
 - **ponto de força AC (35) = on ELE_ST** (same layer as tomada!) → the tomada +29 over-count IS
   these AC points lumped in. Splitting tomada vs AC needs glyph discrimination ON ELE_ST → Intel/HITL.
+  → **RESOLVED 2026-05-25 — the split is by AMPERAGE, not just AC (Carlos's requirement).**
+    PE06_1PAV ground truth (Carlos): **10A vast majority / 21× 20A-2P+T / 1× 20A-4P+T / ~35 AC.**
+    Three probes prove amperage is NOT recoverable from the planta:
+      1. all 224 ELE_ST circles = ONE path signature (c4 / 9×9 / unfilled) + ONE color (magenta);
+         the legend NAMES the types (`tomada-10A-alta/baixa/entreforro`, `tomada-20A-alta/baixa`)
+         but they are legend TEXT, not OCG layers — geometry is identical.
+      2. only ~5 amperage tokens on the WHOLE sheet (the legend) — no per-outlet amperage label.
+      3. 127/224 circles have NO text near them; `schedule.extract_schedule(PE06_TRI)` returns 0
+         tomada circuits → no circuit-number join key to the QUADRO DE CARGAS.
+    So NO glyph detector can split amperage here; it lives only in the quadro / the engineer's head.
+    → Added `variants {default: tomada_10a, labels: [tomada_10a, tomada_20a_2pt, tomada_20a_4pt,
+    ponto_forca_ac]}` to ELE_ST. HITL **exception-tagging**: default to the majority 10A, human taps
+    only the FEW exceptions (22 × 20A + ~35 AC) on the clean `points_overlay_tomada.png` — not 224 taps.
+    Future automation = parse the QUADRO DE CARGAS tomada circuits (amperage + qty) for an AGGREGATE
+    split; needs schedule.py to actually extract them (0 today) and is aggregate-only (planta has no
+    locate key). 40 tests green.
 - **Ponto de Iluminação (276) = MMM-LUMINOTÉCNICA** confirmed, but Carlos: it's a FULL VARIETY of
   fixture types (spots, trilhos/rails, pendants — Boticário is a HOTEL). One glyph detector
   inherently under-counts a varied design → the multi-glyph-variety problem (like emergência
@@ -152,3 +168,17 @@ Tomada now counts circle ⊖ + square ⊠ (multi detector, shipped). Diff vs his
 - Casa 28 frame (red, ELE_CE): `(111,113)–(1491,1025)` — close, but clips seam devices.
 - Top-right ampliação (red frame, EXCLUDE): `(1553,107)–(2301,1003)`.
 - Casa 20: y≳1060 down to ~2580. Legend strip: bottom carimbo y≳2700.
+
+## Session decisions (2026-05-25, Carlos)
+
+1. **Outlet split by AMPERAGE → HITL exception-tagging.** Carlos's requirement: split tomadas by
+   10A / 20A-2P+T / 20A-4P+T (+ AC) — different SKU/breaker/gauge. Proven NOT derivable from the
+   planta (3 probes). Shipped: ELE_ST `variants` default=tomada_10a; human taps only the ~22+35
+   exceptions. Schedule-derive (quadro de cargas) is aggregate-only + deferred. See RESOLVED note.
+2. **+7% galv / +15% eletrocalha over-count → ACCEPTED** per the over-estimate rule
+   (`feedback_metragem_overestimate`: quote uses the high bound; aditivo worse than leftover).
+   ⚠ eletrocalha's +15% is MECHANISM NOISE (913pt unpaired segs + width buckets 100/200mm vs the
+   50mm tray), not a deliberate buffer — refine when a second project lands, not by tuning PE06.
+3. **luminária −63 / corrugado → PULL A SECOND PROJECT.** PE06 geometry is at the deterministic
+   ceiling; more tuning = overfit. A 2nd project validates generalization AND supplies the
+   fixture/corrugado variety to design against. (Data-gathering thread, separate from this commit.)

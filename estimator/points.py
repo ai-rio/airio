@@ -242,6 +242,20 @@ def count_points(pdf_path: str, config: dict, page_index: int = 0) -> dict:
 # Boticário device-point config (its self-describing layers, confirmed by Carlos):
 #   ELE_ST = tomadas — TWO glyphs (circle ⊖ wall outlet + square ⊠ floor box), both = 1
 #     outlet (Carlos Revu Casa-28 = 114; whole-page tool = 224 circle + 31 square = 255).
+#     ELE_ST is ONE undifferentiated layer carrying SEVERAL outlet classes the BOM must split:
+#     tomada 10A (vast majority), tomada 20A 2P+T, tomada 20A 4P+T, and ponto de força AC.
+#     Carlos's PE06_1PAV ground truth: 10A majority / 21× 20A-2P+T / 1× 20A-4P+T / ~35 AC.
+#     The amperage is NOT recoverable from the planta — proven by 3 probes: (1) all 224 circles
+#     are ONE path signature (c4/9×9/unfilled) + ONE color (magenta); the legend NAMES the types
+#     (tomada-10A-alta/baixa/entreforro, tomada-20A-alta/baixa) but the geometry is identical;
+#     (2) only ~5 amperage tokens on the whole sheet (the legend, not per-outlet); (3) 127/224
+#     circles have NO text near them — no circuit-number join key to the QUADRO DE CARGAS. So no
+#     glyph detector can EVER split amperage here; it lives only in the quadro / the engineer's head.
+#     → "variants" HITL: default to the majority (tomada_10a), human taps only the FEW exceptions
+#     (the 22 20A + the AC) on the clean points_overlay_tomada.png. Exception-tagging, not 224 taps.
+#     Future automation = parse the QUADRO DE CARGAS tomada circuits (amperage + qty per circuit)
+#     for an AGGREGATE split — but schedule.py extracts 0 tomada circuits from PE06_TRI today, and
+#     the planta has no per-outlet key to LOCATE them, so auto-derive is aggregate-only + deferred.
 #   ELE_SQ = iluminação de emergência, ELE_LEP = aterramento.
 #   ALL OTHER ELE_* layers are infrastructure (eletroduto/calha/perfilado) — NOT points.
 #   Luminárias live on MMM-LUMINOTÉCNICA as several fixture glyphs (downlight ⊘9, batten,
@@ -263,7 +277,8 @@ BOTICARIO_POINTS = {
     "ELE_ST":  {"device": "tomada", "glyph": "multi", "detectors": [
         {"glyph": "circle", "lo": 7, "hi": 15, "min_curves": 2},          # ⊖ wall outlet
         {"glyph": "square", "wlo": 7, "whi": 14, "hlo": 7, "hhi": 14, "min_segs": 4},  # ⊠ floor box
-    ]},
+    ], "variants": {"default": "tomada_10a",
+                    "labels": ["tomada_10a", "tomada_20a_2pt", "tomada_20a_4pt", "ponto_forca_ac"]}},
     "ELE_SQ":  {"device": "iluminacao_emergencia", "glyph": "cluster", "tol": 8, "nlo": 8, "nhi": 14},
     "ELE_LEP": {"device": "aterramento", "glyph": "cluster", "tol": 8, "nlo": 1, "nhi": 200},
     "MMM-LUMINOTÉCNICA": {"device": "luminaria", "glyph": "cluster", "tol": 5, "nlo": 2, "frame_min": 60},

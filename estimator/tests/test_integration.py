@@ -108,6 +108,26 @@ def test_apply_tags_variant_split():
     assert result["by_variant"] == {"simples": 2, "paralelo": 2}
 
 
+def test_apply_tags_tomada_amperage_split():
+    """ELE_ST outlet split by amperage (Carlos's PE06 ground truth: 10A majority, 21× 20A-2P+T,
+    1× 20A-4P+T, ~35 AC). Amperage is NOT geometric (identical circle) and has no per-outlet
+    planta key → HITL EXCEPTION-tagging: default to the majority 10A, tap only the few 20A/AC.
+    Models the real pattern at small scale: 1 outlet of each exception, rest default to 10A."""
+    spec = points.BOTICARIO_POINTS["ELE_ST"]
+    assert spec["variants"]["default"] == "tomada_10a"
+    for lbl in ("tomada_20a_2pt", "tomada_20a_4pt", "ponto_forca_ac"):
+        assert lbl in spec["variants"]["labels"]
+    dr = {"count": 6, "layer": "ELE_ST", "glyph": "multi",
+          "centroids": [(i, i) for i in range(6)]}
+    # tag the 3 exceptions; the other 3 untagged → default tomada_10a
+    tags = {"0": "tomada_20a_2pt", "1": "tomada_20a_4pt", "2": "ponto_forca_ac"}
+    result = points.apply_tags(dr, tags, spec)
+    assert result["total"] == 6
+    assert result["dropped"] == 0
+    assert result["by_variant"] == {
+        "tomada_10a": 3, "tomada_20a_2pt": 1, "tomada_20a_4pt": 1, "ponto_forca_ac": 1}
+
+
 def test_apply_tags_unknown_label_raises():
     """A label not in variants.labels and not 'drop' must raise ValueError."""
     spec = {"device": "interruptor", "glyph": "symbol_box",
@@ -158,6 +178,7 @@ def test_overlay_writes_per_device_png(boticario_pe06, tmp_path):
     points.overlay(boticario_pe06, points.BOTICARIO_POINTS, str(png))
     assert png.exists()
     assert (tmp_path / "ov_interruptor.png").exists()   # interruptor has variants configured
+    assert (tmp_path / "ov_tomada.png").exists()        # tomada now has variants (AC-split tag surface)
 
 
 # --- RECONCILER: APEX schedule (known) ↔ APEX plan, join by name ---

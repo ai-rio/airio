@@ -178,7 +178,7 @@ def sizes(pdf_path: str, page_index: int = 0) -> dict:
 
 
 def metragem(pdf_path: str, page_index: int = 0, scale_denom: int | None = None,
-             quote_margin: float = 0.10) -> dict:
+             quote_margin: float = 0.10, kind_overrides: dict[str, str] | None = None) -> dict:
     """Linear metres of cable tray (bandeja), conduit (eletroduto) and busway
     (barramento blindado), from the `EL-Condutos …` / `EL-Barramento …` layers.
 
@@ -195,10 +195,17 @@ def metragem(pdf_path: str, page_index: int = 0, scale_denom: int | None = None,
     mpp = _m_per_pt(denom)
     page = fitz.open(pdf_path)[page_index]
 
+    # kind = universal glossary word-match, OR a per-project override for CRYPTIC layers the
+    # glossary can't resolve (e.g. Boticário ELE_TA/TP/TE = eletroduto teto/piso/parede — the
+    # HITL mapping the glossary docstring promises; keeps project codes OUT of the universal map).
+    ov = kind_overrides or {}
+    def resolve_kind(lay: str) -> str | None:
+        return ov.get(lay) or glossary.layer_kind(lay)
+
     by_layer: dict[str, list] = collections.defaultdict(list)  # layer -> [(a,b,L)]
     for d in page.get_drawings():
         lay = d.get("layer") or ""
-        if glossary.layer_kind(lay) is None:   # project-agnostic: glossary, not SENAC prefixes
+        if resolve_kind(lay) is None:   # project-agnostic: glossary + per-project override
             continue
         for it in d["items"]:
             if it[0] == "l":
@@ -281,7 +288,7 @@ def metragem(pdf_path: str, page_index: int = 0, scale_denom: int | None = None,
     tray_size_m: dict[str, dict[str, float]] = collections.defaultdict(lambda: collections.defaultdict(float))
     diam_m: dict[str, float] = collections.defaultdict(float)   # "Ø2\"" -> m
     for lay, segs in sorted(by_layer.items()):
-        kind = glossary.layer_kind(lay)
+        kind = resolve_kind(lay)
         catalog = tray_widths if kind in TRAY_KINDS else (diam_mms if kind == "eletroduto" else None)
         center_pt, single_pt, buckets = measure(segs, catalog)
         run_m = center_pt * mpp

@@ -51,6 +51,45 @@ is correct. The exact square count is region-dependent, so calibrate AFTER the p
 - **Part 4 — cabos/schedule** (TRI = `PE06_TRI.R03`, panel `QL-NE-TIP2.1`): not run yet.
 - The reconciler/join: deferred (out of scope for this correctness pass).
 
+## WHOLE-DRAWING diff (2026-05-25, Carlos's Revu totals: casas 28 + 20 + mezanino)
+
+Seam-free oracle (Carlos counted all 3 plantas → the seam boundary stops mattering). Tool =
+whole PE06 sheet, validation-scoped (excl legend strip y>2700 + ampliação box). Scale 1:50.
+
+**INFRA METRAGEM — first Revu validation of the infra half (was a denom=50 regression pin):**
+| line | tool | Revu | Δ | status |
+|---|---|---|---|---|
+| **perfilado 38x38** | 168.3 m | 167.06 | **+0.7%** | ✅ EXACT — metragem mechanism proven on a 2nd product + 2nd scope |
+| eletrocalha 50x50 | 66.3 m | 57.64 | +15% | rough: 913pt unpaired segs + width buckets (100/200mm) don't match the 50mm tray |
+| eletroduto galv 3/4" (teto) | **370.0** | 345.11 | **+7%** | ✅ acceptable (rigid, paired method) — layer ELE_TA |
+| eletroduto pead piso | 1.9 | 76.25 | −98% | ✗ corrugado MISSED — layer ELE_TP |
+| eletroduto reforçado parede | 64.4 | 75.11 | −14% | ⚠ corrugado partial — layer ELE_TE |
+→ **FIXED (2026-05-25):** eletroduto was 0 because it's on CRYPTIC layers the universal glossary
+  can't word-match. Carlos confirmed: **ELE_TA=teto(galv) / ELE_TP=piso(pead) / ELE_TE=parede(reforç)**
+  (NOT ELE_CE/SF). Added `kind_overrides` param to `ele.metragem()` (per-project HITL layer→kind
+  map — keeps project codes OUT of the universal glossary). Now measured: total 436 vs 496 (−12%).
+→ **NEW METHOD FINDING:** the paired-edge ÷2 mechanism works for RIGID conduit (galv ELE_TA +7%)
+  but FAILS for CORRUGADO/flexible (pead ELE_TP −98%, reforç ELE_TE −14%). Corrugado is drawn as a
+  wavy single line = many tiny tessellated segments, all < MIN_SEG_PT(20) → dropped. Corrugado needs
+  a different measurement mode (single-line path length, handle tessellation) — NOT paired ÷2.
+  39 tests green (override is an optional param; SENAC pins unchanged).
+
+**DEVICE POINTS (validation-scoped):**
+| device | tool | Revu | Δ | read |
+|---|---|---|---|---|
+| emergência | 34 | 37 | −3 | the 3-glyph variant gap (Intel found aclaramento + 2× seta) |
+| tomada | 239 | 210 | +29 OVER | classification — ELE_ST circle/square can't split tomada-10A / 20A / ponto-força-AC (35); AC points likely counted as tomada |
+| luminária (Ponto Ilum) | 213 | 276 | −63 UNDER | real detector miss (~23%) — cluster misses fixture glyphs across Casa 20 + mezanino |
+| interruptor | 70 | n/a | — | not counted this round |
+
+**Classes with NO detector yet:** caixa de passagem alu 20x20x20 (66), ponto força AC (35),
+sensor de presença (12).
+
+**Net:** perfilado exact = the infra mechanism + scale are right. Remaining = (1) glossary one-liner
+for eletroduto ELE_TA; (2) eletrocalha pairing/width refine; (3) luminária under-count (the real
+detector gap); (4) tomada/AC + new classes = variant/classification → Intel/legend; (5) emergência
+3-glyph. Direction of tomada FLIPPED vs Casa-28-alone (was −11 clip, now +29) → confirms AC-lumping.
+
 ## VALIDATED Casa-28 diff (2026-05-24, Carlos drew the region in regionselect.html)
 
 Carlos's polygon: `x[71,1505] y[99→1028]` (near-rectangular, bottom edge y≈1028).

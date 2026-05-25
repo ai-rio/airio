@@ -191,11 +191,12 @@ cargas with `find_tables` (free), CID-anchored (locate CIRC.N per row, read fiel
 relative to it — absorbs the leading-disjuntor column that shifts the grid 16↔17 cols), and joins
 circuits to a casa by the `-T#` board suffix in the circuit NOME.
 
-| sheet | join key | casa | tool (raw qtd-sum) | Carlos Revu | Δ | status |
-|---|---|---|---|---|---|---|
-| PE06_TRI | board `-T2` (suffix) | **casa 28** | **88 pts / 11 circ** | **91** | **Δ3** | ✅ spine validated, PINNED |
-| PE06_TRI | board `-T4` (suffix) | (another casa) | 63 pts / 8 circ | — | — | extracted, unverified |
-| PE07_TRI | — | casa 20 (ADM/COW) | n/a | — | — | TITLE scheme (no `-T#`) → HITL, deferred |
+| sheet | join key | casa | device | tool (raw qtd-sum) | Carlos Revu | Δ | status |
+|---|---|---|---|---|---|---|---|
+| PE06_TRI | board `-T2` (suffix) | **casa 28** | tomada | **88 pts / 11 circ** | **91** | **Δ3** | ✅ spine validated, PINNED |
+| PE06_TRI | board `-T2` (suffix) | **casa 28** | AC-força | **13 pts / 13 circ** | **15** | **Δ2** | ✅ spine validated, PINNED (Δ2 = HITL common) |
+| PE06_TRI | board `-T4` (suffix) | (another casa) | tomada / AC | 63 / 7 | — | — | extracted, unverified |
+| PE07_TRI | — | casa 20 (ADM/COW) | — | n/a | — | — | TITLE scheme (no `-T#`) → HITL, deferred |
 
 - **Δ3 (parse 88 vs oracle 91) — root cause UNRESOLVED, not chased.** The Q70–Q82 sequence shows
   visible gaps at Q73/Q80, but their attribution is undetermined from what we have: find_tables MAY
@@ -208,9 +209,17 @@ circuits to a casa by the `-T#` board suffix in the circuit NOME.
 - **CID regex now includes I/EM** (lighting/bloco autônomo) — without it iluminação circuits vanish
   (qprobe under-counted ilum 13→68). This was the one silent-undercount bug from the probes.
 - **Classification (NBR 5410) is SECONDARY — reported, NOT pinned.** VA/pt + FASE(mm²) + NOME:
-  162 VA/pt=10A, 600=20A, ≥3000VA/4mm²/named-equip=dedicado, AC ≤100VA=control (not an outlet).
-  The disjuntor is authoritative but lives in separate 2×2 sub-tables find_tables rarely captures →
-  used as enrichment only (`disj` = columns before CID). casa-28 AC + 20A oracle still PENDING Carlos.
+  162 VA/pt=10A, 600=20A, ≥3000VA/4mm²/named-equip=dedicado. The disjuntor is authoritative but
+  lives in separate 2×2 sub-tables find_tables rarely captures → used as enrichment only
+  (`disj` = columns before CID).
+- **casa-28 oracle RESOLVED (2026-05-25, Carlos).** 20A-tomada = **0** → matches: every `-T2`
+  tomada is 162 VA/pt = 10A ✅ (the vpp≥550 → 20A rule is validated). AC-força = **15** → casa-28
+  has 13 board-`T2` AR COND (deterministic) + 2 common-area no-suffix AC (HITL) = 15 (Δ2, NOT
+  torture-fit). **classify RULE BUG fixed:** the 13 `-T2` AR COND are 40 VA uniform; the old
+  `≤100 VA = control signal` guess bucketed them as `ac_controle` (→ 0 força). Carlos: these are
+  fan-coil força points — nominal VA is NOT a força/control discriminator → AR COND ⇒ `ac_real`
+  always; the `ac_controle` class is removed. AC now has the same board-suffix + no-suffix-HITL
+  spine treatment as tomada (`tally_board.ac_forca_*`, `summarize.no_suffix_ac_HITL`).
 - **casa-20 needs the TITLE→table spatial join** (rot-270): its circuits are function-named
   (TOM. ADM, TOMADAS BAR LOUNGE) with no `-T#` tag, so all 34 land in the HITL no-suffix bucket
   (surfaced, not silently bucketed). PE07_TRI extraction runs with zero per-sheet code (proven).

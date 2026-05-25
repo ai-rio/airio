@@ -30,9 +30,11 @@ JOIN to a casa by the board tag. Two schemes seen on Boticário (per-quadro CONF
 
 CLASSIFICATION (NBR 5410) is the SECONDARY signal — reported, NEVER the pinned number.
 VA/pt + FASE(mm²) + NOME: ~100 VA/pt = 10A TUG, ~600 = 20A TUE, ≥3000 VA / 4mm² /
-named-equip = dedicated. AC ≤100 VA = thermostat/control signal (not a BOM outlet); only
-the higher-VA AC feeders are real força points. The disjuntor is authoritative but
-unreliable from find_tables → VA/pt classifies, disjuntor enriches when present.
+named-equip = dedicated. Every AR COND circuit is a real AC-força point — nominal VA is
+NOT a força/control discriminator (Carlos oracle: casa-28's 13 board-T2 AR COND @40VA are
+força, fan-coil notation; the old ≤100 VA="thermostat signal" guess was refuted). The
+disjuntor is authoritative but unreliable from find_tables → VA/pt classifies, disjuntor
+enriches when present.
 
 Usage:
     python quadro_pontos.py <quadro.pdf> [--page N]
@@ -71,6 +73,14 @@ _DEDICATED = re.compile(
 def _board(nome: str) -> str | None:
     m = _SUFFIX.search(nome or "")
     return m.group(1).upper() if m else None
+
+
+def _is_tom(r: dict) -> bool:
+    return "TOM" in (r["nome"] or "").upper()
+
+
+def _is_ac(r: dict) -> bool:
+    return (r["cid"] or "").upper().startswith("AC") or "AR COND" in (r["nome"] or "").upper()
 
 
 def extract_circuits(pdf_path: str, page_index: int = 0,
@@ -112,7 +122,7 @@ def extract_circuits(pdf_path: str, page_index: int = 0,
 def classify(row: dict) -> str:
     """NBR-5410-informed class from VA/pt + FASE(mm²) + NOME. SECONDARY signal — reported,
     never the pinned number. Returns one of: tomada_10a, tomada_20a, dedicado_equip,
-    ac_real, ac_controle, iluminacao, outro."""
+    ac_real, iluminacao, outro."""
     nome = (row["nome"] or "").upper()
     cid = (row["cid"] or "").upper()
     qtd = row["qtd"] or 0
@@ -120,7 +130,10 @@ def classify(row: dict) -> str:
     fase = _to_float(row["fase_mm2"]) or 0.0
     vpp = pot / qtd if qtd else 0.0
     if cid.startswith("AC") or "AR COND" in nome:
-        return "ac_real" if pot > 100 else "ac_controle"   # ≤100 VA = thermostat signal, not an outlet
+        # AR COND outlet = real AC-força point. Carlos oracle (casa-28: 13 board-T2 AR COND
+        # @40VA are força, fan-coil notation) refuted the old ≤100VA="control signal" guess —
+        # nominal VA is NOT a força/control discriminator. Every AR COND circuit = a point.
+        return "ac_real"
     if "ILUMINA" in nome or cid.startswith(("I", "L", "EM")):
         return "iluminacao"
     # named equipment / heavy load = dedicated, with OR without a "TOM" prefix (a hardwired
@@ -135,14 +148,17 @@ def classify(row: dict) -> str:
 
 
 def tally_board(rows: list[dict], board: str) -> dict:
-    """ROBUST spine for ONE board: raw qtd-sum of its TOMADA circuits + the circuit count.
-    This is the PINNED number — deterministic, validated against Carlos's Revu oracle. The
-    per-class split rides along but is the heuristic secondary (see classify)."""
-    tom = [r for r in rows
-           if "TOM" in (r["nome"] or "").upper() and r["board"] == board]
+    """ROBUST spine for ONE board: raw qtd-sum of its TOMADA + AC-força circuits, with
+    circuit counts. These are the PINNED numbers — deterministic, validated against Carlos's
+    Revu oracle. AC-força = every board-tagged AR COND circuit (the fan-coil point; nominal
+    VA is not a discriminator). The per-class split rides along as heuristic secondary."""
+    tom = [r for r in rows if _is_tom(r) and r["board"] == board]
+    ac = [r for r in rows if _is_ac(r) and r["board"] == board]
     return {
         "tomada_pts": sum(r["qtd"] for r in tom),
         "tomada_circuits": len(tom),
+        "ac_forca_pts": sum(r["qtd"] for r in ac),
+        "ac_forca_circuits": len(ac),
         "circuits": [{"cid": r["cid"], "nome": r["nome"], "qtd": r["qtd"],
                       "vpp": round(r["pot_va"] / r["qtd"]) if r["qtd"] else 0,
                       "class": classify(r), "disj": r["disj"]} for r in tom],
@@ -157,33 +173,45 @@ def summarize(rows: list[dict]) -> dict:
     by_class_pts: collections.Counter = collections.Counter()
     by_class_circ: collections.Counter = collections.Counter()
     no_suffix_tomada = []
+    no_suffix_ac = []
     for r in rows:
         k = classify(r)
         by_class_pts[k] += r["qtd"]
         by_class_circ[k] += 1
-        if "TOM" in (r["nome"] or "").upper():
+        if _is_tom(r):
             if r["board"]:
                 by_board[r["board"]]["pts"] += r["qtd"]
                 by_board[r["board"]]["circ"] += 1
             else:
                 no_suffix_tomada.append(
                     {"cid": r["cid"], "nome": r["nome"], "qtd": r["qtd"], "class": k})
+        elif _is_ac(r):       # AC = a parallel spine (board-tagged → casa; no-suffix → HITL)
+            if r["board"]:
+                by_board[r["board"]]["ac_pts"] += r["qtd"]
+                by_board[r["board"]]["ac_circ"] += 1
+            else:
+                no_suffix_ac.append(
+                    {"cid": r["cid"], "nome": r["nome"], "qtd": r["qtd"], "class": k})
     return {
         "by_board": {b: dict(v) for b, v in sorted(by_board.items())},
         "by_class_pts": dict(by_class_pts),
         "by_class_circuits": dict(by_class_circ),
         "no_suffix_tomada_HITL": no_suffix_tomada,
+        "no_suffix_ac_HITL": no_suffix_ac,
         "total_circuit_rows": len(rows),
     }
 
 
 # casa → board(s). Per-quadro CONFIG (the two join schemes, see module docstring):
-#   casa_28 = board T2, SUFFIX scheme on PE06_TRI — VALIDATED (88 pts / 11 circ; Revu 91, Δ3).
+#   casa_28 = board T2, SUFFIX scheme on PE06_TRI — VALIDATED. Tomada: 88 pts / 11 circ vs
+#   Revu 91 (Δ3). AC-força: 13 board-T2 AR COND (deterministic) vs Revu 15 (Δ2) — the Δ2 is
+#   common-area AC (AR COND. SERVIÇOS/COBERTURA/VARANDA) carried no-suffix, assigned to
+#   casa-28 via the no_suffix_ac_HITL bucket (Carlos: fan-coil reading). NOT torture-fit.
 #   casa_20 = quadros PUB (PE06_TRI) + ADM + COW (PE07_TRI), TITLE scheme, multi-sheet —
 #   NOT pinned: function-named circuits carry no -T# tag, so they need the spatial
 #   title→table join (rot-270), not the suffix. Smoke only until that join is built.
 BOTICARIO_CASAS = {
-    "casa_28": {"scheme": "suffix", "boards": ["T2"], "oracle_tomada": 91},
+    "casa_28": {"scheme": "suffix", "boards": ["T2"], "oracle_tomada": 91, "oracle_ac": 15},
 }
 
 
@@ -195,25 +223,30 @@ def main() -> None:
     rows = extract_circuits(args.pdf, args.page)
     summ = summarize(rows)
     print(f"# Quadro de cargas — {Path(args.pdf).name}  ({summ['total_circuit_rows']} circuit rows)")
-    print("\n## ROBUST spine — tomada points by board (the pinned number):")
+    print("\n## ROBUST spine — points by board (the pinned numbers):")
     for b, v in summ["by_board"].items():
-        print(f"  board {b:6} pts={v['pts']:4}  circuits={v['circ']}")
+        print(f"  board {b:6} tomada={v.get('pts', 0):4} ({v.get('circ', 0)} circ)   "
+              f"ac_força={v.get('ac_pts', 0):4} ({v.get('ac_circ', 0)} circ)")
     print("\n## casa map (config):")
     for casa, cfg in BOTICARIO_CASAS.items():
         pts = sum(summ["by_board"].get(b, {}).get("pts", 0) for b in cfg["boards"])
         circ = sum(summ["by_board"].get(b, {}).get("circ", 0) for b in cfg["boards"])
-        oracle = cfg.get("oracle_tomada")
-        delta = f"  (Revu {oracle}, Δ{pts - oracle:+d})" if oracle else ""
-        print(f"  {casa:8} boards={cfg['boards']} scheme={cfg['scheme']:6} "
-              f"tomada_pts={pts} circuits={circ}{delta}")
+        ac = sum(summ["by_board"].get(b, {}).get("ac_pts", 0) for b in cfg["boards"])
+        o_tom, o_ac = cfg.get("oracle_tomada"), cfg.get("oracle_ac")
+        d_tom = f" (Revu {o_tom}, Δ{pts - o_tom:+d})" if o_tom else ""
+        d_ac = f" (Revu {o_ac}, Δ{ac - o_ac:+d} → HITL common)" if o_ac else ""
+        print(f"  {casa:8} boards={cfg['boards']} scheme={cfg['scheme']:6}")
+        print(f"           tomada_pts={pts} ({circ} circ){d_tom}")
+        print(f"           ac_força_pts={ac}{d_ac}")
     print("\n## heuristic class split (SECONDARY — not pinned):")
     for k, n in sorted(summ["by_class_pts"].items(), key=lambda x: -x[1]):
         print(f"  {k:16} pts={n:4}  circuits={summ['by_class_circuits'][k]}")
-    if summ["no_suffix_tomada_HITL"]:
-        print(f"\n## HITL — {len(summ['no_suffix_tomada_HITL'])} no-suffix tomada circuits "
-              "(assign to a casa manually):")
-        for r in summ["no_suffix_tomada_HITL"][:20]:
-            print(f"  {r['cid']:6} {r['nome'][:34]:34} qtd={r['qtd']:>3}  [{r['class']}]")
+    for label, key in (("tomada", "no_suffix_tomada_HITL"), ("AC", "no_suffix_ac_HITL")):
+        if summ[key]:
+            print(f"\n## HITL — {len(summ[key])} no-suffix {label} circuits "
+                  "(assign to a casa manually):")
+            for r in summ[key][:20]:
+                print(f"  {r['cid']:6} {r['nome'][:34]:34} qtd={r['qtd']:>3}  [{r['class']}]")
     print("\n" + json.dumps({"by_board": summ["by_board"]}, ensure_ascii=False))
 
 

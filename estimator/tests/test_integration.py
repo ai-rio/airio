@@ -198,17 +198,23 @@ def test_apex_join(apex_plan):
 
 # --- QUADRO SPINE: device-point counts from the quadro de cargas (Boticário PE06_TRI) ---
 def test_quadro_pontos_casa28_spine(boticario_pe06_tri):
-    """The deterministic SPINE: outlet counts come from the quadro de cargas (QTD per
+    """The deterministic SPINE: device counts come from the quadro de cargas (QTD per
     circuit), joined to casa-28 by the `-T2` board suffix in the circuit NOME. PIN the
-    ROBUST raw qtd-sum (NOT the classifier output) — find_tables reads 88 pts across 11
-    Q##-T2 circuits; Carlos Revu casa-28 = 91 (Δ3 = 2 rows find_tables dropped, Q73/Q80;
-    documented, not chased). Guards the CID-anchored extraction + suffix join against drift."""
+    ROBUST raw qtd-sums (NOT the classifier output): tomada = 88 pts / 11 circ (Carlos Revu
+    91, Δ3) AND AC-força = 13 pts / 13 circ (Revu 15, Δ2 = common-area AC carried no-suffix,
+    HITL-assigned). 20A-tomada = 0 (Carlos oracle): every -T2 tomada is 162 VA/pt = 10A.
+    Guards the CID-anchored extraction + suffix join + per-board AC tally against drift."""
     rows = quadro_pontos.extract_circuits(boticario_pe06_tri)
     summ = quadro_pontos.summarize(rows)
-    assert summ["by_board"]["T2"] == {"pts": 88, "circ": 11}   # casa-28 spine (Revu 91, Δ3)
+    b2 = summ["by_board"]["T2"]
+    assert b2["pts"] == 88 and b2["circ"] == 11                # casa-28 tomada spine (Revu 91, Δ3)
+    assert b2["ac_pts"] == 13 and b2["ac_circ"] == 13          # casa-28 AC-força spine (Revu 15, Δ2=HITL common)
     t2 = quadro_pontos.tally_board(rows, "T2")
     assert t2["tomada_pts"] == 88
     assert t2["tomada_circuits"] == 11
+    assert t2["ac_forca_pts"] == 13                            # 13 board-T2 AR COND @40VA = fan-coil força points
+    # 20A-tomada count for casa-28 = 0 (Carlos oracle): every -T2 tomada is 162 VA/pt = 10A
+    assert all(c["class"] != "tomada_20a" for c in t2["circuits"])
     # the I/EM CID prefix must be captured (else iluminação circuits silently vanish)
     assert summ["by_class_circuits"].get("iluminacao", 0) >= 10
     # no-suffix tomada circuits (bar/lounge dedicated + service rooms) are SURFACED for
@@ -225,14 +231,16 @@ def test_quadro_pontos_classify_rules():
     tug = {"cid": "T1", "nome": "TOMADAS Q82-T2", "qtd": 8, "pot_va": 1300, "fase_mm2": "2.5"}
     tue = {"cid": "T3", "nome": "TOM. OPEN KITCHEN", "qtd": 4, "pot_va": 2400, "fase_mm2": "2.5"}
     ded = {"cid": "T2", "nome": "TOM. SECADORA ROUPAS", "qtd": 1, "pot_va": 4500, "fase_mm2": "4.0"}
-    ac_real = {"cid": "AC1", "nome": "AR COND. SPLIT", "qtd": 1, "pot_va": 2000, "fase_mm2": "2.5"}
-    ac_ctrl = {"cid": "AC2", "nome": "AR COND. Q82", "qtd": 1, "pot_va": 40, "fase_mm2": "2.5"}
+    ac_big = {"cid": "AC1", "nome": "AR COND. SPLIT", "qtd": 1, "pot_va": 2000, "fase_mm2": "2.5"}
+    ac_fan = {"cid": "AC2", "nome": "AR COND. Q82", "qtd": 1, "pot_va": 40, "fase_mm2": "2.5"}
     ilum = {"cid": "I.1", "nome": "ILUMINAÇÃO", "qtd": 3, "pot_va": 75, "fase_mm2": "2.5"}
     assert quadro_pontos.classify(tug) == "tomada_10a"
     assert quadro_pontos.classify(tue) == "tomada_20a"
     assert quadro_pontos.classify(ded) == "dedicado_equip"
-    assert quadro_pontos.classify(ac_real) == "ac_real"
-    assert quadro_pontos.classify(ac_ctrl) == "ac_controle"      # ≤100 VA = control signal, not an outlet
+    assert quadro_pontos.classify(ac_big) == "ac_real"
+    # 40VA fan-coil AR COND is a real AC-força point, NOT a control signal (Carlos oracle,
+    # casa-28): nominal VA is not a força/control discriminator
+    assert quadro_pontos.classify(ac_fan) == "ac_real"
     assert quadro_pontos.classify(ilum) == "iluminacao"
 
 

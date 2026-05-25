@@ -85,9 +85,15 @@ eletrocalha, Carlos's rule). The glossary is discipline-scoped: other-discipline
 **The quadro is ALSO the device-count spine** (not only cable sizing): `quadro_pontos.py`
 reads the same QUADRO DE CARGAS table for outlet/AC/circuit COUNTS (QTD per circuit), joined
 to a casa by the `-T#` board suffix in the circuit name. Boticário casa-28 tomadas = 88 pts /
-11 circ (find_tables) vs Carlos Revu 91 (Δ3, validated). 1 quadro point ≈ 1 drop (1:1) for
-tomadas/AC — but NOT lighting (1 lighting point : N fixtures; luminária drops come from the
-PLANTA via points.py). The planta gives positions; the two RECONCILE = the verification UI.
+11 circ (find_tables) vs Carlos Revu 91 (Δ3, validated); AC-força = 13 board-`T2` AR COND vs
+Revu 15 (Δ2, validated — Δ2 = common-area AC carried no-suffix, assigned via the HITL bucket).
+casa-28 20A-tomada = 0 (oracle ✅; every `-T2` tomada is 162 VA/pt = 10A). Both tomada and AC
+get the same spine: board-suffix join + a no-suffix HITL bucket that SURFACES common circuits
+for human casa-assignment (never pre-assigns / torture-fits). AR COND ⇒ `ac_real` always —
+nominal VA is NOT a força/control discriminator (casa-28's 40 VA fan-coil rows are real points).
+1 quadro point ≈ 1 drop (1:1) for tomadas/AC — but NOT lighting (1 lighting point : N fixtures;
+luminária drops come from the PLANTA via points.py). The planta gives positions; the two
+RECONCILE = the verification UI.
 
 **Proven = the MECHANISMS** (paired-edge metragem; find_tables + conductor rule) **and**
 the seam's generality (one glossary measures both projects' differing layer names).

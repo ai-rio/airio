@@ -10,8 +10,13 @@
 	},
 	"observability": {
 		"enabled": true
-	}
-	// CF Container (Python estimator) — wired in a follow-up commit per the scaffold plan.
-	// Will add: "containers": [{ "class_name": "EstimatorContainer", "image": "./estimator/Dockerfile", ... }]
-	// + matching durable_objects.bindings + migrations. See ../../CLAUDE.md "The product" diagram.
+	},
+
+	// Service binding to the auxiliary Worker that owns the Python estimator Container.
+	// Astro endpoints reach the container via env.ESTIMATOR.fetch(request). The auxiliary
+	// Worker is configured separately at workers/estimator-container/wrangler.jsonc and
+	// registered via astro.config.mjs `auxiliaryWorkers`.
+	"services": [
+		{ "binding": "ESTIMATOR", "service": "airio-estimator-container" }
+	]
 }

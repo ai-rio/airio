@@ -48,3 +48,7 @@ docs/pdf/
 
 # Wrangler local cache (deploy preview state)
 .wrangler/
+
+# Wrangler-generated runtime types (regenerate via `bunx wrangler types`)
+worker-configuration.d.ts
+**/worker-configuration.d.ts

@@ -1,0 +1,32 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "airio-estimator-container",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-05-26",
+	"compatibility_flags": ["nodejs_compat"],
+
+	// Python estimator Container. The image is the existing estimator/Dockerfile —
+	// PyMuPDF + FastAPI/uvicorn serving on port 8080 (see estimator/Dockerfile).
+	"containers": [
+		{
+			"class_name": "EstimatorContainer",
+			"image": "../../estimator/Dockerfile",
+			"max_instances": 10,
+			"instance_type": "standard-1"
+		}
+	],
+
+	// Container is backed by a Durable Object (per CF Containers architecture).
+	"durable_objects": {
+		"bindings": [
+			{ "name": "CONTAINER", "class_name": "EstimatorContainer" }
+		]
+	},
+
+	// SQLite-backed DO (required for Container class).
+	"migrations": [
+		{ "tag": "v1", "new_sqlite_classes": ["EstimatorContainer"] }
+	],
+
+	"observability": { "enabled": true }
+}

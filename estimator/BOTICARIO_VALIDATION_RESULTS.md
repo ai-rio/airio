@@ -224,3 +224,51 @@ circuits to a casa by the `-T#` board suffix in the circuit NOME.
   (TOM. ADM, TOMADAS BAR LOUNGE) with no `-T#` tag, so all 34 land in the HITL no-suffix bucket
   (surfaced, not silently bucketed). PE07_TRI extraction runs with zero per-sheet code (proven).
 - 43 tests green (+3: casa-28 spine pin, classify rules, PE07 generalization).
+
+## RECONCILER — `reconcile.py` + regionselect.html wiring shipped (2026-05-25)
+
+The verification UI's engine: join PLANTA device positions (`points.py`) to QUADRO device counts
+(`quadro_pontos.tally_board`) per casa, SURFACE the Δ. Carlos's calls this session: (1) surface =
+live region-select UI + a testable core; (2) split tomada/AC NOW (not combined).
+
+**What reconciles, by the 1:1 boundary:**
+| planta side | quadro side | reconcile? |
+|---|---|---|
+| ELE_ST tomada-pins (tagged) | tomada_pts = 88 | ✅ 1:1 |
+| ELE_ST AC-pins (`ponto_forca_ac` tag) | ac_forca_pts = 13 | ✅ 1:1 |
+| luminária | lighting circuits | ❌ 1:N → planta authoritative, reported only |
+| interruptor / caixa / sensor / aterramento / emergência | — | planta-only |
+
+**The split is HITL** (planta can't split ELE_ST by glyph): new `marcar AC` mode in
+regionselect.html tags a tomada pin as AC (orange fill) → exports `ponto_forca_ac` to the
+`.points_tags.json` sidecar (a valid `points.apply_tags` variant). Untagged = all-tomada / 0-AC
+(the pre-split state). `reconcile.py` reads the tagged `by_variant` and confronts each kind
+separately.
+
+**SURFACE Δ, never balance to zero** — status="match" only on a genuine Δ0; Δ3 tomada / Δ2 AC
+stay flagged (param-torture trap avoided). The UI note says literally "Δ≠0 = investigar, NÃO
+force p/ zero."
+
+**SCOPE = the human-drawn polygon** (regionselect.html). This sidesteps two real gaps found this
+session: (1) no committed casa-28 polygon existed (only prose + an uncommitted browser export);
+(2) a straight-edge polygon seam-clips casa-28 (−11 tomada). The human draws the boundary along
+the wall live = the product premise, so neither is a code blocker. `reconcile.py` itself is
+scope-agnostic (reconciles whatever planta summary it's handed).
+
+**Verified (browser, file:// regionselect.html with quadro T2 injected = 88/13):**
+- whole page (no region): tomada 255 / 88 (Δ+167), AC 0 / 13 (Δ−13) — correct pre-region state.
+- tag 13 tomada pins AC → tomada 242, AC 13 (Δ0 ✓) — the split works.
+- full-canvas polygon → all inside; tiny polygon → 0 / 0 — region filtering feeds the confront.
+- 0 console errors; design-system compliant (Space Mono, brand yellow, sharp, red Δ).
+
+**Tests (+4):** `test_reconcile_split_surfaces_delta`, `test_reconcile_nonzero_delta_flagged`,
+`test_reconcile_untagged_is_all_tomada` (unit, pure logic), `test_reconcile_casa28_quadro_side`
+(integration, real PE06_TRI → 88/13 → reconcile join).
+
+**Test-suite note:** the integration suite is SLOW (~7.5 min full run; overlay test 95s, the 3
+quadro tests 100s — all PDF parsing), NOT hung. A prior "stall at test #33" was a too-short
+timeout window. Tech debt for later: pytest-xdist / fixture-cached PDF parses.
+
+**Still open (unchanged):** casa-20 TITLE→table join (rot-270); Δ3/Δ2 per-circuit attribution
+(needs Carlos's per-circuit Revu); dedicated-equip SKU decision; the cable-length reconciler
+(route comp vs table comp — a separate, not-yet-built join).

@@ -95,6 +95,20 @@ nominal VA is NOT a força/control discriminator (casa-28's 40 VA fan-coil rows 
 luminária drops come from the PLANTA via points.py). The planta gives positions; the two
 RECONCILE = the verification UI.
 
+**The RECONCILER is shipped** (`reconcile.py` + wired into `regionselect.html`, 2026-05-25).
+It joins the PLANTA device positions (points.py) to the QUADRO device counts (quadro_pontos)
+per casa and SURFACES the Δ — never balances to zero (Δ3 tomada / Δ2 AC stay open, flagged).
+What reconciles 1:1: tomada + AC-força. The planta CANNOT split tomada from AC by glyph (both
+ride ELE_ST identically), so the split is HITL: the human taps AC pins (`marcar AC` mode →
+`ponto_forca_ac` variant) and the tagged `by_variant` reconciles tomada-pins ↔ quadro tomada
+and AC-pins ↔ quadro AC-força SEPARATELY. luminária = 1:N → reported, NOT reconciled (planta
+authoritative). interruptor/caixa/sensor/aterramento/emergência = planta-only. SCOPE is the
+human-drawn region polygon in regionselect.html (sidesteps the seam-clip + the un-committed
+polygon — the human draws the casa boundary live, which IS the product premise). `reconcile.py`
+is scope-agnostic (reconciles whatever planta summary it's handed); config = `RECONCILE[casa]`
+(new casa = new entry, not new code). NOTE: this is the DEVICE-COUNT reconciler; the diagram's
+original cable-length reconciler (route comp vs table comp) is a separate, not-yet-built join.
+
 **Proven = the MECHANISMS** (paired-edge metragem; find_tables + conductor rule) **and**
 the seam's generality (one glossary measures both projects' differing layer names).
 **Still pending validation:** Boticário infra is a regression pin (denom=50 fallback), not

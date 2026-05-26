@@ -2,6 +2,7 @@
 refactor: the conductor cable rule and the geometry↔schedule cross-check."""
 import schedule
 import crosscheck
+import reconcile
 
 
 def test_conductor_rule_mono_bi_tri():
@@ -78,3 +79,49 @@ def test_crosscheck_key_normalisation():
     # Ø1.1/4" == Ø1 1/4" must collapse to one row
     r = crosscheck.crosscheck({'Ø1.1/4"': 100.0}, {'Ø1 1/4"': 100.0})
     assert len(r["per_bitola"]) == 1 and r["per_bitola"][0]["status"] == "OK"
+
+
+def test_reconcile_split_surfaces_delta():
+    """The reconcile join (pure): planta ELE_ST splits tomada vs AC by the HITL `by_variant`
+    tags → tomada-pins ↔ quadro tomada, AC-pins ↔ quadro AC-força, SEPARATELY. Surfaces Δ,
+    never balances to zero. planta-only devices listed; luminária reported as not-1:1."""
+    cfg = reconcile.RECONCILE["casa_28"]
+    # a human-tagged casa-28 region: 88 tomada-pins (86×10A + 2×20A) + 13 AC-pins
+    planta = {
+        "tomada": {"count": 101, "total": 101, "dropped": 0,
+                   "by_variant": {"tomada_10a": 86, "tomada_20a_2pt": 2, "ponto_forca_ac": 13}},
+        "luminaria": {"count": 75},
+        "interruptor": {"count": 36},
+        "aterramento": {"count": 1},
+    }
+    quadro = {"tomada_pts": 88, "ac_forca_pts": 13}        # the deterministic casa-28 spine
+    rec = reconcile.reconcile(planta, quadro, cfg)
+    pairs = {p["kind"]: p for p in rec["pairs"]}
+    assert pairs["tomada"] == {"kind": "tomada", "planta": 88, "quadro": 88,
+                               "delta": 0, "status": "match"}
+    assert pairs["ac_forca"] == {"kind": "ac_forca", "planta": 13, "quadro": 13,
+                                 "delta": 0, "status": "match"}
+    assert rec["planta_only"] == {"interruptor": 36, "aterramento": 1}   # absent devices omitted
+    assert "luminaria" in rec["not_reconciled"]                          # 1:N, reported only
+
+
+def test_reconcile_nonzero_delta_flagged():
+    """A non-zero Δ is reported with status='delta' — the reconciler NEVER tunes a side to
+    zero (param-torture trap). quadro Revu 91/15 vs planta 88/13 → the known Δ3/Δ2 surface."""
+    cfg = reconcile.RECONCILE["casa_28"]
+    planta = {"tomada": {"by_variant": {"tomada_10a": 88, "ponto_forca_ac": 13}}}
+    quadro = {"tomada_pts": 91, "ac_forca_pts": 15}
+    pairs = {p["kind"]: p for p in reconcile.reconcile(planta, quadro, cfg)["pairs"]}
+    assert pairs["tomada"]["delta"] == -3 and pairs["tomada"]["status"] == "delta"
+    assert pairs["ac_forca"]["delta"] == -2 and pairs["ac_forca"]["status"] == "delta"
+
+
+def test_reconcile_untagged_is_all_tomada():
+    """Pre-split state: an UNTAGGED ELE_ST (points.apply_tags fills the tomada_10a default)
+    reads as all-tomada / 0-AC — the AC line stays 0 until the human taps the AC pins."""
+    cfg = reconcile.RECONCILE["casa_28"]
+    planta = {"tomada": {"count": 101, "by_variant": {"tomada_10a": 101}}}
+    pairs = {p["kind"]: p for p in
+             reconcile.reconcile(planta, {"tomada_pts": 88, "ac_forca_pts": 13}, cfg)["pairs"]}
+    assert pairs["tomada"]["planta"] == 101                  # everything defaults to tomada
+    assert pairs["ac_forca"]["planta"] == 0                  # nothing tagged AC yet

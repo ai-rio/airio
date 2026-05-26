@@ -8,6 +8,7 @@ import ele
 import join
 import points
 import quadro_pontos
+import reconcile
 
 pytestmark = pytest.mark.integration
 
@@ -254,3 +255,21 @@ def test_quadro_pontos_pe07_generalizes(boticario_pe07_tri):
     summ = quadro_pontos.summarize(rows)
     assert "T2" not in summ["by_board"]                      # casa-28 board not on this sheet
     assert len(summ["no_suffix_tomada_HITL"]) > 0           # casa-20 tomadas need title-join (HITL)
+
+
+# --- RECONCILER: real quadro spine (PE06_TRI) joined to a planta summary ---
+def test_reconcile_casa28_quadro_side(boticario_pe06_tri):
+    """End-to-end on the QUADRO side: the real CID-anchored extraction → casa-28 board-T2
+    tally feeds the reconciler at the deterministic spine (88 tomada / 13 AC-força). Joined
+    to a representative human-tagged planta region, the Δ surfaces — the verification UI's
+    engine. (The planta side is scoped by the human polygon in regionselect.html, not here.)"""
+    cfg = reconcile.RECONCILE["casa_28"]
+    quadro = reconcile._quadro_tally(boticario_pe06_tri, cfg["boards"], 0)
+    assert quadro["tomada_pts"] == 88                        # the pinned casa-28 spine, via reconcile
+    assert quadro["ac_forca_pts"] == 13
+    # a planta region tagged to MATCH the spine → Δ0 on both lines (the human's goal state)
+    planta = {"tomada": {"count": 101,
+                         "by_variant": {"tomada_10a": 88, "ponto_forca_ac": 13}}}
+    pairs = {p["kind"]: p for p in reconcile.reconcile(planta, quadro, cfg)["pairs"]}
+    assert pairs["tomada"]["status"] == "match" and pairs["tomada"]["delta"] == 0
+    assert pairs["ac_forca"]["status"] == "match" and pairs["ac_forca"]["delta"] == 0

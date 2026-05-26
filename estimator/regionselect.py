@@ -30,6 +30,7 @@ from pathlib import Path
 import fitz
 
 import points
+import quadro_pontos
 
 
 _COLORS = {
@@ -41,7 +42,13 @@ _COLORS = {
 }
 
 
-def build(pdf_path: str, config: dict, out_dir: str, zoom: float = 1.6, page_index: int = 0) -> str:
+def build(pdf_path: str, config: dict, out_dir: str, zoom: float = 1.6, page_index: int = 0,
+          quadro: dict | None = None) -> str:
+    """Render the region-select viewer. If `quadro` (the deterministic casa spine, e.g.
+    {"tomada_pts": 88, "ac_forca_pts": 13} from quadro_pontos.tally_board) is given, the
+    viewer reconciles the in-region planta count against it live and SURFACES the Δ — the
+    verification UI. tomada vs AC-força is split by the human (mode "marcar AC"), since the
+    planta can't split the ELE_ST glyph (see reconcile.py)."""
     counts = points.count_points(pdf_path, config, page_index)
 
     doc = fitz.open(pdf_path)
@@ -67,6 +74,7 @@ def build(pdf_path: str, config: dict, out_dir: str, zoom: float = 1.6, page_ind
         .replace("__ZOOM__", repr(zoom)) \
         .replace("__PNG__", png_b64) \
         .replace("__DEVICES__", json.dumps(devices)) \
+        .replace("__QUADRO__", json.dumps(quadro)) \
         .replace("__TITLE__", Path(pdf_path).name)
     html_path = out / "regionselect.html"
     html_path.write_text(html, encoding="utf-8")
@@ -96,6 +104,12 @@ _HTML = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
   .dot{display:inline-block;width:9px;height:9px;margin-right:6px;vertical-align:middle}
   .tot{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
   .hint{font-size:10px;color:var(--muted);margin-top:12px;line-height:1.6}
+  #recon{margin-top:14px;border-top:1px solid var(--fg);padding-top:10px}
+  #recon h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px}
+  #recon table{margin-top:4px}
+  #recon .k{font-size:11px}.recd{text-align:right;font-weight:700}
+  .dmatch{color:#0a8a3a}.ddelta{color:#d00000}
+  .rnote{font-size:9px;color:var(--muted);margin-top:6px;line-height:1.5}
   .zoom{position:sticky;top:8px;left:8px;z-index:5;display:inline-flex;gap:4px;margin:8px}
   .zoom .btn{width:auto;padding:5px 9px;margin:0}
   canvas{display:block}
@@ -109,6 +123,7 @@ _HTML = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
   <div class="modes">
     <button class="btn on" id="mArea">desenhar área</button>
     <button class="btn" id="mDrop">descartar pino</button>
+    <button class="btn" id="mAc">marcar AC</button>
   </div>
   <button class="btn go" id="count">Contar área (fechar)</button>
   <button class="btn" id="newarea">+ Nova área (somar)</button>
@@ -116,9 +131,10 @@ _HTML = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
   <label class="tg"><input type="checkbox" id="showpins" checked> mostrar pinos</label>
   <table id="tbl"></table>
   <div class="tot" id="areas"></div>
-  <button class="btn" id="export" style="margin-top:12px">Exportar (área + descartes)</button>
+  <div id="recon"></div>
+  <button class="btn" id="export" style="margin-top:12px">Exportar (área + descartes + AC)</button>
   <textarea id="out" readonly placeholder="JSON da área + pinos descartados (cola no sidecar .points_tags.json)"></textarea>
-  <div class="hint">MODO desenhar: clique = vértice; "Contar área" fecha. "Nova área" soma outra (Casa 28 + Casa 20). MODO descartar: clique em cima de um pino p/ removê-lo da contagem (texto/legenda). Clique de novo p/ restaurar.</div>
+  <div class="hint">MODO desenhar: clique = vértice; "Contar área" fecha. "Nova área" soma outra (Casa 28 + Casa 20). MODO descartar: clique em cima de um pino p/ removê-lo da contagem (texto/legenda). Clique de novo p/ restaurar. MODO marcar AC: clique numa tomada p/ marcá-la como ponto de força AC (separa tomada × AC no confronto com o quadro). Clique de novo p/ desmarcar.</div>
 </div>
 <div id="stage">
   <div class="zoom">
@@ -127,11 +143,13 @@ _HTML = r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
   <canvas id="cv" width="__IMG_W__" height="__IMG_H__"></canvas>
 </div>
 <script>
-const DEV = __DEVICES__, ZOOM = __ZOOM__;
+const DEV = __DEVICES__, ZOOM = __ZOOM__, QUADRO = __QUADRO__;
+const TOM = DEV.findIndex(d => d.name === 'tomada');   // ELE_ST device (tomada + AC lumped)
 const IMG = new Image(); IMG.src = "data:image/png;base64,__PNG__";
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 let polys = [], cur = [], scale = 1, showPins = true, mode = 'area', hover = null;
 const dropped = {};                       // key `${devIdx}|${ptIdx}` -> true
+const acTagged = {};                      // tomada pins the human marked as AC-força (same key)
 const key = (di,pi) => di+'|'+pi;
 
 IMG.onload = () => { fit(); draw(); };
@@ -144,19 +162,22 @@ function ptFromEvent(e){ const r=cv.getBoundingClientRect();
 function setMode(m){ mode=m;
   document.getElementById('mArea').classList.toggle('on', m==='area');
   document.getElementById('mDrop').classList.toggle('on', m==='drop');
+  document.getElementById('mAc').classList.toggle('on', m==='ac');
   cv.style.cursor = m==='area' ? 'crosshair' : 'pointer'; }
 document.getElementById('mArea').onclick=()=>setMode('area');
 document.getElementById('mDrop').onclick=()=>setMode('drop');
+document.getElementById('mAc').onclick=()=>setMode('ac');
 
 cv.addEventListener('click', e => {
   const p = ptFromEvent(e);
   if(mode==='area'){ cur.push(p); draw(); }
+  else if(mode==='ac'){ toggleAcPin(p); }
   else { toggleNearestPin(p); }
 });
 cv.addEventListener('dblclick', () => { if(mode==='area') closeCur(); });
 cv.addEventListener('mousemove', e => {
-  if(mode!=='drop'){ if(hover){ hover=null; draw(); } return; }
-  const h = nearestPin(ptFromEvent(e));
+  if(mode==='area'){ if(hover){ hover=null; draw(); } return; }
+  const h = mode==='ac' ? nearestTomada(ptFromEvent(e)) : nearestPin(ptFromEvent(e));
   if((h&&hover&&(h[0]!==hover[0]||h[1]!==hover[1])) || (!!h!==!!hover)){ hover=h; draw(); }
 });
 
@@ -173,11 +194,25 @@ function toggleNearestPin(p){
   const best=nearestPin(p);
   if(best){ const k=key(best[0],best[1]); if(dropped[k]) delete dropped[k]; else dropped[k]=true; draw(); count(); }
 }
+function nearestTomada(p){            // AC mode: only tomada pins can become AC-força
+  if(TOM<0) return null;
+  const tol=Math.max(12,22/scale); let best=null,bd=tol;
+  for(let pi=0; pi<DEV[TOM].points.length; pi++){
+    const q=DEV[TOM].points[pi], d=Math.hypot(q[0]-p[0], q[1]-p[1]);
+    if(d<bd){ best=[TOM,pi]; bd=d; }
+  }
+  return best;
+}
+function toggleAcPin(p){
+  const best=nearestTomada(p);
+  if(best){ const k=key(best[0],best[1]); if(acTagged[k]) delete acTagged[k]; else acTagged[k]=true; draw(); count(); }
+}
 function closeCur(){ if(cur.length>=3){ polys.push(cur); cur=[]; } draw(); count(); }
 document.getElementById('count').onclick=closeCur;
 document.getElementById('newarea').onclick=()=>{ if(cur.length>=3){polys.push(cur);cur=[];} draw(); count(); };
 document.getElementById('undo').onclick=()=>{ cur.pop(); draw(); };
-document.getElementById('clear').onclick=()=>{ polys=[]; cur=[]; for(const k in dropped) delete dropped[k]; draw(); count(); };
+document.getElementById('clear').onclick=()=>{ polys=[]; cur=[];
+  for(const k in dropped) delete dropped[k]; for(const k in acTagged) delete acTagged[k]; draw(); count(); };
 document.getElementById('showpins').onchange=e=>{ showPins=e.target.checked; draw(); };
 document.getElementById('zin').onclick=()=>{ scale*=1.25; applyScale(); };
 document.getElementById('zout').onclick=()=>{ scale/=1.25; applyScale(); };
@@ -199,6 +234,8 @@ function draw(){
           ctx.beginPath(); ctx.arc(p[0],p[1],7,0,7); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(p[0]-5,p[1]-5); ctx.lineTo(p[0]+5,p[1]+5);
           ctx.moveTo(p[0]+5,p[1]-5); ctx.lineTo(p[0]-5,p[1]+5); ctx.stroke();
+        } else if(acTagged[key(di,pi)]){ ctx.fillStyle='#e07000';   // AC-força = filled orange
+          ctx.beginPath(); ctx.arc(p[0],p[1],7,0,7); ctx.fill();
         } else { ctx.strokeStyle=d.color; ctx.lineWidth=2.2;
           ctx.beginPath(); ctx.arc(p[0],p[1],7,0,7); ctx.stroke(); }
       } }
@@ -233,13 +270,40 @@ function count(){
   tbl.innerHTML=rows;
   document.getElementById('areas').textContent = bounded ? (polys.length+' área(s) — só pontos dentro')
     : 'página inteira (sem área) — inclui legenda/ampliação';
+  renderRecon(bounded);
+}
+
+function planMember(di,pi,bounded){
+  return !dropped[key(di,pi)] && (!bounded || inAny(DEV[di].points[pi]));
+}
+function renderRecon(bounded){            // live confront planta-in-region vs the quadro spine
+  const el=document.getElementById('recon');
+  if(!QUADRO || TOM<0){ el.innerHTML=''; return; }
+  let ptom=0, pac=0;                       // ELE_ST split by the human's AC tags
+  for(let pi=0; pi<DEV[TOM].points.length; pi++){
+    if(!planMember(TOM,pi,bounded)) continue;
+    if(acTagged[key(TOM,pi)]) pac++; else ptom++;
+  }
+  const line=(name,planta,quadro)=>{ const d=planta-quadro, cls=d===0?'dmatch':'ddelta';
+    return `<tr><td class="k">${name}</td><td class="recd">${planta}</td>`+
+      `<td class="recd">${quadro}</td><td class="recd ${cls}">${d===0?'✓':'Δ'+(d>0?'+'+d:d)}</td></tr>`; };
+  el.innerHTML = `<h2>Confronto c/ quadro</h2>`+
+    `<table><tr><td class="k"></td><td class="recd tot">planta</td>`+
+    `<td class="recd tot">quadro</td><td class="recd tot">Δ</td></tr>`+
+    line('tomada', ptom, QUADRO.tomada_pts||0)+
+    line('AC-força', pac, QUADRO.ac_forca_pts||0)+
+    `</table><div class="rnote">${bounded?'área da casa desenhada':'PÁGINA INTEIRA — desenhe a casa'}`+
+    ` · marque os pinos AC (laranja) p/ separar tomada × AC · Δ≠0 = investigar, NÃO force p/ zero.</div>`;
 }
 
 document.getElementById('export').onclick=()=>{
-  // sidecar shape: {device:{ "<pageIdx>":"drop" }} using the page-order index (matches points.apply_tags)
+  // sidecar shape: {device:{ "<pageIdx>":"<label>" }} using the page-order index (matches points.apply_tags)
   const tags={};
   for(const k in dropped){ const [di,pi]=k.split('|').map(Number); const dev=DEV[di].name;
     (tags[dev]=tags[dev]||{})[pi]='drop'; }
+  for(const k in acTagged){ if(dropped[k]) continue;     // drop wins over an AC tag
+    const [di,pi]=k.split('|').map(Number); const dev=DEV[di].name;
+    (tags[dev]=tags[dev]||{})[pi]='ponto_forca_ac'; }    // valid ELE_ST variant (points.apply_tags)
   // polygons back to rot0 coords (px / ZOOM) for reuse in python
   const regions = polys.map(poly=>poly.map(([x,y])=>[Math.round(x/ZOOM*100)/100, Math.round(y/ZOOM*100)/100]));
   document.getElementById('out').value = JSON.stringify({tags, regions}, null, 0);
@@ -254,9 +318,16 @@ def main() -> None:
     ap.add_argument("--out", default="estimator/out_points")
     ap.add_argument("--zoom", type=float, default=1.6)
     ap.add_argument("--page", type=int, default=0)
+    ap.add_argument("--quadro", help="QUADRO DE CARGAS pdf → live confront vs the casa spine")
+    ap.add_argument("--board", default="T2", help="board suffix for the casa (default T2 = casa-28)")
     args = ap.parse_args()
-    path = build(args.pdf, points.BOTICARIO_POINTS, args.out, args.zoom, args.page)
-    print(f"region-select → {path}")
+    quadro = None
+    if args.quadro:
+        rows = quadro_pontos.extract_circuits(args.quadro)
+        t = quadro_pontos.tally_board(rows, args.board)
+        quadro = {"tomada_pts": t["tomada_pts"], "ac_forca_pts": t["ac_forca_pts"]}
+    path = build(args.pdf, points.BOTICARIO_POINTS, args.out, args.zoom, args.page, quadro)
+    print(f"region-select → {path}" + (f"  (quadro {args.board}: {quadro})" if quadro else ""))
 
 
 if __name__ == "__main__":

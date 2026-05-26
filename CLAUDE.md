@@ -1,8 +1,8 @@
-# BR Low-Voltage Electrical Estimator (airio codebase, post-pivot)
+# airio — BR Low-Voltage Electrical Estimator
 
-A paid SaaS that gives Brazilian low-voltage / MEP estimating firms a verifiable takeoff from electrical project PDFs: BOM (cabos + infra + pontos) + overlay (WHERE each counted thing is) + HITL gates the orçamentista uses to verify and ship to procurement.
+**airio** is Carlos's brand (after the domain `ai.rio.br`). The current product under this brand is a paid SaaS giving Brazilian low-voltage / MEP estimating firms a verifiable takeoff from electrical project PDFs: BOM (cabos + infra + pontos) + overlay (WHERE each counted thing is) + HITL gates the orçamentista uses to verify and ship to procurement.
 
-> **Folder is named `airio` (Tagsmith legacy). The brand and the product are the estimator.** Tagsmith / Convex / DodoPayments / SEO-AEO infra is dead direction; some files remain for git history. See `MEMORY.md` index — entries marked SUPERSEDED.
+> **Tagsmith was a prior product under this brand** (SEO/AEO citation tracker on Convex/DodoPayments). It's dead direction — site/dashboard/convex/prospecting/etc. were stripped in the repo pivot to Astro on Cloudflare (commit `chore/repo-pivot-astro-cf`). The airio brand + domain stay.
 
 ## WHO is the user
 

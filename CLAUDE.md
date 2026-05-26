@@ -12,7 +12,7 @@
 
 Two memory files. Read in full before any build decision:
 
-1. `~/.claude/projects/-home-carlos-apps-airio/memory/project_estimator_wedge_and_product_lock.md` — **the strategic lock**. Wedge = elétrica only; verification UI IS the product (CLI/pytest = Claude's correctness loop, invisible to the human buyer); stack = Astro on CF Pages → Worker → CF Container (Python estimator); paid SaaS; ICP = specialized LV/MEP firms; complexity is the moat.
+1. `~/.claude/projects/-home-carlos-apps-airio/memory/project_estimator_wedge_and_product_lock.md` — **the strategic lock**. Wedge = elétrica only; verification UI IS the product (CLI/pytest = Claude's correctness loop, invisible to the human buyer); stack = **Astro on Workers Static Assets** → Worker → CF Container (Python estimator); paid SaaS; ICP = specialized LV/MEP firms; complexity is the moat. (Lock amended 2026-05-26 from "CF Pages" to "Workers Static Assets" per CF's official 2026 guidance — Pages no longer recommended for new projects.)
 
 2. `~/.claude/projects/-home-carlos-apps-airio/memory/feedback_5day_drift_from_wedge_lock.md` — **the failure pattern**. Across 5+ days, Claude defaults to building Python modules / pytest / CLI / FastAPI-HTML — Claude's loop — instead of the Astro UI + dogfood + distribute the lock says. Names the drift; defines the mandatory pre-build gate below.
 
@@ -122,14 +122,14 @@ site/, dashboard/, convex/ — TAGSMITH LEGACY. Dead infrastructure; don't edit
 ## The product (per the wedge lock)
 
 ```
-ASTRO APP (CF Pages, NOT YET BUILT — this is the slice the lock demands)
+ASTRO APP (Workers Static Assets, NOT YET BUILT — this is the slice the lock demands)
    │  Carlos uploads PDFs → confirms scale + layer overrides
    │  Intel reads legend (vision) → user confirms device nomenclature + variants
    │  HITL queue: region polygon per casa, AC tagging, drop false pins, polaridade
    ▼
-CF WORKER (router / auth)
+CF WORKER (router / auth — same Worker that serves the Astro static assets)
    ▼
-CF CONTAINER (Python estimator — the existing analyzers)
+CF CONTAINER (Python estimator — the existing analyzers, via Durable Object binding)
    │  ele.metragem  +  schedule.aggregate  +  points.count_points  +  quadro_pontos
    ▼
 TAKEOFF REPORT (HTML / PDF / Excel — the deliverable Carlos hands to procurement)
@@ -161,9 +161,9 @@ uv run python estimator/regionselect.py <planta.pdf> --quadro <quadro.pdf>
 - **Python** + PyMuPDF (fitz) for PDF geometry/text/tables. NOT JS for parsing.
 - **uv** for Python env (project-local `.venv`).
 - **pytest** for analyzer tests (Claude's loop only — not the buyer's experience).
-- **Astro on Cloudflare Pages** (TBD) for the UI — the buyer's experience.
-- **Cloudflare Worker** for routing/auth (TBD).
-- **Cloudflare Container (standard-1)** running the Python estimator (Dockerfile at `estimator/Dockerfile` already targets this).
+- **Astro on Cloudflare Workers (Static Assets)** for the UI — the buyer's experience. Scaffolded via `bun create cloudflare@latest airio --framework=astro`. NOT Pages (deprecated direction for new projects per CF 2026 guidance).
+- **Cloudflare Worker** for routing/auth — same Worker that serves the Astro static assets. Entry: `src/index.ts` (or similar).
+- **Cloudflare Container (standard-1)** running the Python estimator, bound as a Durable Object (`@cloudflare/containers`). Dockerfile at `estimator/Dockerfile` already targets this.
 - **Claude API (Anthropic SDK)** for Intel vision/text — when `ANTHROPIC_API_KEY` set; falls back to `claude` CLI subscription in dev.
 
 ## Validation = Carlos's Revu audit

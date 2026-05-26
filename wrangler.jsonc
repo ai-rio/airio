@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "airio",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"compatibility_date": "2026-05-26",
+	"compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	}
+	// CF Container (Python estimator) — wired in a follow-up commit per the scaffold plan.
+	// Will add: "containers": [{ "class_name": "EstimatorContainer", "image": "./estimator/Dockerfile", ... }]
+	// + matching durable_objects.bindings + migrations. See ../../CLAUDE.md "The product" diagram.
+}

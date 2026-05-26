@@ -1,0 +1,25 @@
+{
+  "name": "airio",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "wrangler deploy",
+    "astro": "astro",
+    "generate-types": "wrangler types"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^13.5.4",
+    "astro": "^6.3.7",
+    "wrangler": "^4.94.0"
+  },
+  "overrides": {
+    "vite": "^7"
+  }
+}

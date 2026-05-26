@@ -39,3 +39,12 @@ docs/pdf/
 **/.pytest_cache/
 **/out/
 **/out_*/
+
+# Astro / Node frontend (Astro scaffold on Workers Static Assets)
+.astro/
+.env.production
+*-debug.log*
+.idea/
+
+# Wrangler local cache (deploy preview state)
+.wrangler/

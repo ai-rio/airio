@@ -25,3 +25,17 @@ docs/**/*.db
 
 # Windows alternate-data-stream junk from WSL/Edge downloads
 *:Zone.Identifier
+
+# Real customer PDFs (NDA-sensitive — Boticário, SENAC, APEX bids)
+docs/pdf/
+
+# Per-user Claude Code config (hooks, settings)
+.claude/hooks/
+.claude/settings.json
+
+# Python runtime artifacts (estimator)
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/out/
+**/out_*/

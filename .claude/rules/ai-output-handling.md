@@ -1,23 +1,27 @@
 # AI Output Handling Rule
 
-Treat AI-generated content as untrusted input. All outputs from AI services (e.g., Anthropic Claude via aeoAnalyzer) must be validated and sanitized before use.
+Treat AI-generated content as untrusted input. All outputs from AI services (Anthropic SDK or `claude` CLI subscription via `intel.py` / `intel_points.py`, or any future LLM call) must be validated and sanitized before use.
 
-## Requirements:
-1. **Validation**: Check that AI outputs conform to expected schemas and formats.
-   - For JSON outputs, validate structure and data types.
-   - For text outputs (e.g., llms.txt, robots.txt patches), ensure they adhere to specifications.
-2. **Sanitization**: Remove or escape any potentially harmful content (e.g., scripts, HTML) before storing or displaying.
-3. **Safe Storage**: Store AI outputs as raw data (e.g., in a JSON field or text file) but never interpret or execute them without validation.
-4. **Prompt Management**: Regularly review and test AI prompts for effectiveness, safety, and bias. Version prompts and log which version was used for each audit.
-5. **Fallbacks**: Implement fallback mechanisms for when AI services fail, return invalid data, or produce unsafe outputs.
-6. **Logging**: Log AI usage (tokens, cost, model) and any validation/sanitization actions taken for auditing and debugging.
+## Requirements
 
-## Why this matters:
-- Prevents injection attacks (XSS, etc.) from malicious or malformed AI outputs.
-- Ensures the integrity and reliability of generated fixes and reports.
-- Helps manage costs and quality of AI services.
-- Provides traceability for compliance and debugging.
+1. **Schema validation**: AI outputs (JSON device maps, ruleset proposals, legend reads) must pass a strict schema check before being trusted. See `intel_points._validate()` and `intel._validate()` for the pattern — schema in code, validator that raises on any mismatch.
+2. **Fallback path**: On any validation failure, fall back to the hand-coded config (`BOTICARIO_POINTS` in `points.py`, `glossary.py`, `header_glossary.py`). Never silently accept malformed AI output as config.
+3. **Routing isolation**: `ANTHROPIC_API_KEY` → Anthropic SDK (billed, deployable). Else → `claude -p` CLI (subscription OAuth, free in dev). Same pattern across `intel.py` (text) and `intel_points.py` (vision). Don't pin to one mode; the runtime picks based on env.
+4. **Sanitization at the UI boundary**: Any AI string surfaced in the Astro UI must be escaped (React auto-escaping is enough; do NOT inject as `dangerouslySetInnerHTML`). Legend nomenclature lifted verbatim from the project = still untrusted, still escaped.
+5. **Prompt versioning**: When a prompt changes, bump a version string (`PROMPT_VERSION` constant in the calling module). Log which version produced each output so a bad batch can be traced + replayed.
+6. **Cost + telemetry**: Log model, token count, latency, and the output's validation result on every call. Costs add up at scale (Boticário-size PDFs, vision modal); make them visible.
 
-## Implementation Examples:
-See `lib/aeoAnalyzer.ts` for how AI outputs are structured and used.
-In the dashboard, ensure that any display of AI-generated content is properly escaped (e.g., using React's automatic escaping or sanitization libraries).
+## Why this matters
+
+- Prevents injection (XSS, prompt-injection cascade) from malicious or malformed AI output rendered in the UI.
+- Maintains a clean separation: AI proposes, deterministic code disposes. The deterministic analyzers (`points.py`, `quadro_pontos.py`, `ele.py`) must never be reconfigured by un-validated AI output.
+- Provides traceability for the HITL trust model: Carlos can see "this number came from prompt v2, model claude-sonnet-4-6, validated against schema vX" and decide if he trusts it.
+- Keeps the option of cheaper providers / local models open — schema-validated outputs are model-agnostic.
+
+## Implementation examples
+
+- `estimator/intel_points.py:_validate()` — JSON schema enforcement for the vision-Intel device map.
+- `estimator/intel.py:_validate()` — same pattern for the text-Intel ruleset.
+- `estimator/schedule.py` — find_tables succeeds → Intel never invoked (the fallback that never triggers is still a fallback; keep it).
+
+When the Astro UI lands, mirror this on the frontend: never trust a backend-returned AI field as raw HTML; escape on render.

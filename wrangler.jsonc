@@ -3,7 +3,10 @@
 	"name": "airio",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"compatibility_date": "2026-05-26",
-	"compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+	"compatibility_flags": [
+		"global_fetch_strictly_public",
+		"nodejs_compat"
+	],
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS"
@@ -11,12 +14,36 @@
 	"observability": {
 		"enabled": true
 	},
-
 	// Service binding to the auxiliary Worker that owns the Python estimator Container.
 	// Astro endpoints reach the container via env.ESTIMATOR.fetch(request). The auxiliary
 	// Worker is configured separately at workers/estimator-container/wrangler.jsonc and
 	// registered via astro.config.mjs `auxiliaryWorkers`.
 	"services": [
-		{ "binding": "ESTIMATOR", "service": "airio-estimator-container" }
-	]
+		{
+			"binding": "ESTIMATOR",
+			"service": "airio-estimator-container"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "airio-db",
+			"database_id": "c280b5da-f555-4aa8-b93d-2cd47bc287dc",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "PDFS",
+			"bucket_name": "airio-pdfs"
+		}
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "COUNTERS",
+				"queue": "airio-counter-upserts"
+			}
+		]
+	}
 }

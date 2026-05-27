@@ -114,10 +114,19 @@ docs/sienge-research/      — adjacent research; ignore unless asked
 .agents/handoff/           — gitignored per-session handoff docs
 .agents/learnings/         — gitignored post-mortem learnings
 
-site/, dashboard/, convex/ — TAGSMITH LEGACY. Dead infrastructure; don't edit
-                              unless explicitly resurrecting. Astro app will live
-                              in a new directory (TBD; lock says CF Pages target).
+src/                       — Astro UI (post-pivot). pages/, layouts/, components/,
+                              styles/. Routes per phase-flow live under
+                              src/pages/projects/[id]/. Astro on CF Workers
+                              Static Assets per the wedge lock.
+workers/estimator-container/
+                           — auxiliary CF Worker that owns the Python estimator
+                              Container (EstimatorContainer DO). Bound to the
+                              root Astro Worker via service binding `ESTIMATOR`.
+graphify-out/              — codebase knowledge graph (gitignored, regenerated
+                              via /graphify; see .claude/rules/codebase-graph.md)
 ```
+
+Tagsmith legacy dirs (`site/`, `dashboard/`, `convex/`) were stripped on 2026-05-26 (commit `efceb54`). Pollution in `.env.local` + `worker-configuration.d.ts` env vars was purged on 2026-05-27 (commit `6e5ea27`). The brand `airio` stays; the Tagsmith product is gone.
 
 ## The product (per the wedge lock)
 
@@ -195,10 +204,29 @@ When a memory marked SUPERSEDED is encountered (most Tagsmith entries), ignore.
 | file | use |
 |---|---|
 | `ai-output-handling.md` | validate untrusted AI outputs (Intel vision/text, Claude API responses) |
-| `codebase-graph.md` | use `graphify-out/` before wide-scope refactors / audits |
+| `codebase-graph.md` | **default discovery tool — consult before grep/glob for any repo-wide question** |
 | `observability.md` | structured logging + correlation IDs for analyzer pipelines |
 
 **Legacy / Tagsmith-era rules** moved to `.claude/rules/_legacy/`: `convex-action-pattern.md`, `credit-billing-integrity.md`, `seo-aeo-validation.md`, `design-system.md`. Kept for git history; do not enforce.
+
+## Discovery default — graph before grep
+
+A persistent knowledge graph lives at `graphify-out/`. Full rule: @.claude/rules/codebase-graph.md.
+
+For any question whose scope is **larger than one file you already know**, the graph is the first stop:
+
+1. **Architecture / "how does X hang together" / "what depends on Y" / "is Z still called"** → read `graphify-out/GRAPH_REPORT.md` (God Nodes + Surprising Connections + Hyperedges) before any grep or glob.
+2. **Cross-file refactor planning** → `/graphify query "<question>"` or `/graphify path "<a>" "<b>"`.
+3. **Audit / cleanup** ("is this dead?") → check the graph community size + edges first; grep only to confirm what the graph suggests.
+
+Skip the graph (use grep directly) for:
+- Single-file edits where you already know the file
+- Looking up a literal string / config key value
+- Bug fixes when the stack trace points at one location
+
+**Trust filter:** the graph carries INFERRED edges from semantic extraction (subagent reading docstrings). Some are real cross-cutting links; some are docstring hallucinations. Before quoting "node X is the spine," strip `INFERRED + relation=calls` edges and re-check degree — that's the only filter that reliably separates real god nodes from artifacts. See @.claude/rules/codebase-graph.md §Trust filter.
+
+Stale-graph guard: if `graphify-out/manifest.json` is older than 1 week or HEAD has moved >50 commits since last build, run `/graphify --update` before relying on it.
 
 ## Design System
 

@@ -14,5 +14,7 @@ RUN pip install --no-cache-dir \
 COPY *.py ./
 
 # CF Containers route to the port the container listens on.
+# app_api = phase 7+ JSON API surface (the deployable product).
+# app_ele = pre-pivot HTML probe; kept on disk for reference but not the entrypoint.
 EXPOSE 8080
-CMD ["uvicorn", "app_ele:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app_api:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -1,0 +1,12 @@
+/* Self-hosted variable fonts — no Google Fonts CDN (privacy + perf) */
+
+/* Bricolage Grotesque Variable — standard.css includes weight + width axes */
+/* @fontsource-variable/bricolage-grotesque registers family: 'Bricolage Grotesque Variable' */
+@import "@fontsource-variable/bricolage-grotesque/standard.css";
+
+/* Iosevka — static weights (no @fontsource-variable/iosevka package exists on npm) */
+/* @fontsource/iosevka registers family: 'Iosevka' */
+/* Import only the weights used in the UI: 400 (body/cells), 500 (labels), 600 (headings) */
+@import "@fontsource/iosevka/400.css";
+@import "@fontsource/iosevka/500.css";
+@import "@fontsource/iosevka/600.css";

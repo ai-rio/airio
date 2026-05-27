@@ -1,0 +1,119 @@
+/* airio design tokens — locked 2026-05-26 via /design-consultation */
+/* Source of truth: docs/spec/design-tokens.md §12 */
+
+:root {
+	/* Colors — Neutrals */
+	--color-bg-app: #ffffff;
+	--color-bg-surface: #fafafa;
+	--color-bg-elevated: #ffffff;
+	--color-bg-input: #ffffff;
+	--color-bg-disabled: #f5f5f5;
+
+	--color-fg-primary: #0a0a0a;
+	--color-fg-secondary: #525252;
+	--color-fg-muted: #737373;
+	--color-fg-disabled: #a3a3a3;
+
+	--color-border-subtle: #f0f0f0;
+	--color-border-default: #e5e5e5;
+	--color-border-strong: #d4d4d4;
+
+	/* Colors — Accent (LOCKED 2026-05-26: construction safety orange) */
+	--color-accent: #ea580c;
+	--color-accent-hover: #c2410c;
+	--color-accent-soft-bg: #fff7ed;
+	--color-accent-soft-fg: #9a3412;
+
+	/* Colors — Semantic */
+	--color-success: #16a34a;
+	--color-success-soft-bg: #f0fdf4;
+	--color-warning: #d97706;
+	--color-warning-soft-bg: #fffbeb;
+	--color-warning-soft-border: #fed7aa;
+	--color-danger: #dc2626;
+	--color-danger-soft-bg: #fef2f2;
+	--color-info: #0284c7;
+	--color-info-soft-bg: #f0f9ff;
+	--color-info-soft-border: #bae6fd;
+
+	/* Colors — PDF Overlays (S9 planta count workspace ONLY — never UI chrome) */
+	--color-overlay-eletroduto: #2563eb;
+	--color-overlay-eletrocalha: #16a34a;
+	--color-overlay-perfilado: #ca8a04; /* amber-700 — yellow-shifted to avoid clash with #ea580c accent */
+	--color-overlay-leito: #7c3aed;
+	--color-overlay-busway: #db2777;
+	--color-overlay-device-pin: #dc2626;
+	--color-overlay-region: rgba(37, 99, 235, 0.15);
+	--color-overlay-omisso: #f59e0b;
+
+	/* Typography — LOCKED 2026-05-26 via /design-consultation */
+	/* Note: @fontsource-variable/bricolage-grotesque registers 'Bricolage Grotesque Variable' */
+	/* Note: @fontsource/iosevka registers 'Iosevka' (no variable package exists on npm) */
+	--font-sans: "Bricolage Grotesque Variable", "Bricolage Grotesque", -apple-system, "BlinkMacSystemFont", "Segoe UI", "Helvetica Neue", sans-serif;
+	--font-mono: "Iosevka Variable", "Iosevka", "SF Mono", ui-monospace, "Cascadia Code", monospace;
+
+	--text-xs: 11px;   --lh-xs: 16px;
+	--text-sm: 13px;   --lh-sm: 18px;
+	--text-base: 14px; --lh-base: 20px;
+	--text-md: 15px;   --lh-md: 22px;
+	--text-lg: 16px;   --lh-lg: 24px;
+	--text-xl: 18px;   --lh-xl: 26px;
+	--text-2xl: 22px;  --lh-2xl: 30px;
+	--text-3xl: 28px;  --lh-3xl: 36px;
+
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+
+	/* Spacing */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-12: 48px;
+	--space-16: 64px;
+
+	/* Radius */
+	--radius-none: 0px;
+	--radius-xs: 2px;
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+
+	/* Shadow */
+	--shadow-popover: 0 4px 12px rgba(10, 10, 10, 0.08), 0 0 0 1px rgba(10, 10, 10, 0.04);
+	--shadow-modal: 0 16px 48px rgba(10, 10, 10, 0.12), 0 0 0 1px rgba(10, 10, 10, 0.04);
+
+	/* Motion */
+	--ease-default: cubic-bezier(0.2, 0, 0, 1);
+	--ease-out: cubic-bezier(0, 0, 0.2, 1);
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
+	--motion-fast: 120ms;
+	--motion-normal: 200ms;
+	--motion-slow: 300ms;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* HTML `hidden` attribute must beat any element's display: flex/grid */
+[hidden] { display: none !important; }
+
+html, body {
+	margin: 0;
+	padding: 0;
+	min-height: 100%;
+	background: var(--color-bg-app);
+	color: var(--color-fg-primary);
+	font: var(--font-weight-regular) var(--text-base)/var(--lh-base) var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	font-variant-numeric: tabular-nums;
+}
+
+.mono { font-family: var(--font-mono); }
+.tabular { font-variant-numeric: tabular-nums; }

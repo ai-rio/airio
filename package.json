@@ -8,15 +8,19 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "dev:full": "WITH_CONTAINER=1 astro dev",
     "build": "astro build",
+    "build:full": "WITH_CONTAINER=1 astro build",
     "preview": "astro preview",
-    "deploy": "wrangler deploy",
+    "deploy": "WITH_CONTAINER=1 wrangler deploy",
     "astro": "astro",
     "generate-types": "wrangler types"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.5.4",
     "@cloudflare/containers": "^0.3.4",
+    "@fontsource-variable/bricolage-grotesque": "^5.2.10",
+    "@fontsource/iosevka": "^5.2.5",
     "astro": "^6.3.7",
     "wrangler": "^4.94.0"
   },

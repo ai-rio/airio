@@ -56,6 +56,10 @@ export const sheets = sqliteTable(
 		kind: text('kind', {
 			enum: ['planta_forca', 'iluminacao', 'quadro', 'unifilar'],
 		}),
+		// S3 Triagem: soft-ignore. 1 = excluded from all downstream phases
+		// (S4 scale, S6 layers, S7 quadro, S9 count). Soft so audit_log + R2 PDF
+		// stay recoverable; Carlos can untoggle. Hard-delete would lose the trail.
+		ignored: integer('ignored').default(0),
 		scaleDenom: integer('scale_denom'),
 		scaleSet: integer('scale_set').default(0),
 		layerMappingComplete: integer('layer_mapping_complete').default(0),
@@ -69,6 +73,7 @@ export const sheets = sqliteTable(
 			'sheets_kind_check',
 			sql`${t.kind} IS NULL OR ${t.kind} IN ('planta_forca', 'iluminacao', 'quadro', 'unifilar')`,
 		),
+		check('sheets_ignored_check', sql`${t.ignored} IN (0, 1)`),
 	],
 );
 

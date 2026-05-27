@@ -1,19 +1,29 @@
 ---
+type Segment = string | { label: string; href?: string | null };
+
 interface Props {
-	segments: string[];
+	segments: Segment[];
 }
 
 const { segments } = Astro.props;
+
+const normalized = segments.map((s) =>
+	typeof s === 'string' ? { label: s, href: null } : { label: s.label, href: s.href ?? null }
+);
+const lastIdx = normalized.length - 1;
 ---
 
 <nav class="breadcrumb-nav" aria-label="Onde estou">
-	{segments.map((seg, i) => (
+	{normalized.map((seg, i) => (
 		<>
 			{i > 0 && <span class="sep">/</span>}
-			{i === segments.length - 1
-				? <span class="current">{seg}</span>
-				: <span>{seg}</span>
-			}
+			{i === lastIdx ? (
+				<span class="current" aria-current="page">{seg.label}</span>
+			) : seg.href ? (
+				<a class="link" href={seg.href}>{seg.label}</a>
+			) : (
+				<span>{seg.label}</span>
+			)}
 		</>
 	))}
 </nav>
@@ -31,5 +41,19 @@ const { segments } = Astro.props;
 	.breadcrumb-nav .current {
 		color: var(--color-fg-primary);
 		font-weight: 600;
+	}
+	.breadcrumb-nav .link {
+		color: inherit;
+		text-decoration: none;
+		cursor: pointer;
+		transition: color var(--motion-fast) var(--ease-default);
+	}
+	.breadcrumb-nav .link:hover {
+		color: var(--color-fg-primary);
+	}
+	.breadcrumb-nav .link:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
+		border-radius: var(--radius-xs);
 	}
 </style>

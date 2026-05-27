@@ -36,11 +36,25 @@ const {
 	mainTopPadding = 'var(--space-8)',
 } = Astro.props;
 
+// Extract projectId from URL pathname when on a per-project route.
+// /projects/[id]/... → id; /projects/novo → null (global create flow).
+const pathMatch = Astro.url.pathname.match(/^\/projects\/([^/]+)(?:\/|$)/);
+const projectId = pathMatch && pathMatch[1] !== 'novo' ? pathMatch[1] : null;
+
+// Map breadcrumb parent labels → routes (only those navigable).
+const PARENT_ROUTES: Record<string, string> = projectId ? {
+	'Documentos': `/projects/${projectId}/documentos`,
+	'Triagem': `/projects/${projectId}/triagem`,
+	'Preparação': `/projects/${projectId}/preparacao`,
+	'Quadro de Cargas': `/projects/${projectId}/quadro-de-cargas`,
+	'Memorial': `/projects/${projectId}/memorial`,
+} : {};
+
 const breadcrumbSegments = [
-	'Projetos',
-	...(projectName ? [projectName] : []),
-	...breadcrumbParents,
-	breadcrumbTail,
+	{ label: 'Projetos' },
+	...(projectName ? [{ label: projectName }] : []),
+	...breadcrumbParents.map(p => ({ label: p, href: PARENT_ROUTES[p] ?? null })),
+	{ label: breadcrumbTail },
 ];
 ---
 
@@ -53,7 +67,7 @@ const breadcrumbSegments = [
 		</header>
 
 		<main role="main" style={`max-width: ${contentMaxWidth ? contentMaxWidth + 'px' : 'none'}; margin: 0 auto; padding-top: ${mainTopPadding};`}>
-			<PhaseStrip step={step} doneSteps={doneSteps} />
+			<PhaseStrip step={step} doneSteps={doneSteps} projectId={projectId} />
 			<slot />
 		</main>
 

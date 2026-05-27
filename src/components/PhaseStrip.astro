@@ -2,9 +2,10 @@
 interface Props {
 	step: number;
 	doneSteps?: number[];
+	projectId?: string | null;
 }
 
-const { step, doneSteps = [] } = Astro.props;
+const { step, doneSteps = [], projectId = null } = Astro.props;
 
 const LABELS = [
 	'Cadastro',
@@ -16,6 +17,22 @@ const LABELS = [
 	'Quantitativos',
 	'Orçamento',
 ];
+
+const PHASE_PATHS: Record<number, string> = {
+	2: 'documentos',
+	3: 'triagem',
+	4: 'preparacao',
+	5: 'quadro-de-cargas',
+	6: 'memorial',
+};
+
+function hrefFor(n: number, isCurrent: boolean, isDone: boolean): string | null {
+	if (!projectId) return null;
+	if (!isDone && !isCurrent) return null;
+	const path = PHASE_PATHS[n];
+	if (!path) return null;
+	return `/projects/${projectId}/${path}`;
+}
 ---
 
 <nav class="progress" aria-label="Etapas do projeto">
@@ -24,20 +41,22 @@ const LABELS = [
 		const isDone = doneSteps.includes(n);
 		const isCurrent = n === step;
 		const isFuture = !isDone && !isCurrent;
+		const href = hrefFor(n, isCurrent, isDone);
+		const cls = ['progress-step', isDone && 'is-done', isCurrent && 'is-current', isFuture && 'is-future', href && 'is-link'];
 		return (
 			<>
 				{n > 1 && <span class="progress-arrow">→</span>}
-				<span
-					class:list={[
-						'progress-step',
-						isDone && 'is-done',
-						isCurrent && 'is-current',
-						isFuture && 'is-future',
-					]}
-				>
-					<span class="num">{isDone ? '✓' : n}</span>
-					{label}
-				</span>
+				{href ? (
+					<a class:list={cls} href={href} aria-current={isCurrent ? 'step' : undefined}>
+						<span class="num">{isDone ? '✓' : n}</span>
+						{label}
+					</a>
+				) : (
+					<span class:list={cls} aria-current={isCurrent ? 'step' : undefined}>
+						<span class="num">{isDone ? '✓' : n}</span>
+						{label}
+					</span>
+				)}
 			</>
 		);
 	})}
@@ -61,6 +80,18 @@ const LABELS = [
 		letter-spacing: 0.05em;
 		color: var(--color-fg-muted);
 		border-radius: var(--radius-xs);
+		text-decoration: none;
+	}
+	.progress-step.is-link {
+		cursor: pointer;
+		transition: background var(--motion-fast) var(--ease-default);
+	}
+	.progress-step.is-link:hover {
+		background: var(--color-bg-surface);
+	}
+	.progress-step.is-link:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
 	}
 	.progress-step .num {
 		width: 20px;

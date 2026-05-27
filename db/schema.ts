@@ -62,6 +62,7 @@ export const sheets = sqliteTable(
 		ignored: integer('ignored').default(0),
 		scaleDenom: integer('scale_denom'),
 		scaleSet: integer('scale_set').default(0),
+		scaleSource: text('scale_source', { enum: ['titleblock_text', 'manual'] }),
 		layerMappingComplete: integer('layer_mapping_complete').default(0),
 		qualityScore: integer('quality_score'),
 		qualityRedFlagsJson: text('quality_red_flags_json'),
@@ -74,6 +75,10 @@ export const sheets = sqliteTable(
 			sql`${t.kind} IS NULL OR ${t.kind} IN ('planta_forca', 'iluminacao', 'quadro', 'unifilar')`,
 		),
 		check('sheets_ignored_check', sql`${t.ignored} IN (0, 1)`),
+		check(
+			'sheets_scale_source_check',
+			sql`${t.scaleSource} IS NULL OR ${t.scaleSource} IN ('titleblock_text', 'manual')`,
+		),
 	],
 );
 

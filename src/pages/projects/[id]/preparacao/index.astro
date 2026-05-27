@@ -1,13 +1,89 @@
 ---
 import ProjectLayout from '../../../../layouts/ProjectLayout.astro';
+import { loadProject } from '../../../../lib/projects';
+import { getDb } from '../../../../lib/db';
+import { sheets } from '../../../../../db/schema';
+import { and, asc, eq, inArray } from 'drizzle-orm';
+
 const { id } = Astro.params;
+const projectId = String(id ?? '');
+const project = await loadProject(projectId);
+
+if (!project) {
+  return new Response('Project not found', { status: 404 });
+}
+
+const db = getDb();
+// S4 + S6 work on plantas only. Quadros = S7, unifilares = post-MVP.
+// Ignored sheets (soft-deleted via S3) are out of every downstream phase.
+const allSheets = await db
+  .select()
+  .from(sheets)
+  .where(
+    and(
+      eq(sheets.projectId, projectId),
+      inArray(sheets.kind, ['planta_forca', 'iluminacao']),
+    ),
+  )
+  .orderBy(asc(sheets.createdAt));
+
+const eligibleSheets = allSheets.filter((s) => s.ignored !== 1);
+
+const KIND_LABEL: Record<string, { full: string; short: string }> = {
+  planta_forca: { full: 'Planta de Força', short: 'FRC' },
+  iluminacao: { full: 'Planta de Iluminação', short: 'ILU' },
+};
+
+interface SheetView {
+  id: string;
+  filename: string;
+  pageIndex: number;
+  kindFull: string;
+  kindShort: string;
+  scaleDenom: number | null;
+  scaleSet: number;
+  scaleSource: 'titleblock_text' | 'manual' | null;
+  statusClass: 'is-pronta' | 'is-ajustes' | 'is-pendente';
+  statusGlyph: string;
+}
+
+const sheetViews: SheetView[] = eligibleSheets.map((s) => {
+  const kind = s.kind ?? 'planta_forca';
+  const label = KIND_LABEL[kind] ?? { full: kind, short: kind.toUpperCase() };
+  let statusClass: SheetView['statusClass'];
+  let statusGlyph: string;
+  if (s.scaleSet === 1 && s.scaleDenom != null) {
+    statusClass = 'is-pronta';
+    statusGlyph = '✓';
+  } else {
+    statusClass = 'is-pendente';
+    statusGlyph = '·';
+  }
+  return {
+    id: s.id,
+    filename: s.filename ?? '(sem nome)',
+    pageIndex: s.pageIndex ?? 0,
+    kindFull: label.full,
+    kindShort: label.short,
+    scaleDenom: s.scaleDenom,
+    scaleSet: s.scaleSet ?? 0,
+    scaleSource: s.scaleSource,
+    statusClass,
+    statusGlyph,
+  };
+});
+
+const totalSheets = sheetViews.length;
+const readyCount = sheetViews.filter((s) => s.statusClass === 'is-pronta').length;
+const pendingCount = totalSheets - readyCount;
+const projectName = project.name;
 ---
 
 <ProjectLayout
-  title="airio · Preparação · PROJECT-A PE06"
+  title={`airio · Preparação · ${projectName}`}
   step={4}
   doneSteps={[1, 2, 3]}
-  projectName="PROJECT-A PE06"
+  projectName={projectName}
   breadcrumbTail="Preparação"
   keymap={['⌘ + Enter · próxima prancha', '↑↓ · navegar lista', 'A · aceitar todas']}
   footerLeftText="Preparação salva automaticamente"
@@ -503,156 +579,130 @@ const { id } = Astro.params;
   <h1 class="page-title">Como medir cada planta</h1>
   <p class="page-lead">Antes de contar, o airio precisa saber a <strong>escala</strong> de cada prancha e o que cada <strong>camada</strong> CAD representa (eletroduto, tomada, quadro…). Os padrões do seu histórico já vêm propostos — só confirma.</p>
 
-  <!-- ready strip -->
+  <!-- ready strip — REAL counts from D1 (scale_set drives ready/pendente) -->
   <div class="ready-strip" role="region" aria-label="Estado das pranchas">
-    <div class="stat"><span class="v">7</span><span class="l">Pranchas</span></div>
+    <div class="stat"><span class="v">{totalSheets}</span><span class="l">Pranchas</span></div>
     <span class="sep">·</span>
-    <div class="stat"><span class="v is-ok">5</span><span class="l">Prontas</span></div>
+    <div class="stat"><span class="v is-ok" data-ready-count>{readyCount}</span><span class="l">Com escala</span></div>
     <span class="sep">·</span>
-    <div class="stat"><span class="v is-warn">1</span><span class="l">Pra ajustar</span></div>
-    <span class="sep">·</span>
-    <div class="stat"><span class="v">1</span><span class="l">Pendente</span></div>
+    <div class="stat"><span class="v" data-pending-count>{pendingCount}</span><span class="l">Sem escala</span></div>
     <span class="spacer"></span>
-    <button class="bulk-btn" type="button">
-      <span class="icon" aria-hidden="true">⚡</span>
-      Aceitar padrões nas 2 outras pranchas
-    </button>
   </div>
 
   <!-- 2-pane workspace -->
   <div class="workspace">
 
-    <!-- LEFT: sheet list -->
+    <!-- LEFT: sheet list — dynamic from D1 (plantas only, non-ignored) -->
     <aside class="sheet-list" aria-label="Pranchas">
       <div class="sheet-list-header">
         <span>Pranchas</span>
-        <span class="count">7</span>
+        <span class="count">{totalSheets}</span>
       </div>
 
-      <div class="sheet-row is-active" tabindex="0" role="button" aria-current="true">
-        <div class="row-thumb"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-FRC · 01/12</span>
-          <span class="row-title">Planta de Força · Térreo</span>
-          <span class="row-pavimento">1:50 · escala ✓ · 3 camadas pendentes</span>
+      {totalSheets === 0 && (
+        <div style="padding: var(--space-4); font: 400 13px/18px var(--font-sans); color: var(--color-fg-muted);">
+          Nenhuma planta elegível. Volte à <a href={`/projects/${projectId}/triagem`}>Triagem</a> para classificar as pranchas.
         </div>
-        <span class="row-status is-ajustes" title="3 camadas pendentes nesta prancha">!</span>
-      </div>
+      )}
 
-      <div class="sheet-row" tabindex="0" role="button">
-        <div class="row-thumb"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-FRC · 02/12</span>
-          <span class="row-title">Planta de Força · 1º Pav</span>
-          <span class="row-pavimento">1:50 · 11 camadas</span>
+      {sheetViews.map((s, idx) => (
+        <div
+          class:list={['sheet-row', idx === 0 && 'is-active']}
+          tabindex="0"
+          role="button"
+          data-sheet-id={s.id}
+          data-sheet-filename={s.filename}
+          data-sheet-page={s.pageIndex}
+          data-sheet-kind-full={s.kindFull}
+          data-sheet-kind-short={s.kindShort}
+          data-sheet-scale-denom={s.scaleDenom ?? ''}
+          data-sheet-scale-set={s.scaleSet}
+          data-sheet-scale-source={s.scaleSource ?? ''}
+          aria-current={idx === 0 ? 'true' : undefined}
+        >
+          <div class="row-thumb"></div>
+          <div class="row-meta">
+            <span class="row-num">{s.kindShort} · {s.filename}</span>
+            <span class="row-title">{s.kindFull}</span>
+            <span class="row-pavimento" data-row-pavimento>
+              {s.scaleSet === 1 && s.scaleDenom != null ? `1:${s.scaleDenom} · escala ✓` : 'sem escala'}
+            </span>
+          </div>
+          <span
+            class:list={['row-status', s.statusClass]}
+            data-row-status
+            title={s.statusClass === 'is-pronta' ? 'Escala definida' : 'Pendente'}
+          >
+            {s.statusGlyph}
+          </span>
         </div>
-        <span class="row-status is-pronta" title="Pronta">✓</span>
-      </div>
-
-      <div class="sheet-row" tabindex="0" role="button">
-        <div class="row-thumb"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-FRC · 03/12</span>
-          <span class="row-title">Planta de Força · 2º Pav</span>
-          <span class="row-pavimento">1:50 · 11 camadas</span>
-        </div>
-        <span class="row-status is-pronta" title="Pronta">✓</span>
-      </div>
-
-      <div class="sheet-row" tabindex="0" role="button">
-        <div class="row-thumb"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-ILU · 01/12</span>
-          <span class="row-title">Planta de Iluminação · Térreo</span>
-          <span class="row-pavimento">1:50 · 9 camadas</span>
-        </div>
-        <span class="row-status is-pronta" title="Pronta">✓</span>
-      </div>
-
-      <div class="sheet-row" tabindex="0" role="button">
-        <div class="row-thumb is-blank"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-ILU · 02/12</span>
-          <span class="row-title">Planta de Iluminação · 1º Pav</span>
-          <span class="row-pavimento">sem escala · 9 camadas</span>
-        </div>
-        <span class="row-status is-pendente" title="Pendente">·</span>
-      </div>
-
-      <div class="sheet-row" tabindex="0" role="button">
-        <div class="row-thumb"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-ILU · 03/12</span>
-          <span class="row-title">Planta de Iluminação · 2º Pav</span>
-          <span class="row-pavimento">1:50 · 9 camadas</span>
-        </div>
-        <span class="row-status is-pronta" title="Pronta">✓</span>
-      </div>
-
-      <div class="sheet-row" tabindex="0" role="button">
-        <div class="row-thumb"></div>
-        <div class="row-meta">
-          <span class="row-num">PE-ELE-SDA · 01/08</span>
-          <span class="row-title">Planta de SDAI · Térreo</span>
-          <span class="row-pavimento">1:75 · 6 camadas</span>
-        </div>
-        <span class="row-status is-pronta" title="Pronta">✓</span>
-      </div>
+      ))}
     </aside>
 
     <!-- RIGHT: active sheet workspace -->
     <section class="active-sheet" aria-label="Prancha ativa">
 
-      <div class="sheet-header">
+      <div class="sheet-header" data-active-sheet-header>
         <div>
-          <span class="sheet-num">PE-ELE-FRC · 01/12</span>
-          <h2>Planta de Força · Térreo</h2>
+          <span class="sheet-num" data-active-sheet-num>{sheetViews[0]?.filename ?? '—'}</span>
+          <h2 data-active-sheet-title>{sheetViews[0]?.kindFull ?? 'Nenhuma planta'}</h2>
         </div>
-        <span class="sheet-pavimento">Térreo · 11 camadas CAD</span>
+        <span class="sheet-pavimento" data-active-sheet-pavimento>página {(sheetViews[0]?.pageIndex ?? 0) + 1}</span>
       </div>
 
-      <!-- Escala sub-panel -->
-      <div class="sub-panel" aria-label="Escala da prancha">
+      <!-- Escala sub-panel — WIRED to /api/projects/[id]/sheets/[sheet_id]/scale -->
+      <div class="sub-panel" aria-label="Escala da prancha" data-escala-panel data-project-id={projectId}>
         <header class="sub-panel-head">
           <h3>Escala</h3>
-          <span class="hint">Lida do carimbo automaticamente</span>
+          <span class="hint" data-escala-hint>Lida do carimbo automaticamente</span>
         </header>
         <div class="sub-panel-body">
           <div class="escala-grid">
 
-            <!-- left: titleblock crop preview -->
+            <!-- left: titleblock crop placeholder (real preview deferred to S5/S6) -->
             <div class="titleblock-crop" aria-hidden="true">
               <div class="tb-grid">
-                <div class="tb-cell"><strong>OBRA</strong>BOTICÁRIO PE06</div>
-                <div class="tb-cell"><strong>PRANCHA</strong>01/12</div>
-                <div class="tb-cell"><strong>PROJ.</strong>AERONET ENG.</div>
-                <div class="tb-cell"><strong>RESP.</strong>C. NUNES</div>
-                <div class="tb-cell"><strong>DATA</strong>04/2026</div>
-                <div class="tb-cell"><strong>REV.</strong>R02</div>
-                <div class="tb-cell"><strong>ESC.</strong>1:50</div>
-                <div class="tb-cell"><strong>PAV.</strong>TÉRREO</div>
+                <div class="tb-cell"><strong>OBRA</strong>—</div>
+                <div class="tb-cell"><strong>PRANCHA</strong><span data-tb-pranchanum>—</span></div>
+                <div class="tb-cell"><strong>PROJ.</strong>—</div>
+                <div class="tb-cell"><strong>RESP.</strong>—</div>
+                <div class="tb-cell"><strong>DATA</strong>—</div>
+                <div class="tb-cell"><strong>REV.</strong>—</div>
+                <div class="tb-cell"><strong>ESC.</strong><span data-tb-esc>—</span></div>
+                <div class="tb-cell"><strong>PÁG.</strong><span data-tb-pag>—</span></div>
               </div>
-              <div class="tb-highlight"></div>
-              <div class="tb-arrow">↑ lido aqui</div>
             </div>
 
-            <!-- right: read-out -->
+            <!-- right: read-out — JS swaps content based on active sheet + last fetch -->
             <div class="escala-read">
               <div class="escala-value-row">
-                <span class="escala-value">1<span class="colon">:</span>50</span>
-                <span class="escala-source-chip">
-                  Lido do carimbo
-                  <span class="src-mono">Esc. 1:50</span>
-                </span>
+                <span class="escala-value" data-escala-value>—</span>
+                <span class="escala-source-chip" data-escala-source style="display:none"></span>
               </div>
-              <p class="escala-help">1 cm desenhado = 50 cm reais. Vale pra <strong>todas as medidas</strong> que o airio puxar desta prancha (eletroduto, eletrocalha, distância entre tomadas).</p>
-              <div class="escala-actions">
-                <button type="button" class="btn btn-primary">✓ Confirmar 1:50</button>
-                <button type="button" class="btn btn-ghost">Mudar escala</button>
-              </div>
-              <p class="escala-fallback">
-                Não bateu? <a href="#">Escolher manualmente</a> <span class="sep">·</span> <a href="#">Marcar prancha como sem escala (1:1)</a>
+              <p class="escala-help" data-escala-help>
+                1 cm desenhado = N cm reais. Vale pra <strong>todas as medidas</strong> que o airio puxar desta prancha (eletroduto, eletrocalha, distância entre tomadas).
               </p>
+
+              <div class="escala-actions" data-escala-actions>
+                <button type="button" class="btn btn-primary" data-escala-action="extract">Extrair do carimbo</button>
+                <button type="button" class="btn btn-ghost" data-escala-action="manual-open">Definir manualmente</button>
+              </div>
+
+              <div class="escala-actions" data-escala-manual-row style="display:none">
+                <label style="font: 400 13px/18px var(--font-sans); color: var(--color-fg-secondary);">
+                  Escala 1:
+                  <input type="number" min="1" max="5000" step="1" data-escala-manual-input
+                    style="font-family: var(--font-mono); font-size: 14px; width: 80px; padding: 4px 8px; border: 1px solid var(--color-border-default); border-radius: var(--radius-xs); background: var(--color-bg-input);" />
+                </label>
+                <button type="button" class="btn btn-primary" data-escala-action="manual-save">Salvar</button>
+                <button type="button" class="btn btn-ghost" data-escala-action="manual-cancel">Cancelar</button>
+              </div>
+
+              <p class="escala-fallback" data-escala-fallback style="display:none">
+                Carimbo não tinha escala legível. <a href="#" data-escala-action="manual-open">Definir manualmente</a>.
+              </p>
+
+              <p data-escala-error class="escala-fallback" style="display:none; color: var(--color-danger);"></p>
             </div>
 
           </div>
@@ -897,17 +947,250 @@ const { id } = Astro.params;
 
 </ProjectLayout>
 
-<script is:inline>
-  // sheet row activation
+<script is:inline define:vars={{ projectId }}>
+  // ===== sheet row activation + Escala panel state =====
   (function () {
     const rows = document.querySelectorAll('.sheet-row');
+    const panel = document.querySelector('[data-escala-panel]');
+    if (!panel) return;
+
+    const els = {
+      value: panel.querySelector('[data-escala-value]'),
+      source: panel.querySelector('[data-escala-source]'),
+      hint: panel.querySelector('[data-escala-hint]'),
+      help: panel.querySelector('[data-escala-help]'),
+      actions: panel.querySelector('[data-escala-actions]'),
+      manualRow: panel.querySelector('[data-escala-manual-row]'),
+      manualInput: panel.querySelector('[data-escala-manual-input]'),
+      fallback: panel.querySelector('[data-escala-fallback]'),
+      error: panel.querySelector('[data-escala-error]'),
+      tbEsc: panel.querySelector('[data-tb-esc]'),
+      tbPag: panel.querySelector('[data-tb-pag]'),
+      tbPranchanum: panel.querySelector('[data-tb-pranchanum]'),
+    };
+    const headerNum = document.querySelector('[data-active-sheet-num]');
+    const headerTitle = document.querySelector('[data-active-sheet-title]');
+    const headerPav = document.querySelector('[data-active-sheet-pavimento]');
+    const readyCountEl = document.querySelector('[data-ready-count]');
+    const pendingCountEl = document.querySelector('[data-pending-count]');
+
+    function activeRow() {
+      return document.querySelector('.sheet-row.is-active');
+    }
+
+    function recalcCounts() {
+      let ready = 0;
+      document.querySelectorAll('.sheet-row').forEach(function (r) {
+        if (r.getAttribute('data-sheet-scale-set') === '1') ready += 1;
+      });
+      const total = document.querySelectorAll('.sheet-row').length;
+      if (readyCountEl) readyCountEl.textContent = String(ready);
+      if (pendingCountEl) pendingCountEl.textContent = String(total - ready);
+    }
+
+    function renderPanel(row) {
+      els.error.style.display = 'none';
+      els.error.textContent = '';
+      els.manualRow.style.display = 'none';
+      els.actions.style.display = '';
+      els.fallback.style.display = 'none';
+
+      if (!row) {
+        els.value.textContent = '—';
+        els.source.style.display = 'none';
+        if (headerNum) headerNum.textContent = '—';
+        if (headerTitle) headerTitle.textContent = 'Nenhuma planta';
+        if (headerPav) headerPav.textContent = '';
+        return;
+      }
+
+      const denomRaw = row.getAttribute('data-sheet-scale-denom');
+      const denom = denomRaw && denomRaw !== '' ? parseInt(denomRaw, 10) : null;
+      const set = row.getAttribute('data-sheet-scale-set') === '1';
+      const filename = row.getAttribute('data-sheet-filename') || '—';
+      const page = parseInt(row.getAttribute('data-sheet-page') || '0', 10);
+      const kindFull = row.getAttribute('data-sheet-kind-full') || '—';
+      const kindShort = row.getAttribute('data-sheet-kind-short') || '';
+
+      if (headerNum) headerNum.textContent = kindShort + ' · ' + filename;
+      if (headerTitle) headerTitle.textContent = kindFull;
+      if (headerPav) headerPav.textContent = 'página ' + (page + 1);
+      if (els.tbPranchanum) els.tbPranchanum.textContent = filename;
+      if (els.tbPag) els.tbPag.textContent = String(page + 1);
+
+      if (set && denom != null) {
+        els.value.innerHTML = '1<span class="colon">:</span>' + denom;
+        els.source.style.display = '';
+        const src = row.getAttribute('data-sheet-scale-source') || '';
+        if (src === 'manual') {
+          els.source.textContent = 'Definida manualmente';
+        } else if (src === 'titleblock_text') {
+          els.source.textContent = 'Lida do carimbo';
+        } else {
+          els.source.textContent = 'Escala salva';
+        }
+        els.help.innerHTML = '1 cm desenhado = ' + denom + ' cm reais. Vale pra <strong>todas as medidas</strong> que o airio puxar desta prancha.';
+        if (els.tbEsc) els.tbEsc.textContent = '1:' + denom;
+      } else {
+        els.value.textContent = '—';
+        els.source.style.display = 'none';
+        els.help.textContent = 'Escala não definida. Clique em “Extrair do carimbo” pra ler do PDF, ou “Definir manualmente”.';
+        if (els.tbEsc) els.tbEsc.textContent = '—';
+      }
+    }
+
+    function selectRow(row) {
+      rows.forEach(function (r) { r.classList.remove('is-active'); r.removeAttribute('aria-current'); });
+      row.classList.add('is-active');
+      row.setAttribute('aria-current', 'true');
+      renderPanel(row);
+    }
+
     rows.forEach(function (row) {
-      row.addEventListener('click', function () {
-        rows.forEach(function (r) { r.classList.remove('is-active'); r.removeAttribute('aria-current'); });
-        row.classList.add('is-active');
-        row.setAttribute('aria-current', 'true');
+      row.addEventListener('click', function () { selectRow(row); });
+      row.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectRow(row); }
       });
     });
+
+    // ===== POST handlers =====
+    async function postScale(sheetId, body) {
+      const sessionId = (function () {
+        try {
+          let s = localStorage.getItem('airio_session');
+          if (!s) { s = 'web-' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('airio_session', s); }
+          return s;
+        } catch (_e) { return 'web-anon'; }
+      })();
+      const resp = await fetch(
+        '/api/projects/' + projectId + '/sheets/' + sheetId + '/scale',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-airio-session': sessionId },
+          body: JSON.stringify(body || {}),
+        },
+      );
+      const data = await resp.json().catch(function () { return null; });
+      if (!resp.ok) {
+        const msg = (data && (data.message || data.error)) || ('HTTP ' + resp.status);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function applyResultToRow(row, data) {
+      const sheet = data && data.sheet;
+      const extraction = data && data.extraction;
+      if (!sheet) return;
+      const denom = sheet.scaleDenom != null ? Number(sheet.scaleDenom) : null;
+      const set = sheet.scaleSet === 1 || sheet.scaleSet === '1';
+
+      row.setAttribute('data-sheet-scale-denom', denom != null ? String(denom) : '');
+      row.setAttribute('data-sheet-scale-set', set ? '1' : '0');
+      if (extraction && extraction.source && extraction.source !== 'not_found') {
+        row.setAttribute('data-sheet-scale-source', extraction.source);
+      } else if (extraction && extraction.source === 'not_found') {
+        row.setAttribute('data-sheet-scale-source', '');
+      }
+      const pav = row.querySelector('[data-row-pavimento]');
+      const status = row.querySelector('[data-row-status]');
+      if (pav) pav.textContent = (set && denom != null) ? ('1:' + denom + ' · escala ✓') : 'sem escala';
+      if (status) {
+        status.classList.remove('is-pronta', 'is-ajustes', 'is-pendente');
+        if (set && denom != null) {
+          status.classList.add('is-pronta');
+          status.textContent = '✓';
+          status.title = 'Escala definida';
+        } else {
+          status.classList.add('is-pendente');
+          status.textContent = '·';
+          status.title = 'Pendente';
+        }
+      }
+      recalcCounts();
+      renderPanel(row);
+    }
+
+    function setBusy(busy, label) {
+      const btns = panel.querySelectorAll('button[data-escala-action]');
+      btns.forEach(function (b) { b.disabled = !!busy; });
+      if (busy && label && els.hint) els.hint.textContent = label;
+      else if (els.hint) els.hint.textContent = 'Lida do carimbo automaticamente';
+    }
+
+    function showError(message) {
+      els.error.style.display = '';
+      els.error.textContent = message;
+    }
+
+    panel.addEventListener('click', async function (ev) {
+      const target = ev.target;
+      if (!(target instanceof Element)) return;
+      const actionEl = target.closest('[data-escala-action]');
+      if (!actionEl) return;
+      ev.preventDefault();
+      const action = actionEl.getAttribute('data-escala-action');
+      const row = activeRow();
+      if (!row) return;
+      const sheetId = row.getAttribute('data-sheet-id');
+      if (!sheetId) return;
+
+      if (action === 'manual-open') {
+        els.actions.style.display = 'none';
+        els.manualRow.style.display = '';
+        els.fallback.style.display = 'none';
+        els.error.style.display = 'none';
+        const cur = row.getAttribute('data-sheet-scale-denom');
+        if (cur && els.manualInput) els.manualInput.value = cur;
+        if (els.manualInput) els.manualInput.focus();
+        return;
+      }
+      if (action === 'manual-cancel') {
+        els.manualRow.style.display = 'none';
+        els.actions.style.display = '';
+        return;
+      }
+      if (action === 'manual-save') {
+        const v = parseInt((els.manualInput && els.manualInput.value) || '', 10);
+        if (!Number.isInteger(v) || v < 1 || v > 5000) {
+          showError('Escala 1:N deve ser inteiro entre 1 e 5000.');
+          return;
+        }
+        try {
+          setBusy(true, 'Salvando…');
+          const data = await postScale(sheetId, { scale_denom: v });
+          applyResultToRow(row, data);
+          els.manualRow.style.display = 'none';
+          els.actions.style.display = '';
+        } catch (err) {
+          showError('Falha ao salvar: ' + (err && err.message ? err.message : 'erro desconhecido'));
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+      if (action === 'extract') {
+        try {
+          setBusy(true, 'Lendo carimbo (até ~6s na 1ª chamada)…');
+          const data = await postScale(sheetId, {});
+          applyResultToRow(row, data);
+          if (data && data.extraction && data.extraction.source === 'not_found') {
+            els.fallback.style.display = '';
+          }
+        } catch (err) {
+          showError('Falha ao extrair: ' + (err && err.message ? err.message : 'erro desconhecido'));
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+    });
+
+    // initial render: first row already has .is-active, render its panel.
+    const initial = activeRow();
+    if (initial) renderPanel(initial);
+    else renderPanel(null);
+    recalcCounts();
   })();
 
   // action-confirm: flip confirmed row to visual confirmed state

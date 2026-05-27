@@ -28,5 +28,12 @@
 		{ "tag": "v1", "new_sqlite_classes": ["EstimatorContainer"] }
 	],
 
+	// R2 binding — aux Worker reads PDF bytes by r2_key and forwards inline to
+	// the container body. Container itself is stateless and never holds R2 bindings.
+	// Same bucket as the main Astro Worker (airio-pdfs).
+	"r2_buckets": [
+		{ "binding": "PDFS", "bucket_name": "airio-pdfs" }
+	],
+
 	"observability": { "enabled": true }
 }

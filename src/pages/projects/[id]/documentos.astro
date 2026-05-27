@@ -1,13 +1,35 @@
 ---
 import ProjectLayout from '../../../layouts/ProjectLayout.astro';
+import { loadProject } from '../../../lib/projects';
+import { getDb } from '../../../lib/db';
+import { sheets } from '../../../../db/schema';
+import { asc, eq } from 'drizzle-orm';
+
 const { id } = Astro.params;
+const projectId = String(id ?? '');
+const project = await loadProject(projectId);
+
+if (!project) {
+	return new Response('Project not found', { status: 404 });
+}
+
+const db = getDb();
+const uploaded = await db
+	.select()
+	.from(sheets)
+	.where(eq(sheets.projectId, projectId))
+	.orderBy(asc(sheets.createdAt));
+
+const fileCount = uploaded.length;
+const totalBytes = 0; // size column not in schema yet — would need migration to add
+const projectName = project.name;
 ---
 
 <ProjectLayout
-	title="airio · Documentos · PROJECT-A PE06"
+	title={`airio · Documentos · ${projectName}`}
 	step={2}
 	doneSteps={[1]}
-	projectName="PROJECT-A PE06"
+	projectName={projectName}
 	breadcrumbTail="Documentos"
 	keymap={['⌘ + Enter · próximo', 'ESC · cancelar', '⌘ + A · selecionar todos']}
 	contentMaxWidth={1100}
@@ -242,6 +264,18 @@ const { id } = Astro.params;
   .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
   .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
   .btn-sm { padding: 4px 8px; font-size: 12px; }
+  .btn.is-disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+  .dropzone-status {
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-info);
+    margin-top: var(--space-2);
+  }
+  .dropzone-status.is-error { color: var(--color-danger); }
 
   @media (max-width: 768px) {
     .page-title { font-size: 22px; line-height: 30px; }
@@ -258,119 +292,59 @@ const { id } = Astro.params;
   <p class="page-lead">Plantas, quadro de cargas, memorial descritivo, unifilar. Pode arrastar tudo de uma vez — o airio identifica cada arquivo pelo nome e você só confirma. Suporta múltiplas revisões; a mais recente vira a ativa.</p>
 
   <!-- dropzone -->
-  <div class="dropzone" id="dropzone" tabindex="0">
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Selecionar PDFs">
+    <input id="file-input" type="file" name="files" accept="application/pdf,.pdf" multiple hidden />
     <div class="icon" aria-hidden="true">PDF</div>
-    <p class="dropzone-headline">Arraste seus PDFs ou <a href="#" style="color: var(--color-accent); text-decoration: none; font-weight: 600;">selecione do computador</a></p>
-    <p class="dropzone-help">PDF vetorial preferido · até 200 MB por arquivo · <span class="mono">.dwg/.dxf · em breve</span></p>
+    <p class="dropzone-headline">Arraste seus PDFs ou <a href="#" id="dz-pick-link" style="color: var(--color-accent); text-decoration: none; font-weight: 600;">selecione do computador</a></p>
+    <p class="dropzone-help">PDF vetorial preferido · até 100 MB por arquivo · <span class="mono">.dwg/.dxf · em breve</span></p>
+    <p class="dropzone-status" id="dz-status" hidden></p>
   </div>
 
   <!-- file list -->
   <div class="list-bar">
     <div class="summary">
-      <span class="stat"><span class="stat-val">6</span><span>arquivos</span></span>
-      <span class="stat"><span class="stat-val">87</span><span>páginas</span></span>
-      <span class="stat"><span class="stat-val">23,4 MB</span></span>
-    </div>
-    <div class="bulk">
-      <span class="bulk-label">Selecionados: <span class="mono" style="color: var(--color-fg-primary);">0</span></span>
-      <button class="btn btn-ghost btn-sm">Aplicar tipo…</button>
-      <button class="btn btn-ghost btn-sm">Remover</button>
+      <span class="stat"><span class="stat-val">{fileCount}</span><span>{fileCount === 1 ? 'arquivo' : 'arquivos'}</span></span>
     </div>
   </div>
 
-  <table class="file-table" aria-label="Documentos enviados">
+  <table class="file-table" aria-label="Documentos enviados" hidden={fileCount === 0}>
     <thead>
       <tr>
-        <th class="check"><input type="checkbox" aria-label="Selecionar todos" /></th>
         <th>Arquivo</th>
-        <th>Páginas</th>
-        <th>Tamanho</th>
+        <th>Enviado em</th>
         <th>Tipo</th>
-        <th>Status</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PE-ELE-FRC-PE06-R02.pdf</td>
-        <td class="meta">12</td>
-        <td class="meta">6,2 MB</td>
-        <td><button class="tag-pill t-planta">Planta de Força <span class="auto-flag">AUTO</span></button></td>
-        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
-      <tr>
-        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PE-ELE-ILU-PE06-R02.pdf</td>
-        <td class="meta">12</td>
-        <td class="meta">5,8 MB</td>
-        <td><button class="tag-pill t-planta">Planta de Iluminação <span class="auto-flag">AUTO</span></button></td>
-        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
-      <tr>
-        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PE-ELE-SDA-PE06-R01.pdf</td>
-        <td class="meta">8</td>
-        <td class="meta">3,1 MB</td>
-        <td><button class="tag-pill t-planta">Planta de SDAI <span class="auto-flag">AUTO</span></button></td>
-        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
-      <tr>
-        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PE-ELE-QDC-PE06-R02.pdf</td>
-        <td class="meta">4</td>
-        <td class="meta">1,2 MB</td>
-        <td><button class="tag-pill t-quadro">Quadro de Cargas <span class="auto-flag">AUTO</span></button></td>
-        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
-      <tr>
-        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PE-ELE-UNI-PE06-R00.pdf</td>
-        <td class="meta">3</td>
-        <td class="meta">0,9 MB</td>
-        <td><button class="tag-pill t-unifilar">Unifilar <span class="auto-flag">AUTO</span></button></td>
-        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
-      <tr>
-        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PROJECT-A-LB-ELE-PE01-MDE-R00.pdf</td>
-        <td class="meta">56</td>
-        <td class="meta">2,0 MB</td>
-        <td><button class="tag-pill t-memorial">Memorial Descritivo <span class="auto-flag">AUTO</span></button></td>
-        <td><span class="status is-parsing"><span class="status-dot"></span>Lendo seções…</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
-      <tr style="background: var(--color-bg-surface); opacity: 0.6;">
-        <td><input type="checkbox" disabled aria-label="Selecionar arquivo" /></td>
-        <td class="filename">PE-ARQ-CAD-PE06-R01.pdf</td>
-        <td class="meta">8</td>
-        <td class="meta">4,2 MB</td>
-        <td><button class="tag-pill t-outro">Outro <span class="auto-flag">REVISAR</span></button></td>
-        <td><span class="status" style="color: var(--color-warning);"><span class="status-dot" style="background: var(--color-warning);"></span>Tipo não identificado</span></td>
-        <td><button class="row-action" aria-label="Remover">✕</button></td>
-      </tr>
+      {uploaded.map((sheet) => (
+        <tr>
+          <td class="filename">{sheet.filename ?? '(sem nome)'}</td>
+          <td class="meta">{new Date(sheet.createdAt).toLocaleString('pt-BR')}</td>
+          <td>
+            {sheet.kind
+              ? <span class="tag-pill">{sheet.kind}</span>
+              : <span class="status" style="color: var(--color-fg-muted);">Sem tipo · definir em Triagem</span>}
+          </td>
+        </tr>
+      ))}
     </tbody>
   </table>
 
-  <!-- MD info -->
-  <div class="md-info" role="status">
-    <span class="icon">i</span>
-    <div class="body">
-      <span class="head">Memorial detectado</span>
-      <span class="text"><strong>56 páginas</strong> · escopo identificado: <strong>4 255 m²</strong> (Existente a reformar 3 527 m² + Nova a construir 728 m²) · <strong>14 sistemas elétricos</strong> mapeados no índice. Pronto pra cruzar com a contagem.</span>
+  {fileCount === 0 && (
+    <div class="md-info" role="status">
+      <span class="icon">i</span>
+      <div class="body">
+        <span class="head">Nenhum arquivo ainda</span>
+        <span class="text">Arraste seus PDFs na área acima ou clique em "selecione do computador" para começar.</span>
+      </div>
     </div>
-  </div>
+  )}
 
   <div class="form-actions">
-    <span class="form-meta">Salvo automaticamente · <span class="mono">há 12s</span></span>
+    <span class="form-meta" id="form-status">{fileCount === 0 ? 'Envie ao menos um PDF para seguir' : `${fileCount} ${fileCount === 1 ? 'arquivo enviado' : 'arquivos enviados'}`}</span>
     <div class="btn-group">
       <a class="btn btn-ghost" href="/projects/novo">← Cadastro</a>
-      <a class="btn btn-primary" href={`/projects/${id}/triagem`}>Próximo · Triagem →</a>
+      <a class={fileCount === 0 ? 'btn btn-primary is-disabled' : 'btn btn-primary'} href={`/projects/${projectId}/triagem`} id="next-btn" aria-disabled={fileCount === 0 ? 'true' : 'false'}>Próximo · Triagem →</a>
     </div>
   </div>
 
@@ -378,13 +352,117 @@ const { id } = Astro.params;
 
 </ProjectLayout>
 
-<script is:inline>
-  // dropzone hover state
+<script is:inline define:vars={{ projectId }}>
+  // S2 Documentos wire — drag-drop / pick / upload → POST /api/projects/[id]/sheets.
+  // Backend writes the sheets row + audit_log + R2 blob; we reload so the SSR
+  // table re-renders from D1.
   (function () {
     const dz = document.getElementById('dropzone');
-    if (!dz) return;
-    ['dragenter', 'dragover'].forEach((evt) => dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.add('is-dragover'); }));
-    ['dragleave', 'drop'].forEach((evt) => dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.remove('is-dragover'); }));
+    const fileInput = document.getElementById('file-input');
+    const pickLink = document.getElementById('dz-pick-link');
+    const statusEl = document.getElementById('dz-status');
+    if (!dz || !fileInput) return;
+
+    const SESSION_KEY = 'airio.session';
+    function getSessionId() {
+      let id = localStorage.getItem(SESSION_KEY);
+      if (!id) {
+        id = 'sess_' + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+        localStorage.setItem(SESSION_KEY, id);
+      }
+      return id;
+    }
+
+    function showStatus(msg, isError) {
+      if (!statusEl) return;
+      statusEl.textContent = msg;
+      statusEl.classList.toggle('is-error', !!isError);
+      statusEl.removeAttribute('hidden');
+    }
+    function hideStatus() {
+      if (statusEl) statusEl.setAttribute('hidden', '');
+    }
+
+    // Hover state on drag.
+    ['dragenter', 'dragover'].forEach((evt) =>
+      dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.add('is-dragover'); })
+    );
+    ['dragleave'].forEach((evt) =>
+      dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.remove('is-dragover'); })
+    );
+
+    // Open picker on click anywhere in dropzone OR on the link explicitly.
+    dz.addEventListener('click', (e) => {
+      // Avoid double-open when the inner link was clicked (link handler also fires).
+      if (e.target === pickLink) return;
+      fileInput.click();
+    });
+    if (pickLink) {
+      pickLink.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
+    }
+
+    // Keyboard activation (Enter / Space) since dropzone is role="button".
+    dz.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+    });
+
+    // Drop event → upload via shared path.
+    dz.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dz.classList.remove('is-dragover');
+      const dt = e.dataTransfer;
+      if (!dt || !dt.files || dt.files.length === 0) return;
+      uploadFiles(Array.from(dt.files));
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (!fileInput.files || fileInput.files.length === 0) return;
+      uploadFiles(Array.from(fileInput.files));
+      // Reset so re-uploading the same file fires change again.
+      fileInput.value = '';
+    });
+
+    async function uploadFiles(files) {
+      const pdfs = files.filter((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+      if (pdfs.length === 0) {
+        showStatus('Apenas arquivos PDF são aceitos.', true);
+        return;
+      }
+
+      const fd = new FormData();
+      pdfs.forEach((f) => fd.append('files', f, f.name));
+
+      const totalMb = (pdfs.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1);
+      showStatus(`Enviando ${pdfs.length} ${pdfs.length === 1 ? 'arquivo' : 'arquivos'} (${totalMb} MB)…`, false);
+
+      try {
+        const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/sheets`, {
+          method: 'POST',
+          headers: { 'x-airio-session': getSessionId() },
+          body: fd,
+        });
+
+        const body = await res.json().catch(() => ({}));
+
+        if (res.status === 201) {
+          const created = (body && body.created) || [];
+          const errors = (body && body.errors) || [];
+          if (errors.length > 0) {
+            showStatus(`${created.length} enviados, ${errors.length} com erro. Recarregando…`, true);
+          } else {
+            showStatus(`${created.length} enviados. Recarregando…`, false);
+          }
+          // Reload so the SSR table picks up the new rows.
+          setTimeout(() => window.location.reload(), 600);
+          return;
+        }
+
+        showStatus(`Erro do servidor (HTTP ${res.status}): ${(body && body.message) || 'sem detalhes'}`, true);
+      } catch (err) {
+        showStatus('Sem conexão. Verifique a rede e tente de novo.', true);
+        console.error('[S2 upload]', err);
+      }
+    }
   })();
 
   // select-all checkbox + bulk count

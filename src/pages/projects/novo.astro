@@ -1,0 +1,370 @@
+---
+import ProjectLayout from '../../layouts/ProjectLayout.astro';
+---
+
+<ProjectLayout
+	title="airio · Novo Projeto"
+	step={1}
+	breadcrumbTail="Novo Projeto"
+	keymap={['⌘ + Enter · próximo', 'ESC · cancelar']}
+	contentMaxWidth={720}
+	mainTopPadding="var(--space-12)"
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* page header */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-8);
+    max-width: 56ch;
+  }
+
+  /* form */
+  .form {
+    display: grid;
+    gap: var(--space-6);
+  }
+  .field {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+  .label {
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-fg-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .label .req {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  .helper {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+  .input, .select {
+    background: var(--color-bg-input);
+    color: var(--color-fg-primary);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font: 400 14px/20px var(--font-sans);
+    width: 100%;
+    transition: border-color var(--motion-fast) var(--ease-default), box-shadow var(--motion-fast) var(--ease-default);
+  }
+  .input:hover, .select:hover { border-color: var(--color-border-strong); }
+  .input:focus-visible, .select:focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-soft-bg);
+  }
+  .input::placeholder { color: var(--color-fg-muted); }
+
+  /* segmented control (cliente type) */
+  .segmented {
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 2px;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    gap: 2px;
+  }
+  .seg-btn {
+    background: transparent;
+    border: none;
+    padding: 8px 14px;
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-fg-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--motion-fast) var(--ease-default), color var(--motion-fast) var(--ease-default);
+  }
+  .seg-btn:hover { color: var(--color-fg-primary); }
+  .seg-btn.is-active {
+    background: var(--color-bg-elevated);
+    color: var(--color-fg-primary);
+    box-shadow: 0 1px 2px rgba(10,10,10,0.05), 0 0 0 1px var(--color-border-default);
+  }
+  .seg-btn[aria-disabled="true"] {
+    color: var(--color-fg-disabled);
+    cursor: not-allowed;
+  }
+  .seg-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+    margin-left: var(--space-2);
+  }
+
+  /* locked field (discipline) */
+  .locked-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+  }
+  .locked-field .lock-icon {
+    color: var(--color-fg-muted);
+    font-size: 14px;
+  }
+  .locked-field .lock-label {
+    font: 500 14px/20px var(--font-sans);
+    color: var(--color-fg-primary);
+  }
+  .locked-field .lock-note {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    margin-left: auto;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+
+  /* ICP warning banner */
+  .icp-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-warning-soft-bg);
+    border: 1px solid var(--color-warning-soft-border);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-2);
+  }
+  .icp-warning .icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--color-warning);
+    color: #ffffff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .icp-warning .body {
+    flex: 1;
+    display: grid;
+    gap: var(--space-1);
+  }
+  .icp-warning .head {
+    font: 600 13px/18px var(--font-sans);
+    color: var(--color-warning);
+  }
+  .icp-warning .text {
+    font: 400 13px/18px var(--font-sans);
+    color: var(--color-fg-primary);
+  }
+  .icp-warning .actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  /* actions bar */
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .form-meta {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+  .form-actions .btn-group { display: flex; gap: var(--space-2); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font: 500 13px/18px var(--font-sans);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn-primary { background: var(--color-accent); color: #ffffff; text-decoration: none; }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-secondary { background: var(--color-bg-elevated); color: var(--color-fg-primary); border-color: var(--color-border-default); text-decoration: none; }
+  .btn-secondary:hover { background: var(--color-bg-surface); border-color: var(--color-border-strong); }
+  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
+
+  @media (max-width: 640px) {
+    .field-row { grid-template-columns: 1fr; }
+    .page-title { font-size: 22px; line-height: 30px; }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 1 de 8 · Cadastro do projeto</div>
+  <h1 class="page-title">Vamos abrir um novo orçamento</h1>
+  <p class="page-lead">Algumas perguntas para preparar a tomada de quantitativos. Os dados aqui ajudam o airio a filtrar e organizar tudo que vier nas próximas etapas.</p>
+
+  <form class="form" id="intake-form" novalidate>
+
+    <div class="field">
+      <label class="label" for="project-name">Nome do projeto <span class="req">*</span></label>
+      <input class="input" id="project-name" type="text" placeholder="ex: PROJECT-A PE06 · Reforma Elétrica" value="PROJECT-A PE06 · Reforma Elétrica" autocomplete="off" />
+      <span class="helper">Aparece em todas as telas e no nome do arquivo de exportação.</span>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="label" for="cliente">Cliente</label>
+        <input class="input" id="cliente" type="text" placeholder="Razão social" value="PROJECT-A Indústria de Cosméticos Ltda." />
+      </div>
+      <div class="field">
+        <label class="label" for="empreendimento">Empreendimento</label>
+        <input class="input" id="empreendimento" type="text" placeholder="ex: PE06 — Hotel Boutique" value="PE06 — Reforma do Térreo + Pavimentos 1 e 2" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Tipo de cliente</label>
+      <div class="segmented" role="tablist" aria-label="Tipo de cliente">
+        <button type="button" role="tab" class="seg-btn is-active" aria-selected="true">Privado</button>
+        <button type="button" role="tab" class="seg-btn" aria-selected="false" aria-disabled="true">Público <span class="seg-meta">em breve</span></button>
+      </div>
+      <span class="helper">Privado: B.D.I. embutido no preço unitário. Público (licitação): marcação visível.</span>
+    </div>
+
+    <div class="field">
+      <label class="label">Disciplina</label>
+      <div class="locked-field">
+        <span class="lock-icon" aria-hidden="true">●</span>
+        <span class="lock-label">Elétrica — Baixa Tensão</span>
+      </div>
+      <span class="helper">Outras disciplinas em breve.</span>
+    </div>
+
+    <div class="field">
+      <label class="label" for="porte">Porte estimado <span class="req">*</span></label>
+      <select class="select" id="porte">
+        <option>Selecione…</option>
+        <option>Comercial pequeno · &lt; 500 m²</option>
+        <option>Comercial médio · 500 – 2 500 m²</option>
+        <option selected>Comercial / institucional · 2 500 – 10 000 m²</option>
+        <option>Industrial / campus · &gt; 10 000 m²</option>
+        <option>Residencial unifamiliar · casa</option>
+        <option>Reforma de apartamento</option>
+      </select>
+      <span class="helper">Define como organizamos a contagem por pavimento e por sistema.</span>
+
+      <div class="icp-warning" role="status" aria-live="polite" hidden>
+        <span class="icon" aria-hidden="true">!</span>
+        <div class="body">
+          <span class="head">Projeto pequeno</span>
+          <span class="text">O airio rende mais em obras de média a grande escala (vários pavimentos, várias edificações). Em projetos residenciais individuais, a contagem direta no Revu costuma ser mais rápida.</span>
+          <div class="actions">
+            <button type="button" class="btn btn-ghost">Mudar porte</button>
+            <button type="button" class="btn btn-secondary">Seguir mesmo assim</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+  <div class="form-actions">
+    <span class="form-meta">Salvo automaticamente como rascunho · <span class="mono">há 4s</span></span>
+    <div class="btn-group">
+      <button type="button" class="btn btn-ghost">Cancelar</button>
+      <a class="btn btn-primary" href="/projects/demo/documentos">Próximo · Documentos →</a>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // ICP warning toggle when "residencial" or "apartamento" picked
+  (function () {
+    const select = document.querySelector('#porte');
+    const warning = document.querySelector('.icp-warning');
+    if (!select || !warning) return;
+    function check() {
+      const v = select.value || '';
+      const offIcp = /residencial unifamiliar|reforma de apartamento/i.test(v);
+      if (offIcp) warning.removeAttribute('hidden');
+      else warning.setAttribute('hidden', '');
+    }
+    select.addEventListener('change', check);
+    check();
+  })();
+
+  // segmented toggle (private vs public)
+  (function () {
+    const segs = document.querySelectorAll('.segmented .seg-btn');
+    segs.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.getAttribute('aria-disabled') === 'true') return;
+        segs.forEach((b) => { b.classList.remove('is-active'); b.setAttribute('aria-selected', 'false'); });
+        btn.classList.add('is-active');
+        btn.setAttribute('aria-selected', 'true');
+      });
+    });
+  })();
+
+  // Pretext: enable text reflow on long descriptions if present
+  (async function () {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const PT = window.Pretext || window.pretext || globalThis.Pretext;
+    if (!PT || !PT.prepare || !PT.layout) return;
+    const els = document.querySelectorAll('.page-lead, .helper, .icp-warning .text');
+    const prepared = new Map();
+    els.forEach((el) => {
+      const font = getComputedStyle(el).font;
+      prepared.set(el, PT.prepare(el.textContent || '', font));
+    });
+    function relayout() {
+      els.forEach((el) => {
+        const h = prepared.get(el); if (!h) return;
+        const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+        const w = el.clientWidth || 600;
+        const { height } = PT.layout(h, w, lh);
+        el.style.minHeight = `${height}px`;
+      });
+    }
+    new ResizeObserver(() => relayout()).observe(document.body);
+    relayout();
+  })();
+</script>

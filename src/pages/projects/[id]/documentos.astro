@@ -1,0 +1,422 @@
+---
+import ProjectLayout from '../../../layouts/ProjectLayout.astro';
+const { id } = Astro.params;
+---
+
+<ProjectLayout
+	title="airio · Documentos · PROJECT-A PE06"
+	step={2}
+	doneSteps={[1]}
+	projectName="PROJECT-A PE06"
+	breadcrumbTail="Documentos"
+	keymap={['⌘ + Enter · próximo', 'ESC · cancelar', '⌘ + A · selecionar todos']}
+	contentMaxWidth={1100}
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* ============ page header ============ */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-8);
+    max-width: 64ch;
+  }
+
+  /* ============ dropzone ============ */
+  .dropzone {
+    border: 2px dashed var(--color-border-default);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-surface);
+    padding: var(--space-8) var(--space-6);
+    text-align: center;
+    transition: border-color var(--motion-fast) var(--ease-default), background var(--motion-fast) var(--ease-default);
+    margin-bottom: var(--space-6);
+  }
+  .dropzone:hover, .dropzone.is-dragover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft-bg);
+  }
+  .dropzone .icon {
+    width: 48px; height: 48px;
+    margin: 0 auto var(--space-3);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    color: var(--color-fg-secondary);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .dropzone-headline { font: 600 16px/24px var(--font-sans); color: var(--color-fg-primary); margin: 0 0 var(--space-1); }
+  .dropzone-help { font: 400 13px/18px var(--font-sans); color: var(--color-fg-muted); margin: 0 0 var(--space-4); }
+  .dropzone-help .mono { color: var(--color-fg-secondary); }
+
+  /* ============ file list ============ */
+  .list-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-bottom: none;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  }
+  .list-bar .summary {
+    font: 500 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+    display: flex; align-items: center; gap: var(--space-3);
+  }
+  .list-bar .summary .stat { display: inline-flex; align-items: center; gap: var(--space-1); }
+  .list-bar .summary .stat-val {
+    font-family: var(--font-mono);
+    color: var(--color-fg-primary);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .list-bar .bulk { display: flex; align-items: center; gap: var(--space-2); }
+  .list-bar .bulk-label {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+
+  .file-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .file-table th, .file-table td {
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-subtle);
+    vertical-align: middle;
+  }
+  .file-table th {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-secondary);
+    background: var(--color-bg-surface);
+  }
+  .file-table tbody tr:last-child td { border-bottom: none; }
+  .file-table tbody tr:hover { background: var(--color-bg-surface); }
+  .file-table .check { width: 32px; }
+  .file-table .filename {
+    font-family: var(--font-mono);
+    color: var(--color-fg-primary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .file-table .meta {
+    font-family: var(--font-mono);
+    color: var(--color-fg-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .file-table .status {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .file-table .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-fg-disabled);
+    display: inline-block;
+  }
+  .file-table .status.is-ready .status-dot { background: var(--color-success); }
+  .file-table .status.is-parsing .status-dot { background: var(--color-warning); animation: pulse 1.4s ease-in-out infinite; }
+  .file-table .status.is-error .status-dot { background: var(--color-danger); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .tag-pill {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    padding: 2px 8px;
+    border-radius: var(--radius-xs);
+    font: 500 11px/16px var(--font-sans);
+    background: var(--color-bg-surface);
+    color: var(--color-fg-secondary);
+    border: 1px solid var(--color-border-default);
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default);
+  }
+  .tag-pill:hover { background: var(--color-bg-elevated); border-color: var(--color-border-strong); }
+  .tag-pill .auto-flag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    margin-left: 2px;
+  }
+  .tag-pill.t-planta { background: #eff6ff; color: #1e40af; border-color: transparent; }
+  /* t-quadro: amber (NOT accent orange). DESIGN.md orange-discipline:
+     orange = action signal only. Doc-type pills are decorative → use amber-family. */
+  .tag-pill.t-quadro { background: #fef3c7; color: #92400e; border-color: transparent; }
+  .tag-pill.t-memorial { background: #f0fdf4; color: #15803d; border-color: transparent; }
+  .tag-pill.t-unifilar { background: #faf5ff; color: #6b21a8; border-color: transparent; }
+  .tag-pill.t-outro { background: var(--color-bg-surface); color: var(--color-fg-secondary); }
+
+  .row-action {
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+  }
+  .row-action:hover { color: var(--color-danger); background: var(--color-danger-soft-bg); }
+
+  /* ============ MD info card ============ */
+  .md-info {
+    margin-top: var(--space-4);
+    display: flex; align-items: flex-start; gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-info-soft-bg);
+    border: 1px solid #bae6fd;
+    border-radius: var(--radius-md);
+  }
+  .md-info .icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--color-info);
+    color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font: 600 13px/1 var(--font-sans);
+  }
+  .md-info .body { flex: 1; display: grid; gap: var(--space-1); }
+  .md-info .head { font: 600 13px/18px var(--font-sans); color: var(--color-info); }
+  .md-info .text { font: 400 13px/18px var(--font-sans); color: var(--color-fg-primary); }
+  .md-info .text strong { color: var(--color-fg-primary); font-weight: 600; }
+
+  /* ============ form actions ============ */
+  .form-actions {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .form-meta { font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); }
+  .form-actions .btn-group { display: flex; gap: var(--space-2); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font: 500 13px/18px var(--font-sans);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn-primary { background: var(--color-accent); color: #ffffff; text-decoration: none; }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-secondary { background: var(--color-bg-elevated); color: var(--color-fg-primary); border-color: var(--color-border-default); text-decoration: none; }
+  .btn-secondary:hover { background: var(--color-bg-surface); border-color: var(--color-border-strong); }
+  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
+  .btn-sm { padding: 4px 8px; font-size: 12px; }
+
+  @media (max-width: 768px) {
+    .page-title { font-size: 22px; line-height: 30px; }
+    .file-table { font-size: 12px; }
+    .file-table th, .file-table td { padding: var(--space-2) var(--space-3); }
+    .list-bar { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 2 de 8 · Documentos do projeto</div>
+  <h1 class="page-title">Solta os PDFs aqui</h1>
+  <p class="page-lead">Plantas, quadro de cargas, memorial descritivo, unifilar. Pode arrastar tudo de uma vez — o airio identifica cada arquivo pelo nome e você só confirma. Suporta múltiplas revisões; a mais recente vira a ativa.</p>
+
+  <!-- dropzone -->
+  <div class="dropzone" id="dropzone" tabindex="0">
+    <div class="icon" aria-hidden="true">PDF</div>
+    <p class="dropzone-headline">Arraste seus PDFs ou <a href="#" style="color: var(--color-accent); text-decoration: none; font-weight: 600;">selecione do computador</a></p>
+    <p class="dropzone-help">PDF vetorial preferido · até 200 MB por arquivo · <span class="mono">.dwg/.dxf · em breve</span></p>
+  </div>
+
+  <!-- file list -->
+  <div class="list-bar">
+    <div class="summary">
+      <span class="stat"><span class="stat-val">6</span><span>arquivos</span></span>
+      <span class="stat"><span class="stat-val">87</span><span>páginas</span></span>
+      <span class="stat"><span class="stat-val">23,4 MB</span></span>
+    </div>
+    <div class="bulk">
+      <span class="bulk-label">Selecionados: <span class="mono" style="color: var(--color-fg-primary);">0</span></span>
+      <button class="btn btn-ghost btn-sm">Aplicar tipo…</button>
+      <button class="btn btn-ghost btn-sm">Remover</button>
+    </div>
+  </div>
+
+  <table class="file-table" aria-label="Documentos enviados">
+    <thead>
+      <tr>
+        <th class="check"><input type="checkbox" aria-label="Selecionar todos" /></th>
+        <th>Arquivo</th>
+        <th>Páginas</th>
+        <th>Tamanho</th>
+        <th>Tipo</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PE-ELE-FRC-PE06-R02.pdf</td>
+        <td class="meta">12</td>
+        <td class="meta">6,2 MB</td>
+        <td><button class="tag-pill t-planta">Planta de Força <span class="auto-flag">AUTO</span></button></td>
+        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PE-ELE-ILU-PE06-R02.pdf</td>
+        <td class="meta">12</td>
+        <td class="meta">5,8 MB</td>
+        <td><button class="tag-pill t-planta">Planta de Iluminação <span class="auto-flag">AUTO</span></button></td>
+        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PE-ELE-SDA-PE06-R01.pdf</td>
+        <td class="meta">8</td>
+        <td class="meta">3,1 MB</td>
+        <td><button class="tag-pill t-planta">Planta de SDAI <span class="auto-flag">AUTO</span></button></td>
+        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PE-ELE-QDC-PE06-R02.pdf</td>
+        <td class="meta">4</td>
+        <td class="meta">1,2 MB</td>
+        <td><button class="tag-pill t-quadro">Quadro de Cargas <span class="auto-flag">AUTO</span></button></td>
+        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PE-ELE-UNI-PE06-R00.pdf</td>
+        <td class="meta">3</td>
+        <td class="meta">0,9 MB</td>
+        <td><button class="tag-pill t-unifilar">Unifilar <span class="auto-flag">AUTO</span></button></td>
+        <td><span class="status is-ready"><span class="status-dot"></span>Pronto</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PROJECT-A-LB-ELE-PE01-MDE-R00.pdf</td>
+        <td class="meta">56</td>
+        <td class="meta">2,0 MB</td>
+        <td><button class="tag-pill t-memorial">Memorial Descritivo <span class="auto-flag">AUTO</span></button></td>
+        <td><span class="status is-parsing"><span class="status-dot"></span>Lendo seções…</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+      <tr style="background: var(--color-bg-surface); opacity: 0.6;">
+        <td><input type="checkbox" disabled aria-label="Selecionar arquivo" /></td>
+        <td class="filename">PE-ARQ-CAD-PE06-R01.pdf</td>
+        <td class="meta">8</td>
+        <td class="meta">4,2 MB</td>
+        <td><button class="tag-pill t-outro">Outro <span class="auto-flag">REVISAR</span></button></td>
+        <td><span class="status" style="color: var(--color-warning);"><span class="status-dot" style="background: var(--color-warning);"></span>Tipo não identificado</span></td>
+        <td><button class="row-action" aria-label="Remover">✕</button></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- MD info -->
+  <div class="md-info" role="status">
+    <span class="icon">i</span>
+    <div class="body">
+      <span class="head">Memorial detectado</span>
+      <span class="text"><strong>56 páginas</strong> · escopo identificado: <strong>4 255 m²</strong> (Existente a reformar 3 527 m² + Nova a construir 728 m²) · <strong>14 sistemas elétricos</strong> mapeados no índice. Pronto pra cruzar com a contagem.</span>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <span class="form-meta">Salvo automaticamente · <span class="mono">há 12s</span></span>
+    <div class="btn-group">
+      <a class="btn btn-ghost" href="/projects/novo">← Cadastro</a>
+      <a class="btn btn-primary" href={`/projects/${id}/triagem`}>Próximo · Triagem →</a>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // dropzone hover state
+  (function () {
+    const dz = document.getElementById('dropzone');
+    if (!dz) return;
+    ['dragenter', 'dragover'].forEach((evt) => dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.add('is-dragover'); }));
+    ['dragleave', 'drop'].forEach((evt) => dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.remove('is-dragover'); }));
+  })();
+
+  // select-all checkbox + bulk count
+  (function () {
+    const all = document.querySelector('.file-table thead input[type="checkbox"]');
+    const rows = document.querySelectorAll('.file-table tbody input[type="checkbox"]:not(:disabled)');
+    const counter = document.querySelector('.bulk-label .mono');
+    function refresh() {
+      const n = Array.from(rows).filter((r) => r.checked).length;
+      if (counter) counter.textContent = String(n);
+    }
+    if (all) all.addEventListener('change', () => { rows.forEach((r) => { r.checked = all.checked; }); refresh(); });
+    rows.forEach((r) => r.addEventListener('change', refresh));
+  })();
+
+  // Pretext text reflow
+  (async function () {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const PT = window.Pretext || window.pretext || globalThis.Pretext;
+    if (!PT || !PT.prepare || !PT.layout) return;
+    const els = document.querySelectorAll('.page-lead, .dropzone-help, .md-info .text');
+    const prepared = new Map();
+    els.forEach((el) => { prepared.set(el, PT.prepare(el.textContent || '', getComputedStyle(el).font)); });
+    function relayout() {
+      els.forEach((el) => {
+        const h = prepared.get(el); if (!h) return;
+        const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+        const { height } = PT.layout(h, el.clientWidth || 600, lh);
+        el.style.minHeight = `${height}px`;
+      });
+    }
+    new ResizeObserver(() => relayout()).observe(document.body);
+    relayout();
+  })();
+</script>

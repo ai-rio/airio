@@ -1,0 +1,1043 @@
+---
+import ProjectLayout from '../../../../layouts/ProjectLayout.astro';
+const { id } = Astro.params;
+---
+
+<ProjectLayout
+  title="airio · Legenda · PROJECT-A PE06"
+  step={4}
+  doneSteps={[1, 2, 3]}
+  projectName="PROJECT-A PE06"
+  breadcrumbParents={["Preparação"]}
+  breadcrumbTail="Legenda"
+  keymap={['⌘ + Enter · próxima linha', '↑↓ · navegar', 'A · aceitar todos', 'E · expandir/recolher']}
+  contentMaxWidth={1280}
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* ============ page header ============ */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-6);
+    max-width: 78ch;
+  }
+  .page-lead strong { color: var(--color-fg-primary); font-weight: 600; }
+
+  /* ============ meta bar — intel evidence ============ */
+  .meta-bar {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .meta-bar .stat { display: flex; align-items: baseline; gap: var(--space-1); }
+  .meta-bar .stat .v {
+    font: 600 15px/20px var(--font-sans);
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .meta-bar .stat .v.is-ok { color: var(--color-success); }
+  .meta-bar .stat .l {
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .meta-bar .sep { color: var(--color-fg-disabled); }
+  .meta-bar .spacer { flex: 1; }
+
+  /* intel pill — info blue, not orange */
+  .intel-pill {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    padding: 4px 10px;
+    font: 500 11px/16px var(--font-mono);
+    background: var(--color-info-soft-bg);
+    color: var(--color-info);
+    border: 1px solid var(--color-info-soft-border);
+    border-radius: var(--radius-sm);
+  }
+  .intel-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-info);
+  }
+
+  /* bulk accept CTA — orange is correct here (primary action) */
+  .meta-bar .bulk-btn {
+    font: 500 13px/18px var(--font-sans);
+    padding: 6px 12px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-primary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: var(--space-2);
+  }
+  .meta-bar .bulk-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  /* ============================================
+     LEGEND CARD — top panel
+     ============================================ */
+  .legend-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--space-4);
+  }
+  .legend-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+  }
+  .legend-header-label {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+  .legend-source {
+    font: 400 11px/16px var(--font-mono);
+    color: var(--color-fg-muted);
+  }
+  .legend-source .file { color: var(--color-fg-secondary); }
+  .legend-actions { display: flex; gap: var(--space-2); }
+  .legend-action-btn {
+    font: 500 12px/16px var(--font-sans);
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-secondary);
+    cursor: pointer;
+  }
+  /* hover = interactive affordance (accent on hover is canonical) */
+  .legend-action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .legend-image {
+    padding: var(--space-6) var(--space-4);
+    background: #fdfcfa;
+    background-image:
+      linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 8px 8px;
+    border-bottom: 1px solid var(--color-border-default);
+    display: flex; justify-content: center;
+    overflow-x: auto;
+  }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
+    gap: 0;
+    font: 500 11px/16px var(--font-mono);
+    color: var(--color-fg-primary);
+    min-width: 980px;
+    background: #ffffff;
+    border: 1px solid var(--color-border-strong);
+  }
+  .legend-cell {
+    padding: var(--space-3) var(--space-2);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    gap: var(--space-2);
+    border-right: 1px solid var(--color-border-default);
+    border-bottom: 1px solid var(--color-border-default);
+    min-height: 84px;
+  }
+  .legend-cell:nth-child(7n) { border-right: none; }
+  .legend-cell:last-child { border-bottom: none; }
+  .legend-glyph {
+    font: 400 24px/1 var(--font-mono);
+    /* tomada family (incl. AC): magenta per symbol_counting memory.
+       AC = same ELE_ST circle glyph as tomada — geometry identical on PE06.
+       No .is-ac class applied — both render magenta. */
+    color: #c026d3;
+    letter-spacing: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 28px;
+  }
+  /* interruptor = blue */
+  .legend-glyph.is-switch { color: #1d4ed8; }
+  /* luminária = amber (CAD amber overlay per DESIGN.md §PDF Overlays perfilado token #ca8a04) */
+  .legend-glyph.is-light { color: #ca8a04; }
+  /* emergência = success green */
+  .legend-glyph.is-em { color: var(--color-success); }
+  /* aterramento BES = secondary charcoal */
+  .legend-glyph.is-bes { color: var(--color-fg-secondary); }
+  /* NOTE: no .is-ac class — AC glyph is same magenta ⊖ as tomada (memory-correct) */
+  .legend-label {
+    font: 500 10px/14px var(--font-mono);
+    color: var(--color-fg-secondary);
+    text-align: center;
+    letter-spacing: 0;
+  }
+
+  .legend-foot {
+    padding: var(--space-3) var(--space-4);
+    display: flex; justify-content: space-between; align-items: center;
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+  .legend-foot .summary { font-weight: 500; color: var(--color-fg-secondary); }
+  .legend-foot .summary strong { color: var(--color-fg-primary); font-weight: 600; }
+
+  /* ============================================
+     DEVICE LIST — middle panel
+     ============================================ */
+  .devices-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--space-4);
+  }
+  .devices-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+  .devices-header .count { font-family: var(--font-mono); color: var(--color-fg-secondary); }
+  .devices-header .add-btn {
+    font: 500 12px/16px var(--font-sans);
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-secondary);
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  /* hover = interactive affordance */
+  .devices-header .add-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .device-row {
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .device-row:last-child { border-bottom: none; }
+  /* is-expanded state-change tint — permitted by orange-discipline memory ("state-change tint") */
+  .device-row.is-expanded { background: var(--color-accent-soft-bg); }
+
+  .device-row-summary {
+    display: grid;
+    grid-template-columns: 28px 200px 140px 130px 1fr 130px 28px;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default);
+  }
+  .device-row-summary:hover { background: var(--color-bg-surface); }
+  .device-row.is-expanded .device-row-summary:hover { background: var(--color-accent-soft-bg); }
+
+  /* expanded-row chevron = state-change marker (parallel to expanded-row tint) */
+  .chevron {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-fg-muted);
+    transition: transform var(--motion-fast) var(--ease-default);
+    display: inline-block;
+  }
+  .device-row.is-expanded .chevron { transform: rotate(90deg); color: var(--color-accent); }
+
+  .device-name {
+    font: 600 16px/22px var(--font-sans);
+    color: var(--color-fg-primary);
+    letter-spacing: -0.005em;
+  }
+
+  .layer-chip {
+    display: inline-flex; align-items: center;
+    padding: 3px 8px;
+    font: 500 11px/16px var(--font-mono);
+    background: var(--color-bg-surface);
+    color: var(--color-fg-primary);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xs);
+    letter-spacing: 0;
+    width: max-content;
+  }
+
+  .detector-type {
+    font: 400 12px/16px var(--font-mono);
+    color: var(--color-fg-muted);
+  }
+
+  .variants-summary {
+    font: 400 13px/18px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .variants-summary .count { color: var(--color-fg-primary); font-weight: 500; }
+  /*
+   * DESIGN.md orange-discipline: finalized had strong { color: var(--color-accent-soft-fg) }
+   * here = decorative emphasis on default-variant name = VIOLATION.
+   * Patched to --color-fg-secondary per feedback_design_md_orange_discipline.md tone-down pattern.
+   */
+  .variants-summary .default {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-fg-muted);
+  }
+  .variants-summary .default strong { color: var(--color-fg-secondary); font-weight: 500; }
+
+  .device-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .device-status .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-fg-muted);
+  }
+  .device-status.is-confirmed { color: var(--color-success); }
+  .device-status.is-confirmed .dot { background: var(--color-success); }
+  .device-status.is-pending { color: var(--color-warning); }
+  .device-status.is-pending .dot { background: var(--color-warning); }
+
+  .quick-confirm {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-surface);
+    color: var(--color-fg-muted);
+    border: 1px solid var(--color-border-default);
+    cursor: pointer;
+    font-size: 11px;
+  }
+  /* hover = interactive affordance */
+  .quick-confirm:hover { border-color: var(--color-success); color: var(--color-success); background: var(--color-success-soft-bg); }
+  .quick-confirm.is-confirmed { background: var(--color-success); color: #fff; border-color: var(--color-success); }
+
+  /* expanded panel */
+  .device-row-body {
+    display: none;
+    padding: var(--space-2) var(--space-4) var(--space-6) calc(var(--space-4) + 28px + var(--space-3));
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .device-row.is-expanded .device-row-body { display: block; }
+
+  .body-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-3) var(--space-6);
+    align-items: start;
+    padding-top: var(--space-3);
+  }
+  .body-label {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+    padding-top: 6px;
+  }
+  .body-field { font: 400 13px/18px var(--font-sans); color: var(--color-fg-primary); }
+
+  /* glyph sample inside expanded row */
+  .glyph-sample {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px;
+    background: #fdfcfa;
+    background-image:
+      linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 6px 6px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    /* tomada glyph = magenta per symbol_counting memory */
+    color: #c026d3;
+    font: 400 32px/1 var(--font-mono);
+  }
+
+  /* variant chips */
+  .variant-chips {
+    display: flex; flex-wrap: wrap; gap: var(--space-2);
+    align-items: center;
+  }
+  .variant-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 4px 5px 10px;
+    font: 500 12px/16px var(--font-mono);
+    background: var(--color-bg-elevated);
+    color: var(--color-fg-primary);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    letter-spacing: 0;
+  }
+  .variant-chip .close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    background: transparent;
+    border: none;
+    color: var(--color-fg-muted);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    line-height: 1;
+  }
+  .variant-chip .close:hover { background: var(--color-danger-soft-bg); color: var(--color-danger); }
+  /*
+   * .is-default: neutral treatment per orange-discipline memory.
+   * "padrão:" prefix = italic muted text. No orange. No decorative accent.
+   */
+  .variant-chip.is-default {
+    background: var(--color-bg-surface);
+    color: var(--color-fg-primary);
+    border-color: var(--color-border-strong);
+  }
+  .variant-chip.is-default .tag {
+    font: italic 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    letter-spacing: 0;
+    text-transform: none;
+    margin-right: 2px;
+  }
+  /* vchip glyphs mirror legend color semantics */
+  .vchip-glyph {
+    font: 400 16px/1 var(--font-mono);
+    color: #c026d3;
+    margin-right: 4px;
+    display: inline-block;
+    min-width: 14px;
+    text-align: center;
+  }
+  .vchip-glyph.is-switch { color: #1d4ed8; }
+  .vchip-glyph.is-light { color: #ca8a04; }
+  .vchip-glyph.is-em { color: var(--color-success); }
+  .vchip-glyph.is-bes { color: var(--color-fg-secondary); }
+  /* NOTE: no .vchip-glyph.is-ac — AC uses default magenta (same glyph as tomada) */
+
+  .variant-add {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    font: 500 12px/16px var(--font-mono);
+    background: transparent;
+    color: var(--color-fg-muted);
+    border: 1px dashed var(--color-border-default);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    letter-spacing: 0;
+  }
+  /* hover = interactive affordance */
+  .variant-add:hover { border-style: solid; border-color: var(--color-accent); color: var(--color-accent); }
+
+  /* inline form controls */
+  .body-select {
+    font: 500 13px/18px var(--font-mono);
+    padding: 6px 28px 6px 10px;
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-primary);
+    cursor: pointer;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--color-fg-muted) 50%), linear-gradient(135deg, var(--color-fg-muted) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 8px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    letter-spacing: 0;
+  }
+  /* focus = focus ring (canonical orange use) */
+  .body-select:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+  .body-hint {
+    font: 400 12px/18px var(--font-sans);
+    color: var(--color-fg-muted);
+    max-width: 64ch;
+  }
+  .body-hint .em { color: var(--color-fg-secondary); font-weight: 500; }
+  .body-hint code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--color-bg-surface);
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+  }
+
+  .body-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding-top: var(--space-3);
+    margin-top: var(--space-3);
+    border-top: 1px dashed var(--color-border-default);
+  }
+  .body-confidence {
+    display: flex; align-items: center; gap: var(--space-2);
+    font: 400 11px/16px var(--font-mono);
+    color: var(--color-fg-muted);
+  }
+  .body-confidence .level {
+    color: var(--color-success);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .body-confidence .level.is-medium { color: var(--color-warning); }
+  .body-confidence .level.is-low { color: var(--color-danger); }
+
+  .body-danger-btn {
+    font: 500 12px/16px var(--font-sans);
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-muted);
+    cursor: pointer;
+  }
+  .body-danger-btn:hover { color: var(--color-danger); border-color: var(--color-danger); background: var(--color-danger-soft-bg); }
+
+  /* ============================================
+     NEGATIVE LAYERS CARD
+     ============================================ */
+  .negative-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+  .negative-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+  .negative-label {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+  .negative-label .count { font-family: var(--font-mono); color: var(--color-fg-secondary); margin-left: var(--space-2); }
+  .negative-help { font: 400 12px/18px var(--font-sans); color: var(--color-fg-muted); max-width: 78ch; margin: 0 0 var(--space-3); }
+  .negative-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .negative-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 4px 4px 10px;
+    font: 500 11px/16px var(--font-mono);
+    background: var(--color-bg-surface);
+    color: var(--color-fg-secondary);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xs);
+    letter-spacing: 0;
+  }
+  .negative-chip .close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    background: transparent;
+    border: none;
+    color: var(--color-fg-muted);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    line-height: 1;
+  }
+  /* hover = interactive affordance */
+  .negative-chip .close:hover { color: var(--color-accent); }
+  .negative-chip .add-btn {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ============================================
+     FORM ACTIONS
+     ============================================ */
+  .form-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border-default);
+  }
+  .form-meta {
+    font: 400 12px/18px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+  .form-meta .mono { color: var(--color-fg-secondary); font-family: var(--font-mono); }
+  .btn-group { display: flex; gap: var(--space-2); }
+  .btn {
+    font: 500 14px/20px var(--font-sans);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-default);
+    background: var(--color-bg-elevated);
+    color: var(--color-fg-primary);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--color-fg-secondary); }
+  .btn-ghost { background: transparent; text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); }
+  /* primary CTA — orange is canonical here (one per screen) */
+  .btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+    text-decoration: none;
+  }
+  .btn-primary:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+
+  /* ============ responsive ============ */
+  @media (max-width: 1024px) {
+    .device-row-summary {
+      grid-template-columns: 24px 180px 130px 1fr 110px 28px;
+    }
+    .device-row-summary .detector-type { display: none; }
+    .legend-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); min-width: 560px; }
+  }
+  @media (max-width: 768px) {
+    .device-row-summary {
+      grid-template-columns: 24px 1fr 28px;
+      gap: var(--space-2);
+    }
+    .device-row-summary .layer-chip,
+    .device-row-summary .detector-type,
+    .device-row-summary .variants-summary,
+    .device-row-summary .device-status { display: none; }
+    .body-grid { grid-template-columns: 1fr; }
+    .body-label { padding-top: 0; }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 4 · Preparação · Legenda</div>
+  <h1 class="page-title">Confirmar dispositivos detectados na legenda</h1>
+  <p class="page-lead">
+    A leitura da legenda gráfica desta planta encontrou <strong>5 dispositivos</strong> com <strong>13 variantes</strong>.
+    Confirme camada, detector e rótulos por linha. As escolhas valem para todas as plantas deste projeto
+    e ajustam o BOM por variante (10 A versus 20 A versus AC, simples versus paralelo, e por aí vai).
+  </p>
+
+  <!-- meta bar -->
+  <div class="meta-bar">
+    <div class="stat"><span class="v">5</span><span class="l">Dispositivos</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v">13</span><span class="l">Variantes</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-ok">5</span><span class="l">Camadas marcadas como infra</span></div>
+    <span class="spacer"></span>
+    <span class="intel-pill"><span class="dot"></span>intel · v1 · claude-sonnet-4-6 · prompt v3</span>
+    <button class="bulk-btn" type="button">Aceitar todos</button>
+  </div>
+
+  <!-- ===========================================
+       LEGEND CARD
+       =========================================== -->
+  <section class="legend-card" aria-labelledby="legend-h">
+    <header class="legend-header">
+      <div>
+        <span class="legend-header-label" id="legend-h">Legenda gráfica detectada</span>
+        <span class="legend-source">  ·  <span class="file">PE06_1PAV.pdf</span>  ·  região y≈2880–3050  ·  rodapé direito</span>
+      </div>
+      <div class="legend-actions">
+        <button class="legend-action-btn" type="button">Apontar manualmente</button>
+        <button class="legend-action-btn" type="button">Re-detectar</button>
+      </div>
+    </header>
+
+    <div class="legend-image" role="img" aria-label="Recorte da legenda gráfica com 13 entradas">
+      <div class="legend-grid">
+        <!-- row 1: tomadas (4 variantes) — all magenta per symbol_counting memory (AC = same ⊖ glyph as tomada) -->
+        <div class="legend-cell">
+          <span class="legend-glyph">⊖</span>
+          <span class="legend-label">tomada 10 A<br/>baixa / alta / entreforro</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph">⊖<sub style="font-size: 9px; color: var(--color-fg-muted);">20</sub></span>
+          <span class="legend-label">tomada 20 A<br/>2P+T</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph">⊖<sub style="font-size: 9px; color: var(--color-fg-muted);">20⁴</sub></span>
+          <span class="legend-label">tomada 20 A<br/>4P+T</span>
+        </div>
+        <div class="legend-cell">
+          <!-- AC: same magenta ⊖ — NOT pink ◉. Memory confirms ELE_ST circle identical for AC and tomada -->
+          <span class="legend-glyph">⊖<sub style="font-size: 9px; color: var(--color-fg-muted);">ac</sub></span>
+          <span class="legend-label">ponto força<br/>ar-condicionado</span>
+        </div>
+        <!-- row 1 cont: interruptores -->
+        <div class="legend-cell">
+          <span class="legend-glyph is-switch">S</span>
+          <span class="legend-label">interruptor<br/>simples</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-switch">S²</span>
+          <span class="legend-label">interruptor<br/>2 seções</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-switch">S<sub style="font-size: 9px;">p</sub></span>
+          <span class="legend-label">interruptor<br/>paralelo</span>
+        </div>
+        <!-- row 2 -->
+        <div class="legend-cell">
+          <span class="legend-glyph is-switch">S<sub style="font-size: 9px;">c</sub></span>
+          <span class="legend-label">interruptor<br/>condulete</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-switch">S<sub style="font-size: 9px;">pc</sub></span>
+          <span class="legend-label">interruptor<br/>paralelo condulete</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-light">⊙</span>
+          <span class="legend-label">luminária<br/>ponto de iluminação</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-em">✦</span>
+          <span class="legend-label">emergência<br/>aclaramento</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-em">↗</span>
+          <span class="legend-label">emergência<br/>seta direita</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-em">↖</span>
+          <span class="legend-label">emergência<br/>seta esquerda</span>
+        </div>
+        <div class="legend-cell">
+          <span class="legend-glyph is-bes">⊜</span>
+          <span class="legend-label">aterramento<br/>BES</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend-foot">
+      <span class="summary"><strong>13 entradas</strong> lidas da legenda · agrupadas em <strong>5 famílias de dispositivo</strong></span>
+      <span>Texto da legenda é path vetorizado (não selecionável) · leitura via visão</span>
+    </div>
+  </section>
+
+  <!-- ===========================================
+       DEVICE LIST
+       =========================================== -->
+  <section class="devices-card" aria-labelledby="devices-h">
+    <header class="devices-header">
+      <span id="devices-h">Dispositivos propostos<span class="count">  ·  5 famílias</span></span>
+      <button class="add-btn" type="button">+ adicionar dispositivo manualmente</button>
+    </header>
+
+    <!-- Row 1: tomada (EXPANDED) -->
+    <div class="device-row is-expanded">
+      <div class="device-row-summary" role="button" tabindex="0" aria-expanded="true">
+        <span class="chevron">›</span>
+        <span class="device-name">tomada</span>
+        <span class="layer-chip">ELE_ST</span>
+        <span class="detector-type">circle</span>
+        <span class="variants-summary"><span class="count">4 variantes</span> · <span class="default">padrão: <strong>tomada_10a</strong></span></span>
+        <span class="device-status is-pending"><span class="dot"></span>A confirmar</span>
+        <button class="quick-confirm" type="button" aria-label="Confirmar tomada">✓</button>
+      </div>
+
+      <div class="device-row-body">
+        <div class="body-grid">
+
+          <span class="body-label">Glifo</span>
+          <div class="body-field" style="display: flex; align-items: center; gap: var(--space-3);">
+            <span class="glyph-sample">⊖</span>
+            <div>
+              <div class="mono" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-fg-secondary);">circle · 4 bezier · ~9×9 pt · magenta</div>
+              <div class="body-hint" style="margin-top: 4px;">Detectado por path único de 2+ curvas bézier dentro da janela 7–15 pt. Bitola idêntica em todas as variantes.</div>
+            </div>
+          </div>
+
+          <span class="body-label">Camada</span>
+          <div class="body-field">
+            <select class="body-select" aria-label="Camada">
+              <option>ELE_ST</option>
+              <option>ELE_SQ</option>
+              <option>ELE_TE</option>
+              <option>MMM-LUMINOTÉCNICA</option>
+            </select>
+            <span class="body-hint" style="display: block; margin-top: 4px;">Confirmação automática a partir da camada CAD do arquivo. Reaplica em todas as plantas do projeto.</span>
+          </div>
+
+          <span class="body-label">Detector</span>
+          <div class="body-field">
+            <select class="body-select" aria-label="Detector">
+              <option>circle (4 curvas bézier)</option>
+              <option>cluster (linkage espacial)</option>
+              <option>symbol (bbox window)</option>
+              <option>symbol_box (cluster→caixa)</option>
+            </select>
+          </div>
+
+          <span class="body-label">Variantes</span>
+          <div class="body-field">
+            <div class="variant-chips">
+              <!-- is-default: neutral styling per orange-discipline memory — italic "padrão:" prefix, no orange -->
+              <span class="variant-chip is-default">
+                <span class="vchip-glyph">⊖</span>
+                <span class="tag">padrão:</span>
+                <span>tomada_10a</span>
+                <button class="close" type="button" aria-label="Remover">×</button>
+              </span>
+              <span class="variant-chip">
+                <span class="vchip-glyph">⊖</span>
+                <span>tomada_20a_2pt</span>
+                <button class="close" type="button" aria-label="Remover">×</button>
+              </span>
+              <span class="variant-chip">
+                <span class="vchip-glyph">⊖</span>
+                <span>tomada_20a_4pt</span>
+                <button class="close" type="button" aria-label="Remover">×</button>
+              </span>
+              <span class="variant-chip">
+                <!-- ponto_forca_ac: same magenta ⊖ — no .is-ac class (AC = same glyph, memory-correct) -->
+                <span class="vchip-glyph">⊖</span>
+                <span>ponto_forca_ac</span>
+                <button class="close" type="button" aria-label="Remover">×</button>
+              </span>
+              <button class="variant-add" type="button">+ variante</button>
+            </div>
+            <p class="body-hint" style="margin: var(--space-2) 0 0;">
+              Bitola idêntica no desenho. <span class="em">HITL exceção:</span> padrão = <code>tomada_10a</code>, marca só as exceções
+              (20 A e AC) na tela de contagem. Aprox. <span class="em">5–10 cliques por planta</span> ao invés de 200+.
+            </p>
+          </div>
+
+          <div></div>
+          <div class="body-actions">
+            <div class="body-confidence">
+              <span>Confiança intel</span>
+              <span class="level">alta</span>
+              <span>·</span>
+              <span>224 paths casados na camada</span>
+            </div>
+            <button class="body-danger-btn" type="button">Remover dispositivo</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: interruptor (collapsed) -->
+    <div class="device-row">
+      <div class="device-row-summary" role="button" tabindex="0" aria-expanded="false">
+        <span class="chevron">›</span>
+        <span class="device-name">interruptor</span>
+        <span class="layer-chip">ELE_SI</span>
+        <span class="detector-type">symbol_box</span>
+        <span class="variants-summary"><span class="count">5 variantes</span> · <span class="default">padrão: <strong>simples</strong></span></span>
+        <span class="device-status is-pending"><span class="dot"></span>A confirmar</span>
+        <button class="quick-confirm" type="button" aria-label="Confirmar interruptor">✓</button>
+      </div>
+    </div>
+
+    <!-- Row 3: luminária (collapsed, confirmed) -->
+    <div class="device-row">
+      <div class="device-row-summary" role="button" tabindex="0" aria-expanded="false">
+        <span class="chevron">›</span>
+        <span class="device-name">luminária</span>
+        <span class="layer-chip">MMM-LUMINOTÉCNICA</span>
+        <span class="detector-type">cluster</span>
+        <span class="variants-summary"><span class="count">1 variante</span> · <span class="default">padrão: <strong>ponto</strong></span></span>
+        <span class="device-status is-confirmed"><span class="dot"></span>Confirmado</span>
+        <button class="quick-confirm is-confirmed" type="button" aria-label="Confirmado">✓</button>
+      </div>
+    </div>
+
+    <!-- Row 4: emergência (collapsed) -->
+    <div class="device-row">
+      <div class="device-row-summary" role="button" tabindex="0" aria-expanded="false">
+        <span class="chevron">›</span>
+        <span class="device-name">emergência</span>
+        <span class="layer-chip">ELE_SQ</span>
+        <span class="detector-type">cluster</span>
+        <span class="variants-summary"><span class="count">3 variantes</span> · <span class="default">padrão: <strong>aclaramento</strong></span></span>
+        <span class="device-status is-pending"><span class="dot"></span>A confirmar</span>
+        <button class="quick-confirm" type="button" aria-label="Confirmar emergência">✓</button>
+      </div>
+    </div>
+
+    <!-- Row 5: BES / aterramento (collapsed, confirmed) -->
+    <div class="device-row">
+      <div class="device-row-summary" role="button" tabindex="0" aria-expanded="false">
+        <span class="chevron">›</span>
+        <span class="device-name">aterramento (BES)</span>
+        <span class="layer-chip">ELE_LEP</span>
+        <span class="detector-type">circle</span>
+        <span class="variants-summary"><span class="count">sem variantes</span> · <span class="default">padrão: <strong>BES</strong></span></span>
+        <span class="device-status is-confirmed"><span class="dot"></span>Confirmado</span>
+        <button class="quick-confirm is-confirmed" type="button" aria-label="Confirmado">✓</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ===========================================
+       NEGATIVE LAYERS
+       =========================================== -->
+  <section class="negative-card" aria-labelledby="neg-h">
+    <div class="negative-head">
+      <span class="negative-label" id="neg-h">Camadas ignoradas<span class="count">  ·  5</span></span>
+      <button type="button" style="font: 500 12px/16px var(--font-sans); padding: 4px 10px; background: transparent; border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); color: var(--color-fg-secondary); cursor: pointer;">+ adicionar camada</button>
+    </div>
+    <p class="negative-help">
+      Estas camadas não serão contadas como dispositivos. Eletroduto, eletrocalha, perfilado e sensores
+      de presença são tratados nas telas de infraestrutura e quantitativos.
+    </p>
+    <div class="negative-chips">
+      <span class="negative-chip">
+        <span>ELE_TA</span>
+        <span style="font-family: var(--font-mono); color: var(--color-fg-muted); font-size: 10px;">eletroduto teto</span>
+        <button class="close" type="button" aria-label="Restaurar">×</button>
+      </span>
+      <span class="negative-chip">
+        <span>ELE_TP</span>
+        <span style="font-family: var(--font-mono); color: var(--color-fg-muted); font-size: 10px;">eletroduto piso</span>
+        <button class="close" type="button" aria-label="Restaurar">×</button>
+      </span>
+      <span class="negative-chip">
+        <span>ELE_TE</span>
+        <span style="font-family: var(--font-mono); color: var(--color-fg-muted); font-size: 10px;">eletroduto parede</span>
+        <button class="close" type="button" aria-label="Restaurar">×</button>
+      </span>
+      <span class="negative-chip">
+        <span>ELE_SF</span>
+        <span style="font-family: var(--font-mono); color: var(--color-fg-muted); font-size: 10px;">caixa de passagem</span>
+        <button class="close" type="button" aria-label="Restaurar">×</button>
+      </span>
+      <span class="negative-chip">
+        <span>ELE_SAL</span>
+        <span style="font-family: var(--font-mono); color: var(--color-fg-muted); font-size: 10px;">sensor de presença</span>
+        <button class="close" type="button" aria-label="Restaurar">×</button>
+      </span>
+    </div>
+  </section>
+
+  <!-- ===========================================
+       FORM ACTIONS
+       =========================================== -->
+  <div class="form-actions">
+    <span class="form-meta">Rascunho salvo automaticamente · <span class="mono">há 4s</span></span>
+    <div class="btn-group">
+      <a class="btn btn-ghost" href={`/projects/${id}/preparacao`}>← Preparação</a>
+      <a class="btn btn-primary" href={`/projects/${id}/quadro-de-cargas`}>Salvar e continuar · Quadro de Cargas →</a>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // ===========================================
+  // IIFE 1: Device row expand/collapse
+  // ===========================================
+  (function () {
+    var rows = document.querySelectorAll('.device-row');
+    rows.forEach(function (row) {
+      var summary = row.querySelector('.device-row-summary');
+      if (!summary) return;
+      summary.addEventListener('click', function (e) {
+        // ignore clicks on the inner quick-confirm button
+        if (e.target.closest && e.target.closest('.quick-confirm')) return;
+        var wasExpanded = row.classList.contains('is-expanded');
+        rows.forEach(function (r) {
+          r.classList.remove('is-expanded');
+          var s = r.querySelector('.device-row-summary');
+          if (s) s.setAttribute('aria-expanded', 'false');
+        });
+        if (!wasExpanded) {
+          row.classList.add('is-expanded');
+          summary.setAttribute('aria-expanded', 'true');
+        }
+      });
+      summary.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          summary.click();
+        }
+      });
+    });
+  })();
+</script>
+
+<script is:inline>
+  // ===========================================
+  // IIFE 2: Quick-confirm toggle
+  // ===========================================
+  (function () {
+    document.querySelectorAll('.quick-confirm').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var row = btn.closest('.device-row');
+        var status = row && row.querySelector('.device-status');
+        if (btn.classList.contains('is-confirmed')) {
+          btn.classList.remove('is-confirmed');
+          if (status) {
+            status.classList.remove('is-confirmed');
+            status.classList.add('is-pending');
+            // lastChild is the text node after the dot span
+            var textNode = status.lastChild;
+            if (textNode) textNode.textContent = 'A confirmar';
+          }
+        } else {
+          btn.classList.add('is-confirmed');
+          if (status) {
+            status.classList.remove('is-pending');
+            status.classList.add('is-confirmed');
+            var textNode = status.lastChild;
+            if (textNode) textNode.textContent = 'Confirmado';
+          }
+        }
+      });
+    });
+  })();
+</script>
+
+<script is:inline>
+  // ===========================================
+  // IIFE 3: Variant chip + negative chip remove
+  // ===========================================
+  (function () {
+    document.querySelectorAll('.variant-chip .close, .negative-chip .close').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var chip = btn.closest('.variant-chip') || btn.closest('.negative-chip');
+        if (chip) chip.remove();
+      });
+    });
+  })();
+</script>
+
+<script is:inline>
+  // ===========================================
+  // IIFE 4: Bulk accept all
+  // ===========================================
+  (function () {
+    var accept = document.querySelector('.meta-bar .bulk-btn');
+    if (!accept) return;
+    accept.addEventListener('click', function () {
+      document.querySelectorAll('.quick-confirm').forEach(function (btn) {
+        if (!btn.classList.contains('is-confirmed')) btn.click();
+      });
+      accept.textContent = '✓ Todos aceitos';
+    });
+  })();
+</script>

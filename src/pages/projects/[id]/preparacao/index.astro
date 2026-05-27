@@ -1,0 +1,944 @@
+---
+import ProjectLayout from '../../../../layouts/ProjectLayout.astro';
+const { id } = Astro.params;
+---
+
+<ProjectLayout
+  title="airio · Preparação · PROJECT-A PE06"
+  step={4}
+  doneSteps={[1, 2, 3]}
+  projectName="PROJECT-A PE06"
+  breadcrumbTail="Preparação"
+  keymap={['⌘ + Enter · próxima prancha', '↑↓ · navegar lista', 'A · aceitar todas']}
+  footerLeftText="Preparação salva automaticamente"
+  contentMaxWidth={1440}
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* ============ page header ============ */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-6);
+    max-width: 78ch;
+  }
+  .page-lead strong { color: var(--color-fg-primary); font-weight: 600; }
+
+  /* ============ ready strip ============ */
+  .ready-strip {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .ready-strip .stat { display: flex; align-items: baseline; gap: var(--space-1); }
+  .ready-strip .stat .v {
+    font: 600 15px/20px var(--font-sans);
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .ready-strip .stat .v.is-ok { color: var(--color-success); }
+  .ready-strip .stat .v.is-warn { color: var(--color-warning); }
+  .ready-strip .stat .l { font: 500 11px/16px var(--font-sans); color: var(--color-fg-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .ready-strip .sep { color: var(--color-fg-disabled); }
+  .ready-strip .spacer { flex: 1; }
+  .ready-strip .bulk-btn {
+    font: 500 13px/18px var(--font-sans);
+    padding: 6px 12px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-primary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: var(--space-2);
+  }
+  .ready-strip .bulk-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .ready-strip .bulk-btn .icon { color: var(--color-accent); }
+
+  /* ============ 2-pane workspace ============ */
+  .workspace {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: var(--space-4);
+    min-height: 720px;
+  }
+
+  /* ============ left pane: sheet list ============ */
+  .sheet-list {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .sheet-list-header {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+    display: flex; align-items: center; justify-content: space-between;
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+  .sheet-list-header .count { font-family: var(--font-mono); color: var(--color-fg-secondary); }
+
+  .sheet-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-subtle);
+    cursor: pointer;
+    align-items: center;
+    transition: background var(--motion-fast) var(--ease-default);
+  }
+  .sheet-row:hover { background: var(--color-bg-surface); }
+  .sheet-row.is-active {
+    background: var(--color-accent-soft-bg);
+    border-left: 2px solid var(--color-accent);
+    padding-left: calc(var(--space-4) - 2px);
+  }
+  .sheet-row.is-active .row-title { color: var(--color-fg-primary); }
+
+  .row-thumb {
+    width: 44px; height: 32px;
+    background:
+      repeating-linear-gradient(0deg, rgba(10,10,10,0.05) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(90deg, rgba(10,10,10,0.05) 0 1px, transparent 1px 6px),
+      var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xs);
+    position: relative;
+    overflow: hidden;
+  }
+  .row-thumb::after {
+    content: '';
+    position: absolute; left: 4px; right: 4px; top: 8px; bottom: 8px;
+    border: 1px solid rgba(10,10,10,0.18);
+  }
+  .row-thumb.is-blank::after { display: none; }
+
+  .row-meta { display: grid; gap: 2px; min-width: 0; }
+  .row-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: var(--color-fg-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .row-title {
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-fg-secondary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .row-pavimento {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-fg-muted);
+  }
+
+  .row-status {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font: 600 12px/1 var(--font-sans);
+  }
+  .row-status.is-pronta { background: var(--color-success-soft-bg); color: var(--color-success); }
+  .row-status.is-ajustes { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+  .row-status.is-pendente { background: var(--color-bg-surface); color: var(--color-fg-disabled); border: 1px solid var(--color-border-default); }
+
+  /* ============ right pane: active sheet ============ */
+  .active-sheet {
+    display: flex; flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .sheet-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) 0 var(--space-2);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .sheet-header h2 {
+    font: 600 18px/24px var(--font-sans);
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--color-fg-primary);
+  }
+  .sheet-header .sheet-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-muted);
+    letter-spacing: 0.02em;
+  }
+  .sheet-header .sheet-pavimento {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-secondary);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    padding: 2px 8px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* ============ sub-panel base ============ */
+  .sub-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .sub-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+  }
+  .sub-panel-head h3 {
+    font: 600 13px/18px var(--font-sans);
+    margin: 0;
+    color: var(--color-fg-primary);
+    letter-spacing: -0.005em;
+  }
+  .sub-panel-head .hint {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+  .sub-panel-body { padding: var(--space-4); }
+
+  /* ============ escala panel ============ */
+  .escala-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: var(--space-6);
+    align-items: center;
+  }
+  .titleblock-crop {
+    position: relative;
+    aspect-ratio: 11 / 7;
+    background: var(--color-bg-app);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .titleblock-crop .tb-grid {
+    position: absolute; inset: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--color-border-default);
+  }
+  .titleblock-crop .tb-cell {
+    background: var(--color-bg-app);
+    padding: 4px 6px;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    overflow: hidden;
+  }
+  .titleblock-crop .tb-cell strong {
+    color: var(--color-fg-secondary); font-weight: 500; display: block; font-size: 7px; margin-bottom: 1px;
+  }
+  .titleblock-crop .tb-highlight {
+    position: absolute;
+    bottom: 18px; left: 8px;
+    width: 102px; height: 18px;
+    border: 1.5px solid var(--color-accent);
+    border-radius: 2px;
+    pointer-events: none;
+    box-shadow: 0 0 0 3px var(--color-accent-soft-bg);
+  }
+  .titleblock-crop .tb-arrow {
+    position: absolute;
+    bottom: 4px; left: 8px;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+
+  .escala-read { display: grid; gap: var(--space-3); }
+  .escala-value-row { display: flex; align-items: baseline; gap: var(--space-3); }
+  .escala-value {
+    font: 600 44px/1 var(--font-mono);
+    letter-spacing: -0.02em;
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .escala-value .colon { color: var(--color-fg-muted); margin: 0 4px; font-weight: 400; }
+  .escala-source-chip {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    padding: 3px 8px;
+    background: var(--color-success-soft-bg);
+    color: var(--color-success);
+    font: 500 11px/16px var(--font-sans);
+    border-radius: var(--radius-xs);
+  }
+  .escala-source-chip .src-mono {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-success);
+    margin-left: var(--space-1);
+    opacity: 0.85;
+  }
+  .escala-help { font: 400 13px/18px var(--font-sans); color: var(--color-fg-secondary); margin: 0; }
+  .escala-actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
+  .escala-fallback {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    margin-top: var(--space-1);
+  }
+  .escala-fallback a {
+    color: var(--color-info);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--color-info);
+  }
+  .escala-fallback a:hover { border-bottom-style: solid; }
+  .escala-fallback .sep { color: var(--color-fg-disabled); margin: 0 var(--space-1); }
+
+  /* ============ camadas panel ============ */
+  /*
+   * DESIGN.md orange-discipline: the bulk banner uses accent-soft-bg as a tinted panel.
+   * Per S2 t-quadro precedent: decorative/attention tints → amber family.
+   * The orange CTA button (.accept-btn) is the action signal — it stays accent.
+   * The surrounding panel tint is patched from #fff7ed/#9a3412 to amber #fef3c7/#92400e.
+   */
+  .camadas-bulk {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: #fef3c7;  /* amber-100 (was accent-soft-bg #fff7ed) — DESIGN.md patch */
+    border-bottom: 1px solid #fef3c7;
+  }
+  .camadas-bulk-text {
+    font: 500 13px/18px var(--font-sans);
+    color: #92400e;  /* amber-800 (was accent-soft-fg #9a3412) — DESIGN.md patch */
+  }
+  .camadas-bulk-text strong { font-weight: 600; }
+  .camadas-bulk .accept-btn {
+    font: 500 12px/16px var(--font-sans);
+    padding: 5px 10px;
+    background: var(--color-accent);
+    color: #fff;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .camadas-bulk .accept-btn:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+
+  .camadas-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .camadas-table thead th {
+    text-align: left;
+    font: 500 10px/14px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    background: var(--color-bg-surface);
+    padding: 8px var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+  }
+  .camadas-table tbody td {
+    padding: 8px var(--space-4);
+    border-bottom: 1px solid var(--color-border-subtle);
+    vertical-align: middle;
+    font: 400 13px/18px var(--font-sans);
+    color: var(--color-fg-primary);
+  }
+  .camadas-table tbody tr:hover { background: var(--color-bg-surface); }
+  .camadas-table tbody tr:last-child td { border-bottom: none; }
+  .camadas-table tbody tr.is-warn { background: var(--color-warning-soft-bg); }
+
+  .layer-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-primary);
+  }
+  .kind-select {
+    font: 500 12px/16px var(--font-sans);
+    padding: 4px 8px;
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xs);
+    color: var(--color-fg-primary);
+    min-width: 130px;
+  }
+  .kind-select:hover { border-color: var(--color-border-strong); }
+  .kind-select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; border-color: var(--color-accent); }
+  .kind-select.is-unconfirmed { border-color: var(--color-warning); background: #fffbeb; }
+
+  .src-chip {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    padding: 2px 7px;
+    font: 500 11px/16px var(--font-sans);
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+  }
+  .src-chip .pip { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .src-chip.is-hist { background: var(--color-success-soft-bg); color: var(--color-success); }
+  .src-chip.is-hist .pip { background: var(--color-success); }
+  .src-chip.is-glossary { background: var(--color-info-soft-bg); color: var(--color-info); }
+  .src-chip.is-glossary .pip { background: var(--color-info); }
+  .src-chip.is-intel { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+  .src-chip.is-intel .pip { background: var(--color-warning); }
+  .src-chip.is-none { background: var(--color-bg-surface); color: var(--color-fg-muted); border: 1px solid var(--color-border-default); }
+  .src-chip.is-none .pip { background: var(--color-fg-disabled); }
+  .src-chip .src-detail { font-family: var(--font-mono); font-size: 10px; opacity: 0.8; }
+
+  .action-cell { text-align: right; }
+  .action-confirm {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--color-success-soft-bg);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-soft-bg);
+    border-radius: var(--radius-xs);
+    font: 600 13px/1 var(--font-sans);
+    cursor: pointer;
+  }
+  .action-confirm:hover { background: var(--color-success); color: #fff; }
+  .action-pending {
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    background: var(--color-bg-surface);
+    padding: 3px 8px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--color-border-default);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .action-pending:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .camadas-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--color-border-default);
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .camadas-foot .counter { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .camadas-foot .counter .ok { color: var(--color-success); font-weight: 500; }
+  .camadas-foot .counter .pend { color: var(--color-warning); font-weight: 500; }
+
+  /* ============ form actions ============ */
+  .form-actions {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .form-meta { font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); }
+  .form-actions .btn-group { display: flex; gap: var(--space-2); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font: 500 13px/18px var(--font-sans);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn-primary { background: var(--color-accent); color: #fff; text-decoration: none; }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-primary.is-disabled,
+  .btn-primary:disabled { background: var(--color-bg-disabled); color: var(--color-fg-disabled); cursor: not-allowed; }
+  .btn-secondary { background: var(--color-bg-elevated); color: var(--color-fg-primary); border-color: var(--color-border-default); text-decoration: none; }
+  .btn-secondary:hover { background: var(--color-bg-surface); border-color: var(--color-border-strong); }
+  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
+
+  /* ============ responsive ============ */
+  @media (max-width: 1024px) {
+    .workspace { grid-template-columns: 280px 1fr; }
+    .escala-grid { grid-template-columns: 180px 1fr; gap: var(--space-4); }
+    .escala-value { font-size: 38px; }
+  }
+  @media (max-width: 768px) {
+    .page-title { font-size: 22px; line-height: 30px; }
+    .workspace { grid-template-columns: 1fr; min-height: auto; }
+    .sheet-list { max-height: 320px; overflow-y: auto; }
+    .escala-grid { grid-template-columns: 1fr; }
+    .titleblock-crop { max-width: 280px; }
+    .ready-strip { flex-direction: column; align-items: flex-start; }
+    .ready-strip .spacer { display: none; }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 4 de 8 · Preparação das pranchas</div>
+  <h1 class="page-title">Como medir cada planta</h1>
+  <p class="page-lead">Antes de contar, o airio precisa saber a <strong>escala</strong> de cada prancha e o que cada <strong>camada</strong> CAD representa (eletroduto, tomada, quadro…). Os padrões do seu histórico já vêm propostos — só confirma.</p>
+
+  <!-- ready strip -->
+  <div class="ready-strip" role="region" aria-label="Estado das pranchas">
+    <div class="stat"><span class="v">7</span><span class="l">Pranchas</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-ok">5</span><span class="l">Prontas</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-warn">1</span><span class="l">Pra ajustar</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v">1</span><span class="l">Pendente</span></div>
+    <span class="spacer"></span>
+    <button class="bulk-btn" type="button">
+      <span class="icon" aria-hidden="true">⚡</span>
+      Aceitar padrões nas 2 outras pranchas
+    </button>
+  </div>
+
+  <!-- 2-pane workspace -->
+  <div class="workspace">
+
+    <!-- LEFT: sheet list -->
+    <aside class="sheet-list" aria-label="Pranchas">
+      <div class="sheet-list-header">
+        <span>Pranchas</span>
+        <span class="count">7</span>
+      </div>
+
+      <div class="sheet-row is-active" tabindex="0" role="button" aria-current="true">
+        <div class="row-thumb"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-FRC · 01/12</span>
+          <span class="row-title">Planta de Força · Térreo</span>
+          <span class="row-pavimento">1:50 · escala ✓ · 3 camadas pendentes</span>
+        </div>
+        <span class="row-status is-ajustes" title="3 camadas pendentes nesta prancha">!</span>
+      </div>
+
+      <div class="sheet-row" tabindex="0" role="button">
+        <div class="row-thumb"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-FRC · 02/12</span>
+          <span class="row-title">Planta de Força · 1º Pav</span>
+          <span class="row-pavimento">1:50 · 11 camadas</span>
+        </div>
+        <span class="row-status is-pronta" title="Pronta">✓</span>
+      </div>
+
+      <div class="sheet-row" tabindex="0" role="button">
+        <div class="row-thumb"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-FRC · 03/12</span>
+          <span class="row-title">Planta de Força · 2º Pav</span>
+          <span class="row-pavimento">1:50 · 11 camadas</span>
+        </div>
+        <span class="row-status is-pronta" title="Pronta">✓</span>
+      </div>
+
+      <div class="sheet-row" tabindex="0" role="button">
+        <div class="row-thumb"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-ILU · 01/12</span>
+          <span class="row-title">Planta de Iluminação · Térreo</span>
+          <span class="row-pavimento">1:50 · 9 camadas</span>
+        </div>
+        <span class="row-status is-pronta" title="Pronta">✓</span>
+      </div>
+
+      <div class="sheet-row" tabindex="0" role="button">
+        <div class="row-thumb is-blank"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-ILU · 02/12</span>
+          <span class="row-title">Planta de Iluminação · 1º Pav</span>
+          <span class="row-pavimento">sem escala · 9 camadas</span>
+        </div>
+        <span class="row-status is-pendente" title="Pendente">·</span>
+      </div>
+
+      <div class="sheet-row" tabindex="0" role="button">
+        <div class="row-thumb"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-ILU · 03/12</span>
+          <span class="row-title">Planta de Iluminação · 2º Pav</span>
+          <span class="row-pavimento">1:50 · 9 camadas</span>
+        </div>
+        <span class="row-status is-pronta" title="Pronta">✓</span>
+      </div>
+
+      <div class="sheet-row" tabindex="0" role="button">
+        <div class="row-thumb"></div>
+        <div class="row-meta">
+          <span class="row-num">PE-ELE-SDA · 01/08</span>
+          <span class="row-title">Planta de SDAI · Térreo</span>
+          <span class="row-pavimento">1:75 · 6 camadas</span>
+        </div>
+        <span class="row-status is-pronta" title="Pronta">✓</span>
+      </div>
+    </aside>
+
+    <!-- RIGHT: active sheet workspace -->
+    <section class="active-sheet" aria-label="Prancha ativa">
+
+      <div class="sheet-header">
+        <div>
+          <span class="sheet-num">PE-ELE-FRC · 01/12</span>
+          <h2>Planta de Força · Térreo</h2>
+        </div>
+        <span class="sheet-pavimento">Térreo · 11 camadas CAD</span>
+      </div>
+
+      <!-- Escala sub-panel -->
+      <div class="sub-panel" aria-label="Escala da prancha">
+        <header class="sub-panel-head">
+          <h3>Escala</h3>
+          <span class="hint">Lida do carimbo automaticamente</span>
+        </header>
+        <div class="sub-panel-body">
+          <div class="escala-grid">
+
+            <!-- left: titleblock crop preview -->
+            <div class="titleblock-crop" aria-hidden="true">
+              <div class="tb-grid">
+                <div class="tb-cell"><strong>OBRA</strong>BOTICÁRIO PE06</div>
+                <div class="tb-cell"><strong>PRANCHA</strong>01/12</div>
+                <div class="tb-cell"><strong>PROJ.</strong>AERONET ENG.</div>
+                <div class="tb-cell"><strong>RESP.</strong>C. NUNES</div>
+                <div class="tb-cell"><strong>DATA</strong>04/2026</div>
+                <div class="tb-cell"><strong>REV.</strong>R02</div>
+                <div class="tb-cell"><strong>ESC.</strong>1:50</div>
+                <div class="tb-cell"><strong>PAV.</strong>TÉRREO</div>
+              </div>
+              <div class="tb-highlight"></div>
+              <div class="tb-arrow">↑ lido aqui</div>
+            </div>
+
+            <!-- right: read-out -->
+            <div class="escala-read">
+              <div class="escala-value-row">
+                <span class="escala-value">1<span class="colon">:</span>50</span>
+                <span class="escala-source-chip">
+                  Lido do carimbo
+                  <span class="src-mono">Esc. 1:50</span>
+                </span>
+              </div>
+              <p class="escala-help">1 cm desenhado = 50 cm reais. Vale pra <strong>todas as medidas</strong> que o airio puxar desta prancha (eletroduto, eletrocalha, distância entre tomadas).</p>
+              <div class="escala-actions">
+                <button type="button" class="btn btn-primary">✓ Confirmar 1:50</button>
+                <button type="button" class="btn btn-ghost">Mudar escala</button>
+              </div>
+              <p class="escala-fallback">
+                Não bateu? <a href="#">Escolher manualmente</a> <span class="sep">·</span> <a href="#">Marcar prancha como sem escala (1:1)</a>
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Camadas sub-panel -->
+      <div class="sub-panel" aria-label="Camadas CAD da prancha">
+        <header class="sub-panel-head">
+          <h3>Camadas CAD <span class="hint" style="font-weight: 400; margin-left: var(--space-2);">o que cada camada vira no orçamento</span></h3>
+          <span class="hint">11 camadas detectadas</span>
+        </header>
+
+        <div class="camadas-bulk">
+          <span class="camadas-bulk-text">
+            <strong>8 camadas</strong> já mapeadas em projetos seus anteriores. Aceita todas de uma vez?
+          </span>
+          <button type="button" class="accept-btn">Aceitar 8 com histórico</button>
+        </div>
+
+        <table class="camadas-table" aria-label="Camadas CAD e seus tipos">
+          <thead>
+            <tr>
+              <th style="width: 28%;">Camada</th>
+              <th style="width: 24%;">Vira no orçamento</th>
+              <th style="width: 34%;">De onde veio a proposta</th>
+              <th style="width: 14%;"></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- High-confidence cross-project history matches -->
+            <tr>
+              <td><span class="layer-name">EL-Condutos</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Condutos">
+                  <option selected>eletroduto</option>
+                  <option>eletrocalha</option>
+                  <option>perfilado</option>
+                  <option>leito</option>
+                  <option>busway</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 12 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Eletrocalha-Princ</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Eletrocalha-Princ">
+                  <option>eletroduto</option>
+                  <option selected>eletrocalha</option>
+                  <option>perfilado</option>
+                  <option>leito</option>
+                  <option>busway</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 8 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Perfilado-Sec</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Perfilado-Sec">
+                  <option>eletroduto</option>
+                  <option>eletrocalha</option>
+                  <option selected>perfilado</option>
+                  <option>leito</option>
+                  <option>busway</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 5 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Tomadas</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Tomadas">
+                  <option>eletroduto</option>
+                  <option selected>tomada</option>
+                  <option>interruptor</option>
+                  <option>iluminação</option>
+                  <option>quadro</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 14 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Iluminacao</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Iluminacao">
+                  <option>eletroduto</option>
+                  <option>tomada</option>
+                  <option>interruptor</option>
+                  <option selected>iluminação</option>
+                  <option>quadro</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 11 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Interruptores</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Interruptores">
+                  <option>eletroduto</option>
+                  <option>tomada</option>
+                  <option selected>interruptor</option>
+                  <option>iluminação</option>
+                  <option>quadro</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 7 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Quadros</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Quadros">
+                  <option>eletroduto</option>
+                  <option>tomada</option>
+                  <option>interruptor</option>
+                  <option>iluminação</option>
+                  <option selected>quadro</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 10 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td><span class="layer-name">EL-Aterramento</span></td>
+              <td>
+                <select class="kind-select" aria-label="Tipo da camada EL-Aterramento">
+                  <option>eletroduto</option>
+                  <option>tomada</option>
+                  <option>interruptor</option>
+                  <option>iluminação</option>
+                  <option>quadro</option>
+                  <option selected>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 4 projetos</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <!-- Glossary seed (BR default), no history -->
+            <tr>
+              <td><span class="layer-name">A-WALL</span></td>
+              <td>
+                <select class="kind-select is-unconfirmed" aria-label="Tipo da camada A-WALL">
+                  <option>eletroduto</option>
+                  <option>tomada</option>
+                  <option>iluminação</option>
+                  <option>quadro</option>
+                  <option selected>ignorar (arquitetura)</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-glossary"><span class="pip"></span>Padrão BR <span class="src-detail">arq</span></span></td>
+              <td class="action-cell"><button class="action-pending" type="button">Confirmar</button></td>
+            </tr>
+
+            <!-- Intel LLM proposal, lower confidence -->
+            <tr>
+              <td><span class="layer-name">EL-Forca-Especial</span></td>
+              <td>
+                <select class="kind-select is-unconfirmed" aria-label="Tipo da camada EL-Forca-Especial">
+                  <option>eletroduto</option>
+                  <option>eletrocalha</option>
+                  <option>perfilado</option>
+                  <option>leito</option>
+                  <option>busway</option>
+                  <option>quadro</option>
+                  <option selected>outro</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-intel"><span class="pip"></span>Sugestão automática</span></td>
+              <td class="action-cell"><button class="action-pending" type="button">Confirmar</button></td>
+            </tr>
+
+            <!-- No history, no match — outlier -->
+            <tr class="is-warn">
+              <td><span class="layer-name">EL-Eletro-NOVA-RDU</span></td>
+              <td>
+                <select class="kind-select is-unconfirmed" aria-label="Escolher tipo para EL-Eletro-NOVA-RDU">
+                  <option selected>— escolher tipo —</option>
+                  <option>eletroduto</option>
+                  <option>eletrocalha</option>
+                  <option>perfilado</option>
+                  <option>leito</option>
+                  <option>busway</option>
+                  <option>tomada</option>
+                  <option>interruptor</option>
+                  <option>iluminação</option>
+                  <option>quadro</option>
+                  <option>outro</option>
+                  <option>ignorar</option>
+                </select>
+              </td>
+              <td><span class="src-chip is-none"><span class="pip"></span>Sem histórico · nunca vista</span></td>
+              <td class="action-cell"><button class="action-pending" type="button">Escolher</button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="camadas-foot">
+          <span class="counter"><span class="ok">8</span> de 11 confirmadas · <span class="pend">3 pendentes</span></span>
+          <span>O que você confirmar aqui melhora a proposta no próximo projeto.</span>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- form actions -->
+  <div class="form-actions">
+    <span class="form-meta">Preparação salva automaticamente · <span class="mono">há 4s</span></span>
+    <div class="btn-group">
+      <a class="btn btn-ghost" href={`/projects/${id}/triagem`}>← Triagem</a>
+      <a class="btn btn-primary" href={`/projects/${id}/preparacao/legenda`}>Próximo · Legenda →</a>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // sheet row activation
+  (function () {
+    const rows = document.querySelectorAll('.sheet-row');
+    rows.forEach(function (row) {
+      row.addEventListener('click', function () {
+        rows.forEach(function (r) { r.classList.remove('is-active'); r.removeAttribute('aria-current'); });
+        row.classList.add('is-active');
+        row.setAttribute('aria-current', 'true');
+      });
+    });
+  })();
+
+  // action-confirm: flip confirmed row to visual confirmed state
+  (function () {
+    document.querySelectorAll('.action-confirm').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        btn.style.background = 'var(--color-success)';
+        btn.style.color = '#fff';
+        btn.textContent = '✓';
+        btn.setAttribute('disabled', 'true');
+      });
+    });
+  })();
+
+  // bulk accept: flip first 8 history-matched rows
+  (function () {
+    var accept = document.querySelector('.accept-btn');
+    if (!accept) return;
+    accept.addEventListener('click', function () {
+      var rows = document.querySelectorAll('.camadas-table tbody tr');
+      rows.forEach(function (tr, idx) {
+        if (idx < 8) {
+          var btn = tr.querySelector('.action-confirm');
+          if (btn && !btn.hasAttribute('disabled')) btn.click();
+        }
+      });
+      accept.textContent = '✓ Aceitas';
+      accept.style.background = 'var(--color-success)';
+      accept.style.borderColor = 'var(--color-success)';
+      accept.setAttribute('disabled', 'true');
+    });
+  })();
+</script>

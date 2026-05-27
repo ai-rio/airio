@@ -1,0 +1,704 @@
+---
+import ProjectLayout from '../../../layouts/ProjectLayout.astro';
+const { id } = Astro.params;
+---
+
+<ProjectLayout
+	title="airio · Triagem · PROJECT-A PE06"
+	step={3}
+	doneSteps={[1, 2]}
+	projectName="PROJECT-A PE06"
+	breadcrumbTail="Triagem"
+	keymap={['⌘ + Enter · próximo', 'ESC · cancelar', '⌘ + A · selecionar todas', '1/2/3 · filtrar']}
+	footerLeftText="Triagem salva automaticamente"
+	contentMaxWidth={1280}
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* ============ page header ============ */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-6);
+    max-width: 70ch;
+  }
+
+  /* ============ scope strip ============ */
+  .scope-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-6);
+  }
+  .scope-stat {
+    flex: 1 1 auto;
+    min-width: 130px;
+    display: grid;
+    gap: var(--space-1);
+    padding-right: var(--space-3);
+    border-right: 1px solid var(--color-border-default);
+  }
+  .scope-stat:last-child { border-right: none; }
+  .scope-stat .val {
+    font: 600 22px/28px var(--font-sans);
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .scope-stat .lbl {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+  }
+  .scope-stat.is-warn .val { color: var(--color-warning); }
+  .scope-stat.is-warn .lbl { color: var(--color-warning); }
+  .scope-stat.is-ok .val { color: var(--color-success); }
+
+  /* ============ toolbar ============ */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+  }
+  .filter-btn {
+    background: transparent;
+    border: none;
+    padding: 5px 10px;
+    font: 500 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+  }
+  .filter-btn.is-active {
+    background: var(--color-bg-elevated);
+    color: var(--color-fg-primary);
+    box-shadow: 0 0 0 1px var(--color-border-default);
+  }
+  .filter-btn .count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-fg-muted);
+    margin-left: 4px;
+  }
+  .filter-btn.is-active .count { color: var(--color-fg-secondary); }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .bulk-msg {
+    font: 500 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .toolbar .bulk-msg .ok { color: var(--color-success); font-weight: 600; }
+  .toolbar .bulk-msg .warn { color: var(--color-warning); font-weight: 600; }
+
+  /* ============ sheet grid ============ */
+  /* 5 cards across at 1440 viewport (contentMaxWidth=1280, ~1157px inner).
+     220px minmax + 16px gap rounded to 4 cols (off by ~7px); 210px keeps the
+     5-col density of the baseline. */
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+  }
+  .sheet-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color var(--motion-fast) var(--ease-default);
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-card:hover { border-color: var(--color-border-strong); }
+  /* is-selected uses accent — legitimate active/selection state per DESIGN.md */
+  .sheet-card.is-selected { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+  .sheet-card.is-warn { border-color: var(--color-warning-soft-border); }
+  .sheet-card.is-outside { opacity: 0.55; }
+
+  /* ============ thumbnail ============ */
+  .thumb {
+    position: relative;
+    aspect-ratio: 16 / 11;
+    background:
+      repeating-linear-gradient(0deg, rgba(10,10,10,0.04) 0 1px, transparent 1px 16px),
+      repeating-linear-gradient(90deg, rgba(10,10,10,0.04) 0 1px, transparent 1px 16px),
+      var(--color-bg-surface);
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+  .thumb-overlay {
+    position: absolute;
+    inset: 0;
+    padding: 8px 10px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .thumb-sheet-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: var(--color-fg-secondary);
+    background: rgba(255,255,255,0.85);
+    padding: 2px 5px;
+    border-radius: 2px;
+  }
+  .thumb-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+  }
+  .thumb-status-dot.is-warn { background: var(--color-warning); }
+  .thumb-status-dot.is-outside { background: var(--color-fg-disabled); }
+  .thumb-checkbox {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 18px;
+    height: 18px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .thumb-checkbox input {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+  /* fake drawing strokes to suggest a planta */
+  .thumb-stroke {
+    position: absolute;
+    background: rgba(10,10,10,0.12);
+  }
+  .thumb-stroke.s1 { top: 22%; left: 12%; right: 12%; height: 1px; }
+  .thumb-stroke.s2 { top: 22%; bottom: 22%; left: 12%; width: 1px; }
+  .thumb-stroke.s3 { top: 22%; bottom: 22%; right: 12%; width: 1px; }
+  .thumb-stroke.s4 { bottom: 22%; left: 12%; right: 12%; height: 1px; }
+  .thumb-stroke.s5 { top: 22%; bottom: 22%; left: 42%; width: 1px; opacity: 0.6; }
+  .thumb-stroke.s6 { top: 50%; left: 12%; right: 12%; height: 1px; opacity: 0.6; }
+
+  /* ============ sheet meta ============ */
+  .sheet-meta {
+    padding: var(--space-3);
+    display: grid;
+    gap: 6px;
+  }
+  .sheet-title {
+    font: 600 13px/18px var(--font-sans);
+    color: var(--color-fg-primary);
+    letter-spacing: -0.005em;
+  }
+  .sheet-subtitle {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .sheet-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .sheet-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: var(--color-fg-secondary);
+    padding: 1px 6px;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: 2px;
+  }
+  .sheet-tag.auto { color: var(--color-success); border-color: transparent; background: var(--color-success-soft-bg); }
+  .sheet-tag.revisar { color: var(--color-warning); border-color: transparent; background: var(--color-warning-soft-bg); }
+  .sheet-tag.fora { color: var(--color-fg-muted); }
+
+  /* ============ MD card ============ */
+  .md-card {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--color-info-soft-bg);
+    border: 1px solid #bae6fd;
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-6);
+    align-items: center;
+  }
+  .md-card .visual {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .md-card .doc-stack {
+    width: 56px;
+    height: 72px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: 3px;
+    position: relative;
+    box-shadow: 4px 4px 0 -1px var(--color-bg-elevated), 4px 4px 0 0 var(--color-border-default);
+    flex-shrink: 0;
+  }
+  .md-card .doc-stack::before, .md-card .doc-stack::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    height: 1px;
+    background: rgba(10,10,10,0.15);
+  }
+  .md-card .doc-stack::before { top: 14px; }
+  .md-card .doc-stack::after { top: 22px; }
+  .md-card .doc-label {
+    font: 600 14px/20px var(--font-sans);
+    color: var(--color-info);
+  }
+  .md-card .doc-sub {
+    font: 400 12px/16px var(--font-mono);
+    color: var(--color-fg-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .md-card .sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 4px;
+  }
+  .md-section-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    padding: 3px 6px;
+    background: var(--color-bg-elevated);
+    border: 1px solid #bae6fd;
+    border-radius: 2px;
+    color: var(--color-fg-secondary);
+    text-transform: uppercase;
+  }
+  .md-card .action {
+    font: 500 12px/16px var(--font-sans);
+    color: var(--color-info);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* ============ form actions ============ */
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .form-meta { font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); }
+  .form-actions .btn-group { display: flex; gap: var(--space-2); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font: 500 13px/18px var(--font-sans);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn-primary { background: var(--color-accent); color: #ffffff; text-decoration: none; }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  @media (max-width: 768px) {
+    .page-title { font-size: 22px; line-height: 30px; }
+    .scope-strip { flex-direction: column; }
+    .scope-stat { border-right: none; border-bottom: 1px solid var(--color-border-default); padding-bottom: var(--space-2); }
+    .scope-stat:last-child { border-bottom: none; }
+    .md-card { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 3 de 8 · Triagem das pranchas</div>
+  <h1 class="page-title">O que tem em cada prancha</h1>
+  <p class="page-lead">O airio leu o título de cada prancha e adivinhou o que ela é (planta de força, planta de iluminação, SDAI, corte, detalhe…). Confere as <strong>6 pra revisar</strong> abaixo e segue.</p>
+
+  <!-- scope strip -->
+  <section class="scope-strip" aria-label="Escopo do projeto">
+    <div class="scope-stat is-ok">
+      <span class="val">4 255 m²</span>
+      <span class="lbl">Área total (MD)</span>
+    </div>
+    <div class="scope-stat">
+      <span class="val">47</span>
+      <span class="lbl">Pranchas</span>
+    </div>
+    <div class="scope-stat is-ok">
+      <span class="val">41</span>
+      <span class="lbl">Confirmadas (auto)</span>
+    </div>
+    <div class="scope-stat is-warn">
+      <span class="val">6</span>
+      <span class="lbl">Pra revisar</span>
+    </div>
+    <div class="scope-stat">
+      <span class="val">3</span>
+      <span class="lbl">Pavimentos</span>
+    </div>
+    <div class="scope-stat">
+      <span class="val">7</span>
+      <span class="lbl">Sistemas elétricos</span>
+    </div>
+  </section>
+
+  <!-- toolbar -->
+  <div class="toolbar" role="toolbar" aria-label="Filtros">
+    <div class="filter-group">
+      <button class="filter-btn is-active">Todas <span class="count">47</span></button>
+      <button class="filter-btn">Confirmadas <span class="count">41</span></button>
+      <button class="filter-btn">Pra revisar <span class="count">6</span></button>
+      <button class="filter-btn">Fora de escopo <span class="count">8</span></button>
+    </div>
+    <div class="filter-group">
+      <button class="filter-btn is-active">Por arquivo</button>
+      <button class="filter-btn">Por pavimento</button>
+      <button class="filter-btn">Por sistema</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="bulk-msg"><span class="ok">41 prontas</span> · <span class="warn">6 pra revisar</span></span>
+    <button class="btn btn-ghost btn-sm">Confirmar todas as auto</button>
+  </div>
+
+  <!-- sheet grid -->
+  <section class="sheet-grid" aria-label="Pranchas">
+
+    <article class="sheet-card">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div>
+        <div class="thumb-stroke s2"></div>
+        <div class="thumb-stroke s3"></div>
+        <div class="thumb-stroke s4"></div>
+        <div class="thumb-stroke s5"></div>
+        <div class="thumb-stroke s6"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-FRC · 01/12</span>
+          <span class="thumb-status-dot" aria-label="confirmada"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Planta de Força</span>
+        <span class="sheet-subtitle">Térreo · Esc. 1:50</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">FRC</span>
+          <span class="sheet-tag">TER</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-FRC · 02/12</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Planta de Força</span>
+        <span class="sheet-subtitle">1º Pavimento · Esc. 1:50</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">FRC</span>
+          <span class="sheet-tag">P1</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div><div class="thumb-stroke s6"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-FRC · 03/12</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Planta de Força</span>
+        <span class="sheet-subtitle">2º Pavimento · Esc. 1:50</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">FRC</span>
+          <span class="sheet-tag">P2</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-ILU · 01/12</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Planta de Iluminação</span>
+        <span class="sheet-subtitle">Térreo · Esc. 1:50</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">ILU</span>
+          <span class="sheet-tag">TER</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- needs review: titleblock unreadable -->
+    <article class="sheet-card is-warn">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s4"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-FRC · 09/12</span>
+          <span class="thumb-status-dot is-warn"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Detalhe ou Corte?</span>
+        <span class="sheet-subtitle">Carimbo ilegível · pavimento ?</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag revisar">REVISAR</span>
+          <span class="sheet-tag">CONFIRMAR TIPO</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-SDA · 01/08</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Planta de SDAI</span>
+        <span class="sheet-subtitle">Térreo · Esc. 1:75</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">SDA</span>
+          <span class="sheet-tag">TER</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb" style="background: repeating-linear-gradient(0deg, rgba(10,10,10,0.06) 0 1px, transparent 1px 14px), var(--color-bg-surface);">
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-QDC · 01/04</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Quadro de Cargas QGBT</span>
+        <span class="sheet-subtitle">Tabela · 38 circuitos</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">QDC</span>
+          <span class="sheet-tag">QGBT</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb" style="background: repeating-linear-gradient(0deg, rgba(10,10,10,0.06) 0 1px, transparent 1px 14px), var(--color-bg-surface);">
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-QDC · 02/04</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Quadro de Cargas QD-1A</span>
+        <span class="sheet-subtitle">Tabela · 24 circuitos</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">QDC</span>
+          <span class="sheet-tag">QD-1A</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="sheet-card">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div>
+        <div class="thumb-stroke s5" style="left: 30%;"></div>
+        <div class="thumb-stroke" style="top: 35%; left: 30%; right: 12%; height: 1px;"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ELE-UNI · 01/03</span>
+          <span class="thumb-status-dot"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Diagrama Unifilar</span>
+        <span class="sheet-subtitle">Entrada + QGBT · Esc. SE</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag auto">AUTO</span>
+          <span class="sheet-tag">UNI</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- out of scope: architectural -->
+    <article class="sheet-card is-outside">
+      <div class="thumb">
+        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div><div class="thumb-stroke s6"></div>
+        <div class="thumb-overlay">
+          <span class="thumb-sheet-num">PE-ARQ-CAD · 01/08</span>
+          <span class="thumb-status-dot is-outside"></span>
+        </div>
+        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
+      </div>
+      <div class="sheet-meta">
+        <span class="sheet-title">Planta de Arquitetura</span>
+        <span class="sheet-subtitle">Referência apenas</span>
+        <div class="sheet-tags">
+          <span class="sheet-tag fora">FORA DE ESCOPO</span>
+          <span class="sheet-tag">ARQ</span>
+        </div>
+      </div>
+    </article>
+
+  </section>
+
+  <!-- MD section card -->
+  <section class="md-card" aria-label="Memorial Descritivo">
+    <div class="visual">
+      <div class="doc-stack" aria-hidden="true"></div>
+      <div>
+        <div class="doc-label">Memorial Descritivo</div>
+        <div class="doc-sub">56 páginas · 14 sistemas</div>
+      </div>
+    </div>
+    <div class="sections">
+      <span class="md-section-pill">2.1 Alcance</span>
+      <span class="md-section-pill">2.3 Normas</span>
+      <span class="md-section-pill">4.1 Sistema</span>
+      <span class="md-section-pill">7.1.3 Cabos</span>
+      <span class="md-section-pill">7.1.4 Interrup.</span>
+      <span class="md-section-pill">7.1.5 Tomadas</span>
+      <span class="md-section-pill">7.1.6 Luminár.</span>
+      <span class="md-section-pill">7.1.15 Infra</span>
+    </div>
+    <a href="#" class="action">Abrir memorial →</a>
+  </section>
+
+  <div class="form-actions">
+    <span class="form-meta">Triagem salva · <span style="font-family: var(--font-mono);">há 6s</span></span>
+    <div class="btn-group">
+      <a class="btn btn-ghost" href={`/projects/${id}/documentos`}>← Documentos</a>
+      <a class="btn btn-primary" href={`/projects/${id}/preparacao`}>Próximo · Preparação →</a>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // filter tab toggle
+  (function () {
+    document.querySelectorAll('.filter-group').forEach(function (grp) {
+      var btns = grp.querySelectorAll('.filter-btn');
+      btns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          btns.forEach(function (b) { b.classList.remove('is-active'); });
+          btn.classList.add('is-active');
+        });
+      });
+    });
+  })();
+
+  // sheet card selection via checkbox
+  (function () {
+    document.querySelectorAll('.sheet-card').forEach(function (card) {
+      var cb = card.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      cb.addEventListener('change', function () {
+        card.classList.toggle('is-selected', cb.checked);
+      });
+    });
+  })();
+
+  // Pretext reflow (no-op if not present)
+  (async function () {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    var PT = window.Pretext || window.pretext || globalThis.Pretext;
+    if (!PT || !PT.prepare || !PT.layout) return;
+    var els = document.querySelectorAll('.page-lead, .sheet-title, .sheet-subtitle, .md-card .doc-sub');
+    var prepared = new Map();
+    els.forEach(function (el) { prepared.set(el, PT.prepare(el.textContent || '', getComputedStyle(el).font)); });
+    function relayout() {
+      els.forEach(function (el) {
+        var h = prepared.get(el); if (!h) return;
+        var lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+        var r = PT.layout(h, el.clientWidth || 200, lh);
+        el.style.minHeight = r.height + 'px';
+      });
+    }
+    new ResizeObserver(function () { relayout(); }).observe(document.body);
+    relayout();
+  })();
+</script>

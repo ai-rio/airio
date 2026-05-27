@@ -1,0 +1,869 @@
+---
+import ProjectLayout from '../../../layouts/ProjectLayout.astro';
+const { id } = Astro.params;
+---
+
+<ProjectLayout
+  title="airio · Memorial · PROJECT-A PE06"
+  step={6}
+  doneSteps={[1, 2, 3, 4, 5]}
+  projectName="PROJECT-A PE06"
+  breadcrumbTail="Memorial"
+  contentMaxWidth={1440}
+  keymap={['⌘ + Enter · próximo item', '↑↓ · navegar lista', '1 · no BOM', '2 · omisso', '3 · ignorar', 'E · editar']}
+  footerLeftText="Memorial salvo automaticamente"
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* ============ page header ============ */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-6);
+    max-width: 80ch;
+  }
+  .page-lead strong { color: var(--color-fg-primary); font-weight: 600; }
+
+  /* ============ ready strip ============ */
+  .ready-strip {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .ready-strip .stat { display: flex; align-items: baseline; gap: var(--space-1); }
+  .ready-strip .stat .v {
+    font: 600 15px/20px var(--font-sans);
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  /* is-pend = pending items needing a decision. Use warning (amber) not accent
+     (orange) — the count is non-interactive, so accent's "action signal" role
+     doesn't apply. Warning semantically reads "needs attention" without
+     competing with the page's single primary CTA. */
+  .ready-strip .stat .v.is-ok   { color: var(--color-success); }
+  .ready-strip .stat .v.is-warn { color: var(--color-warning); }
+  .ready-strip .stat .v.is-pend { color: var(--color-warning); }
+  .ready-strip .stat .v.is-muted{ color: var(--color-fg-muted); }
+  .ready-strip .stat .l {
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .ready-strip .sep   { color: var(--color-fg-disabled); }
+  .ready-strip .spacer{ flex: 1; }
+  .ready-strip .neutral-note {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    font-style: italic;
+  }
+
+  /* ============ workspace (split) ============ */
+  .workspace {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: var(--space-4);
+    min-height: 800px;
+  }
+
+  /* ---- left pane: MD item list ---- */
+  .md-list {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .md-list-header {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+  .md-list-header .count {
+    font-family: var(--font-mono);
+    color: var(--color-fg-secondary);
+  }
+  .md-list-body { overflow-y: auto; flex: 1; }
+
+  .md-item {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-subtle);
+    cursor: pointer;
+    display: grid;
+    gap: 4px;
+    transition: background var(--motion-fast) var(--ease-default);
+  }
+  .md-item:hover { background: var(--color-bg-surface); }
+  .md-item.is-active {
+    background: var(--color-accent-soft-bg);
+    border-left: 2px solid var(--color-accent);
+    padding-left: calc(var(--space-4) - 2px);
+  }
+  .md-item-row1 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: space-between;
+  }
+  .md-item-ref {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--color-fg-muted);
+    background: var(--color-bg-surface);
+    padding: 1px 6px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--color-border-default);
+  }
+  .md-item.is-active .md-item-ref {
+    background: #fff;
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .kind-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    font: 500 10px/14px var(--font-sans);
+    border-radius: var(--radius-xs);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    background: var(--color-bg-surface);
+    color: var(--color-fg-secondary);
+    border: 1px solid var(--color-border-default);
+  }
+  .kind-chip.k-tomada      { background: #eff6ff; color: #1d4ed8; border-color: transparent; }
+  .kind-chip.k-interruptor { background: #ecfdf5; color: #047857; border-color: transparent; }
+  /* k-luminaria: amber, not accent orange — decorative chip per DESIGN.md orange discipline */
+  .kind-chip.k-luminaria   { background: #fef3c7; color: #92400e; border-color: transparent; }
+  .kind-chip.k-cabo        { background: #fce7f3; color: #9d174d; border-color: transparent; }
+  .kind-chip.k-infra       { background: #ede9fe; color: #5b21b6; border-color: transparent; }
+  .kind-chip.k-quadro      { background: #ccfbf1; color: #115e59; border-color: transparent; }
+  .kind-chip.k-aterramento { background: #f3f4f6; color: #374151; border-color: transparent; }
+  .kind-chip.k-outro       { background: var(--color-bg-surface); color: var(--color-fg-muted); }
+
+  .md-item-disposition {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font: 600 12px/1 var(--font-sans);
+  }
+  .md-item-disposition.is-pendente { background: var(--color-bg-surface); color: var(--color-fg-disabled); border: 1px solid var(--color-border-default); }
+  .md-item-disposition.is-bom      { background: var(--color-success-soft-bg); color: var(--color-success); }
+  .md-item-disposition.is-omisso   { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+  .md-item-disposition.is-ignorado { background: var(--color-bg-surface); color: var(--color-fg-muted); border: 1px solid var(--color-border-default); }
+
+  .md-item-title {
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-fg-primary);
+    letter-spacing: -0.005em;
+  }
+  .md-item.is-active .md-item-title { font-weight: 600; }
+
+  .md-item-specs {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-fg-secondary);
+    letter-spacing: 0.01em;
+  }
+
+  .md-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    font: 500 10px/14px var(--font-sans);
+    border-radius: var(--radius-xs);
+  }
+  .meta-chip.is-brand {
+    background: var(--color-accent-soft-bg);
+    color: var(--color-accent-soft-fg);
+  }
+  .meta-chip.is-brand .pin       { font-size: 9px; }
+  .meta-chip.is-brand .brand-name{ font-family: var(--font-mono); font-size: 10px; }
+  .meta-chip.is-vague {
+    background: var(--color-warning-soft-bg);
+    color: var(--color-warning);
+  }
+  .meta-chip.is-fora-escopo {
+    background: var(--color-bg-surface);
+    color: var(--color-fg-muted);
+    border: 1px dashed var(--color-border-default);
+  }
+
+  /* ---- right pane: active item ---- */
+  .active-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .item-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) 0 var(--space-2);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .item-header h2 {
+    font: 600 18px/24px var(--font-sans);
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--color-fg-primary);
+  }
+  .item-header .item-ref-display {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-muted);
+    letter-spacing: 0.02em;
+  }
+  .item-header .item-kind-display {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-secondary);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    padding: 2px 8px;
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+  }
+
+  /* sub-panel */
+  .sub-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .sub-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+  }
+  .sub-panel-head h3 {
+    font: 600 13px/18px var(--font-sans);
+    margin: 0;
+    color: var(--color-fg-primary);
+    letter-spacing: -0.005em;
+  }
+  .sub-panel-head .hint {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+  .sub-panel-body { padding: var(--space-4); }
+
+  /* MD passage */
+  .md-passage {
+    background: #fffdf7;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-5) var(--space-6);
+    font: 400 14px/22px var(--font-sans);
+    color: var(--color-fg-primary);
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: inset 0 0 0 1px rgba(10,10,10,0.02);
+  }
+  .md-passage h4 {
+    font: 600 14px/20px var(--font-sans);
+    margin: 0 0 var(--space-3);
+    color: var(--color-fg-primary);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+  .md-passage p {
+    margin: 0 0 var(--space-3);
+    text-align: justify;
+    hyphens: auto;
+  }
+  .md-passage p:last-child { margin-bottom: 0; }
+  /* focused-line = currently-focused passage in the reader. ACTIVE STATE
+     per DESIGN.md tokens.md §2: --color-accent role explicitly includes
+     "active states". State-tint, not decoration. Orange retained. */
+  .md-passage .focused-line {
+    background: var(--color-accent-soft-bg);
+    border-left: 3px solid var(--color-accent);
+    padding: var(--space-2) var(--space-3);
+    margin: var(--space-2) 0;
+    display: block;
+    color: var(--color-fg-primary);
+    font-weight: 500;
+  }
+  .md-passage .nbr-ref {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-fg-secondary);
+    background: rgba(10,10,10,0.04);
+    padding: 0 4px;
+    border-radius: 2px;
+  }
+  .md-passage-foot {
+    margin-top: var(--space-2);
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    text-align: right;
+  }
+
+  /* disposition grid */
+  .disposition-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+  }
+  .editar-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--color-border-default);
+  }
+  .editar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-fg-secondary);
+    cursor: pointer;
+    transition: border-color var(--motion-fast) var(--ease-default), color var(--motion-fast) var(--ease-default);
+  }
+  .editar-btn:hover { border-color: var(--color-info); color: var(--color-info); }
+  .editar-btn .ico  { color: var(--color-info); }
+  .editar-btn .key-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-fg-disabled);
+    margin-left: var(--space-2);
+    padding: 1px 4px;
+    background: var(--color-bg-surface);
+    border-radius: 2px;
+    border: 1px solid var(--color-border-default);
+  }
+  .editar-row .editar-note {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    font-style: italic;
+  }
+  .disposition-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--motion-fast) var(--ease-default), background var(--motion-fast) var(--ease-default);
+    text-align: left;
+    font-family: var(--font-sans);
+  }
+  .disposition-card:hover { border-color: var(--color-border-strong); }
+  .disposition-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .disposition-card .ico {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-xs);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 16px/1 var(--font-sans);
+  }
+  .disposition-card .label {
+    font: 600 14px/20px var(--font-sans);
+    color: var(--color-fg-primary);
+  }
+  .disposition-card .key-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-fg-disabled);
+    margin-left: auto;
+    align-self: flex-start;
+    background: var(--color-bg-surface);
+    padding: 1px 4px;
+    border-radius: 2px;
+    border: 1px solid var(--color-border-default);
+  }
+  .disposition-card .desc {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .disposition-card .ico-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+  }
+  .disposition-card.is-bom .ico       { background: var(--color-success-soft-bg); color: var(--color-success); }
+  .disposition-card.is-bom:hover      { border-color: var(--color-success); }
+  .disposition-card.is-omisso .ico    { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+  .disposition-card.is-omisso:hover   { border-color: var(--color-warning); }
+  .disposition-card.is-ignorar .ico   { background: var(--color-bg-surface); color: var(--color-fg-muted); border: 1px solid var(--color-border-default); }
+  .disposition-card.is-ignorar:hover  { border-color: var(--color-fg-muted); }
+
+  .disposition-card.is-selected.is-bom    { background: var(--color-success-soft-bg); border-color: var(--color-success); }
+  .disposition-card.is-selected.is-omisso { background: var(--color-warning-soft-bg); border-color: var(--color-warning); }
+  .disposition-card.is-selected.is-ignorar{ background: var(--color-bg-surface); border-color: var(--color-fg-muted); }
+
+  /* pin brand field */
+  .pin-brand {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border-subtle);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-3);
+    align-items: center;
+  }
+  .pin-brand label {
+    font: 500 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .pin-brand input {
+    font: 400 13px/18px var(--font-sans);
+    padding: 6px 10px;
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-primary);
+    width: 100%;
+  }
+  .pin-brand input:focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-soft-bg);
+  }
+  .pin-brand .pin-hint {
+    font: 400 11px/14px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+
+  .disposition-foot {
+    margin-top: var(--space-3);
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    font-style: italic;
+  }
+
+  /* ============ form actions ============ */
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .form-meta { font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); }
+  .form-actions .btn-group { display: flex; gap: var(--space-2); }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font: 500 13px/18px var(--font-sans);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn-primary { background: var(--color-accent); color: #fff; text-decoration: none; }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-primary.is-disabled { background: var(--color-bg-disabled); color: var(--color-fg-disabled); cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
+
+  /* ============ responsive ============ */
+  @media (max-width: 1200px) {
+    .workspace { grid-template-columns: 340px 1fr; }
+    .disposition-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .page-title { font-size: 22px; line-height: 30px; }
+    .workspace { grid-template-columns: 1fr; min-height: auto; }
+    .md-list { max-height: 360px; overflow-y: auto; }
+    .ready-strip { flex-direction: column; align-items: flex-start; }
+    .ready-strip .spacer { display: none; }
+    .disposition-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 6 de 8 · Memorial Descritivo</div>
+  <h1 class="page-title">Confere o que o memorial promete</h1>
+  <p class="page-lead">O airio leu o memorial descritivo e listou cada componente prometido com a seção de referência. Pra cada item, decide: <strong>tem no BOM</strong> · <strong>vira omisso</strong> (consultar cliente) · <strong>fora de escopo</strong>. O airio não pré-marca nada — seu olho continua sendo a referência.</p>
+
+  <!-- ready strip — no global bulk per S8 neutral-disposition rule -->
+  <div class="ready-strip" role="region" aria-label="Estado do memorial">
+    <div class="stat"><span class="v">12</span><span class="l">Itens extraídos</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-pend">9</span><span class="l">Pendentes</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-ok">1</span><span class="l">No BOM</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-warn">1</span><span class="l">Omisso</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-muted">1</span><span class="l">Ignorado</span></div>
+    <span class="spacer"></span>
+    <span class="neutral-note">Sem ação em massa — cada item você decide.</span>
+  </div>
+
+  <!-- 2-pane workspace -->
+  <div class="workspace">
+
+    <!-- LEFT: MD item list -->
+    <aside class="md-list" aria-label="Itens do memorial">
+      <div class="md-list-header">
+        <span>Itens do memorial</span>
+        <span class="count">12</span>
+      </div>
+      <div class="md-list-body">
+
+        <div class="md-item" tabindex="0" data-section="7.1.3" data-kind="cabo">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.3</span>
+            <span class="kind-chip k-cabo">cabo</span>
+            <span class="md-item-disposition is-pendente" title="Pendente">·</span>
+          </div>
+          <span class="md-item-title">Cabo flexível HEPR 90°C 0,6/1kV</span>
+          <span class="md-item-specs">classe 5 · NBR 13248 · cobre estanhado</span>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.4" data-kind="interruptor">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.4</span>
+            <span class="kind-chip k-interruptor">interruptor</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Interruptores simples e paralelo</span>
+          <span class="md-item-specs">módulo 4x2 · placa branca · NBR 14136</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-brand"><span class="pin">📌</span><span class="brand-name">PIAL Plus+</span></span>
+          </div>
+        </div>
+
+        <div class="md-item is-active" tabindex="0" data-section="7.1.5" data-kind="tomada">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.5</span>
+            <span class="kind-chip k-tomada">tomada</span>
+            <span class="md-item-disposition is-bom" title="No BOM">✓</span>
+          </div>
+          <span class="md-item-title">Tomada 2P+T 10A 250V branca</span>
+          <span class="md-item-specs">NBR 14136 · módulo 4x2 · placa branca</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-brand"><span class="pin">📌</span><span class="brand-name">PIAL Plus+</span></span>
+          </div>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.5.2" data-kind="tomada">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.5.2</span>
+            <span class="kind-chip k-tomada">tomada</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Tomada 2P+T 20A vermelha (no-break)</span>
+          <span class="md-item-specs">NBR 14136 · 20A · placa vermelha · circuito estabilizado</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-brand"><span class="pin">📌</span><span class="brand-name">PIAL Plus+</span></span>
+          </div>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.6" data-kind="luminaria">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.6</span>
+            <span class="kind-chip k-luminaria">luminária</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Luminária LED embutir 60×60 cm</span>
+          <span class="md-item-specs">36 W · 4000 K · IK10 · IP40</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-vague">descrição vaga · sem marca</span>
+          </div>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.6.2" data-kind="luminaria">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.6.2</span>
+            <span class="kind-chip k-luminaria">luminária</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Luminária autônoma de emergência</span>
+          <span class="md-item-specs">LED · autonomia 1 h · NBR 10898</span>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.15" data-kind="infra">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.15</span>
+            <span class="kind-chip k-infra">infra</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Eletroduto PVC rígido roscável</span>
+          <span class="md-item-specs">classe A · NBR 15465 · diâmetros 3/4″ a 2″</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-brand"><span class="pin">📌</span><span class="brand-name">TIGRE</span></span>
+          </div>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.15.2" data-kind="infra">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.15.2</span>
+            <span class="kind-chip k-infra">infra</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Eletrocalha metálica perfurada</span>
+          <span class="md-item-specs">zincagem eletrolítica · 100 mm · com tampa</span>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.16" data-kind="quadro">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.16</span>
+            <span class="kind-chip k-quadro">quadro</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">Quadro de distribuição metálico sobrepor</span>
+          <span class="md-item-specs">IP54 · 24 disjuntores · barramento de cobre</span>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.17" data-kind="aterramento">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.17</span>
+            <span class="kind-chip k-aterramento">aterramento</span>
+            <span class="md-item-disposition is-omisso" title="Virou omisso">⚠</span>
+          </div>
+          <span class="md-item-title">Sistema de aterramento NBR 5410</span>
+          <span class="md-item-specs">malha + hastes copperweld · cordoalha de cobre</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-vague">descrição vaga · falta detalhe da malha</span>
+          </div>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.18" data-kind="outro">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.18</span>
+            <span class="kind-chip k-outro">outro</span>
+            <span class="md-item-disposition is-pendente">·</span>
+          </div>
+          <span class="md-item-title">"linha à ser determinada pelo cliente"</span>
+          <span class="md-item-specs">sem spec definida no memorial</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-vague">descrição vaga · candidato a omisso</span>
+          </div>
+        </div>
+
+        <div class="md-item" tabindex="0" data-section="7.1.19" data-kind="outro">
+          <div class="md-item-row1">
+            <span class="md-item-ref">7.1.19</span>
+            <span class="kind-chip k-outro">outro</span>
+            <span class="md-item-disposition is-ignorado" title="Ignorado">✗</span>
+          </div>
+          <span class="md-item-title">Sistema de detecção e alarme de incêndio</span>
+          <span class="md-item-specs">NBR 17240 · sensores ópticos · central endereçável</span>
+          <div class="md-item-meta">
+            <span class="meta-chip is-fora-escopo">fora de escopo · incêndio ≠ elétrica BT</span>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- RIGHT: active item workspace -->
+    <section class="active-item" aria-label="Item ativo">
+
+      <div class="item-header">
+        <div>
+          <span class="item-ref-display">Seção 7.1.5 · página 23</span>
+          <h2>Tomada 2P+T 10A 250V branca</h2>
+        </div>
+        <span class="item-kind-display">tomada · padrão</span>
+      </div>
+
+      <!-- MD passage panel -->
+      <div class="sub-panel" aria-label="Trecho do memorial descritivo">
+        <header class="sub-panel-head">
+          <h3>Trecho do memorial</h3>
+          <span class="hint">Página 23 · seção 7.1.5</span>
+        </header>
+        <div class="sub-panel-body">
+          <div class="md-passage" role="article">
+            <h4>7.1.5 &nbsp; Tomadas</h4>
+            <p>As tomadas de uso geral (TUG) serão do tipo universal padrão brasileiro <span class="nbr-ref">NBR 14136</span>, com pinos redondos e contato de proteção (2P+T), tensão nominal 250&nbsp;V, instaladas em caixas 4×2&nbsp;polegadas embutidas em parede de alvenaria ou eletrocalha, conforme indicado nas plantas elétricas.</p>
+            <span class="focused-line">7.1.5.1 — Tomadas brancas, 2P+T 10A 250V, módulo 4×2, linha PIAL Plus+ (ou similar de qualidade equivalente aprovada pela fiscalização), instaladas a 30&nbsp;cm do piso acabado salvo indicação contrária.</span>
+            <p>As tomadas de uso específico (TUE) para circuitos dedicados (ar-condicionado, microondas, no-break) seguem as especificações da seção 7.1.5.2 a 7.1.5.4 deste memorial.</p>
+            <p>Os módulos e as placas serão fixados em caixas de derivação compatíveis, com fiação dimensionada conforme tabela de cargas — ver seção 5 (Dimensionamento) e o quadro de cargas no projeto elétrico.</p>
+          </div>
+          <p class="md-passage-foot">Trecho extraído do memorial · página 23 · linha focada destacada acima.</p>
+        </div>
+      </div>
+
+      <!-- Disposition panel -->
+      <div class="sub-panel" aria-label="Disposição do item">
+        <header class="sub-panel-head">
+          <h3>Disposição</h3>
+          <span class="hint">Você decide; o airio não escolhe por você.</span>
+        </header>
+        <div class="sub-panel-body">
+          <div class="disposition-grid">
+
+            <button type="button" class="disposition-card is-bom is-selected" data-action="bom">
+              <div class="ico-line">
+                <span class="ico">✓</span>
+                <span class="label">Tem no BOM</span>
+                <span class="key-hint">1</span>
+              </div>
+              <span class="desc">Já tem linha de orçamento correspondente. Confirma e segue.</span>
+            </button>
+
+            <button type="button" class="disposition-card is-omisso" data-action="omisso">
+              <div class="ico-line">
+                <span class="ico">⚠</span>
+                <span class="label">Virar omisso</span>
+                <span class="key-hint">2</span>
+              </div>
+              <span class="desc">Não tem no BOM, precisa consultar cliente. Vai pra lista de omissos.</span>
+            </button>
+
+            <button type="button" class="disposition-card is-ignorar" data-action="ignorar">
+              <div class="ico-line">
+                <span class="ico">✗</span>
+                <span class="label">Ignorar</span>
+                <span class="key-hint">3</span>
+              </div>
+              <span class="desc">Fora do escopo de elétrica baixa-tensão (incêndio, hidráulica, dados).</span>
+            </button>
+
+          </div>
+
+          <div class="editar-row">
+            <button type="button" class="editar-btn" data-action="editar">
+              <span class="ico">✎</span>
+              <span>Editar descrição</span>
+              <span class="key-hint">E</span>
+            </button>
+            <span class="editar-note">Texto do memorial vago? Reescreve o que vai pro orçamento (não muda a disposição).</span>
+          </div>
+
+          <div class="pin-brand">
+            <label for="brand-input">Marca pinada</label>
+            <input id="brand-input" type="text" value="PIAL Plus+" placeholder="Memorial pediu marca específica? Anota aqui." />
+            <span class="pin-hint">Persiste por item. Ajuda no descritivo do orçamento.</span>
+          </div>
+
+          <p class="disposition-foot">O airio registra cada decisão com data e hora pra reconstruir o pé do orçamento depois.</p>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="form-actions">
+    <span class="form-meta">Memorial salvo automaticamente · <span style="font-family: var(--font-mono);">há 4s</span></span>
+    <div class="btn-group">
+      <a class="btn btn-ghost" href={`/projects/${id}/quadro-de-cargas`}>← Quadro de Cargas</a>
+      <button type="button" class="btn btn-primary is-disabled" disabled aria-disabled="true">Próximo · Quantitativos →</button>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // MD item activation — click to switch active item
+  (function () {
+    const items = document.querySelectorAll('.md-item');
+    items.forEach(function (item) {
+      item.addEventListener('click', function () {
+        items.forEach(function (i) { i.classList.remove('is-active'); });
+        item.classList.add('is-active');
+      });
+      item.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.click(); }
+      });
+    });
+  })();
+
+  // Disposition card selection (one of 3 — Editar is a separate meta-action)
+  (function () {
+    const cards = document.querySelectorAll('.disposition-card');
+    cards.forEach(function (card) {
+      card.addEventListener('click', function () {
+        cards.forEach(function (c) { c.classList.remove('is-selected'); });
+        card.classList.add('is-selected');
+      });
+    });
+  })();
+
+  // Keyboard shortcuts: 1 = BOM, 2 = omisso, 3 = ignorar, E = editar
+  (function () {
+    document.addEventListener('keydown', function (e) {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      var map = { '1': 'bom', '2': 'omisso', '3': 'ignorar' };
+      if (map[e.key]) {
+        var card = document.querySelector('.disposition-card[data-action="' + map[e.key] + '"]');
+        if (card) card.click();
+      }
+      if (e.key === 'e' || e.key === 'E') {
+        var editar = document.querySelector('.editar-btn');
+        if (editar) editar.focus();
+      }
+    });
+  })();
+</script>

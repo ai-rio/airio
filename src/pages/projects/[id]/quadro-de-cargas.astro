@@ -1,0 +1,1088 @@
+---
+import ProjectLayout from '../../../layouts/ProjectLayout.astro';
+const { id } = Astro.params;
+---
+
+<ProjectLayout
+  title="airio · Quadro de Cargas · PROJECT-A PE06"
+  step={5}
+  doneSteps={[1, 2, 3, 4]}
+  projectName="PROJECT-A PE06"
+  breadcrumbTail="Quadro de Cargas"
+  keymap={['⌘ + Enter · próxima linha', '↑↓ · navegar', 'F · marcar alimentador', 'A · flag omisso']}
+  footerLeftText="Quadros salvos automaticamente"
+  contentMaxWidth={1320}
+>
+
+<style>
+  /* ============ screen body ============ */
+  .screen-body {
+    width: 100%;
+    padding-bottom: var(--space-12);
+  }
+
+  /* ============ page header ============ */
+  .page-eyebrow {
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-2);
+  }
+  .page-title {
+    font: 600 28px/36px var(--font-sans);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-2);
+    color: var(--color-fg-primary);
+  }
+  .page-lead {
+    font: 400 15px/22px var(--font-sans);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-6);
+    max-width: 80ch;
+  }
+  .page-lead strong { color: var(--color-fg-primary); font-weight: 600; }
+
+  /* ============ ready strip ============ */
+  .ready-strip {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .ready-strip .stat { display: flex; align-items: baseline; gap: var(--space-1); }
+  .ready-strip .stat .v {
+    font: 600 15px/20px var(--font-sans);
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .ready-strip .stat .v.is-warn { color: var(--color-warning); }
+  .ready-strip .stat .l {
+    font: 500 11px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .ready-strip .sep { color: var(--color-fg-disabled); }
+  .ready-strip .spacer { flex: 1; }
+  .ready-strip .bulk-btn {
+    font: 500 13px/18px var(--font-sans);
+    padding: 6px 12px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg-primary);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: var(--space-2);
+  }
+  .ready-strip .bulk-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .ready-strip .bulk-btn .icon { color: var(--color-accent); }
+
+  /* ============ workspace 2-pane ============ */
+  .workspace {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--space-4);
+    min-height: 760px;
+  }
+
+  /* left pane: quadro list */
+  .quadro-list {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .quadro-list-header {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+    display: flex; align-items: center; justify-content: space-between;
+    font: 500 11px/16px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+  .quadro-list-header .count { font-family: var(--font-mono); color: var(--color-fg-secondary); }
+
+  .quadro-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-subtle);
+    cursor: pointer;
+    align-items: center;
+    transition: background var(--motion-fast) var(--ease-default);
+  }
+  .quadro-row:hover { background: var(--color-bg-surface); }
+  .quadro-row.is-active {
+    background: var(--color-accent-soft-bg);
+    border-left: 2px solid var(--color-accent);
+    padding-left: calc(var(--space-4) - 2px);
+  }
+  .quadro-row.is-active .row-name { color: var(--color-fg-primary); }
+
+  .row-icon {
+    width: 32px; height: 32px;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-xs);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .row-icon::before {
+    content: '';
+    width: 16px; height: 12px;
+    background:
+      linear-gradient(0deg, rgba(10,10,10,0.2) 0 1px, transparent 1px),
+      linear-gradient(0deg, transparent 3px, rgba(10,10,10,0.2) 3px, rgba(10,10,10,0.2) 4px, transparent 4px),
+      linear-gradient(0deg, transparent 7px, rgba(10,10,10,0.2) 7px, rgba(10,10,10,0.2) 8px, transparent 8px),
+      linear-gradient(0deg, transparent 11px, rgba(10,10,10,0.2) 11px, rgba(10,10,10,0.2) 12px, transparent 12px);
+  }
+  .quadro-row.is-active .row-icon { border-color: var(--color-accent); background: var(--color-bg-elevated); }
+
+  .row-meta { display: grid; gap: 2px; min-width: 0; }
+  .row-name {
+    font: 600 13px/18px var(--font-sans);
+    color: var(--color-fg-secondary);
+    letter-spacing: -0.005em;
+  }
+  .row-detail {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-fg-muted);
+    letter-spacing: 0.02em;
+  }
+
+  .row-status {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font: 600 12px/1 var(--font-sans);
+  }
+  .row-status.is-verificado { background: var(--color-success-soft-bg); color: var(--color-success); }
+  .row-status.is-ajustes { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+  .row-status.is-pendente { background: var(--color-bg-surface); color: var(--color-fg-disabled); border: 1px solid var(--color-border-default); }
+
+  /* right pane */
+  .active-quadro {
+    display: flex; flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .quadro-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) 0 var(--space-2);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .quadro-header h2 {
+    font: 600 18px/24px var(--font-sans);
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--color-fg-primary);
+  }
+  .quadro-header .quadro-tag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-muted);
+    letter-spacing: 0.02em;
+  }
+  .quadro-header .quadro-loc {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-secondary);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    padding: 2px 8px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* sub-panel */
+  .sub-panel {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .sub-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+  }
+  .sub-panel-head h3 {
+    font: 600 13px/18px var(--font-sans);
+    margin: 0;
+    color: var(--color-fg-primary);
+    letter-spacing: -0.005em;
+  }
+  .sub-panel-head .hint {
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+  }
+
+  /* PDF preview */
+  .pdf-preview-body {
+    padding: var(--space-4);
+    background: var(--color-bg-surface);
+    max-height: 320px;
+    overflow: auto;
+  }
+  .pdf-quadro-mock {
+    background: #ffffff;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 14px;
+    box-shadow: 0 1px 2px rgba(10,10,10,0.04);
+  }
+  .pdf-mock-title {
+    padding: 6px 10px;
+    background: #f5f5f5;
+    border-bottom: 1px solid var(--color-border-strong);
+    font: 600 11px/14px var(--font-mono);
+    color: var(--color-fg-primary);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .pdf-mock-section-title {
+    padding: 4px 10px;
+    background: #f0f0f0;
+    border-top: 1px solid var(--color-border-strong);
+    border-bottom: 1px solid var(--color-border-strong);
+    font: 600 9px/12px var(--font-mono);
+    color: var(--color-fg-secondary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .pdf-mock-table { width: 100%; border-collapse: collapse; }
+  .pdf-mock-table th, .pdf-mock-table td {
+    padding: 3px 6px;
+    border-right: 1px solid var(--color-border-default);
+    border-bottom: 1px solid var(--color-border-subtle);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    line-height: 12px;
+    text-align: left;
+    color: var(--color-fg-primary);
+  }
+  .pdf-mock-table th {
+    background: #fafafa;
+    font-weight: 600;
+    color: var(--color-fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .pdf-mock-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pdf-mock-table tr.is-highlight td {
+    background: var(--color-accent-soft-bg);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+  .pdf-mock-table tr.is-highlight td:first-child { box-shadow: inset 2px 0 0 0 var(--color-accent), inset 0 1px 0 0 var(--color-accent), inset 0 -1px 0 0 var(--color-accent); }
+  .pdf-mock-table tr.is-highlight td:last-child { box-shadow: inset -2px 0 0 0 var(--color-accent), inset 0 1px 0 0 var(--color-accent), inset 0 -1px 0 0 var(--color-accent); }
+  .pdf-preview-hint {
+    margin-top: var(--space-2);
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-muted);
+    text-align: center;
+  }
+
+  /* circuitos table */
+  .circuitos-bulk {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-accent-soft-bg);
+    border-bottom: 1px solid var(--color-accent-soft-bg);
+  }
+  .circuitos-bulk-text {
+    font: 500 13px/18px var(--font-sans);
+    color: var(--color-accent-soft-fg);
+  }
+  .circuitos-bulk-text strong { font-weight: 600; }
+  .circuitos-bulk .accept-btn {
+    font: 500 12px/16px var(--font-sans);
+    padding: 5px 10px;
+    background: var(--color-accent);
+    color: #fff;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .circuitos-bulk .accept-btn:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+
+  .circuitos-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .circuitos-table thead th {
+    text-align: left;
+    font: 500 10px/14px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-muted);
+    background: var(--color-bg-surface);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-border-default);
+    white-space: nowrap;
+  }
+  .circuitos-table tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    vertical-align: middle;
+    font: 400 13px/18px var(--font-sans);
+    color: var(--color-fg-primary);
+  }
+  .circuitos-table tbody tr:hover { background: var(--color-bg-surface); }
+  .circuitos-table tbody tr.is-active { background: var(--color-accent-soft-bg); }
+  .circuitos-table tbody tr.is-omisso-flag { background: var(--color-warning-soft-bg); }
+  .circuitos-table tbody tr.is-section-divider td {
+    background: #fafafa;
+    padding: 4px 10px;
+    font: 600 10px/14px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-fg-secondary);
+    border-bottom: 1px solid var(--color-border-default);
+    border-top: 1px solid var(--color-border-default);
+  }
+  .circuitos-table tbody tr:last-child td { border-bottom: none; }
+  .circuitos-table td.num { text-align: right; font-family: var(--font-mono); font-size: 12px; }
+  .circuitos-table td.mono { font-family: var(--font-mono); font-size: 12px; color: var(--color-fg-primary); }
+  .circuitos-table td.descricao { color: var(--color-fg-primary); }
+  .circuitos-table td.descricao.vague {
+    color: var(--color-warning);
+    font-style: italic;
+  }
+
+  /* Reserva rows: muted per BR-quadro conventions — no cable, no BOM entry */
+  .circuitos-table tbody tr.is-reserva td { color: var(--color-fg-muted); }
+  .circuitos-table tbody tr.is-reserva td.mono { color: var(--color-fg-disabled); }
+  .circuitos-table tbody tr.is-reserva td .empty-dash { color: var(--color-fg-disabled); font-family: var(--font-mono); }
+
+  /* length source indicator */
+  .len-cell { display: grid; gap: 1px; line-height: 1.2; }
+  .len-value { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+  .len-source {
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 500 10px/12px var(--font-sans);
+    justify-self: end;
+  }
+  .len-source .pip { width: 5px; height: 5px; border-radius: 50%; }
+  .len-source.is-quadro { color: var(--color-success); }
+  .len-source.is-quadro .pip { background: var(--color-success); }
+  .len-source.is-default { color: var(--color-warning); }
+  .len-source.is-default .pip { background: var(--color-warning); }
+  .len-source .src-hint { font-family: var(--font-mono); font-size: 9px; opacity: 0.7; }
+
+  /* tipo chip — 3-way enum: alimentador / interno / reserva (BR-quadro conventions) */
+  .tipo-chip {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    font: 500 11px/16px var(--font-sans);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  /* NOTE: alimentador/interno/reserva chips use semantic status colors (success/neutral/info),
+     NOT orange. Orange (#ea580c) reserved for primary CTAs/links/focus only per DESIGN.md. */
+  .tipo-chip.is-alim {
+    background: var(--color-success-soft-bg);
+    color: var(--color-success);
+    border: 1px solid transparent;
+  }
+  .tipo-chip.is-alim:hover { border-color: var(--color-success); }
+  .tipo-chip.is-interno {
+    background: var(--color-bg-surface);
+    color: var(--color-fg-secondary);
+    border: 1px solid var(--color-border-default);
+  }
+  .tipo-chip.is-interno:hover { border-color: var(--color-border-strong); color: var(--color-fg-primary); }
+  .tipo-chip.is-reserva {
+    background: var(--color-info-soft-bg);
+    color: var(--color-info);
+    border: 1px solid transparent;
+  }
+  .tipo-chip.is-reserva:hover { border-color: var(--color-info); }
+
+  .action-cell { text-align: right; white-space: nowrap; }
+  .action-confirm {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--color-success-soft-bg);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-soft-bg);
+    border-radius: var(--radius-xs);
+    font: 600 13px/1 var(--font-sans);
+    cursor: pointer;
+  }
+  .action-confirm:hover { background: var(--color-success); color: #fff; }
+  .action-omisso {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--color-warning-soft-bg);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-xs);
+    font: 600 13px/1 var(--font-sans);
+    cursor: pointer;
+    margin-left: 4px;
+  }
+  .action-omisso:hover { background: var(--color-warning); color: #fff; }
+
+  .circuitos-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--color-border-default);
+    font: 400 12px/16px var(--font-sans);
+    color: var(--color-fg-secondary);
+  }
+  .circuitos-foot .counter { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .circuitos-foot .counter .ok { color: var(--color-success); font-weight: 500; }
+  .circuitos-foot .counter .pend { color: var(--color-warning); font-weight: 500; }
+  .circuitos-foot .scroll-hint { color: var(--color-fg-muted); }
+
+  /* ============ form actions ============ */
+  .form-actions {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .form-meta { font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); }
+  .form-actions .btn-group { display: flex; gap: var(--space-2); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font: 500 13px/18px var(--font-sans);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
+  }
+  .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .btn-primary { background: var(--color-accent); color: #fff; text-decoration: none; }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-primary.is-disabled { background: var(--color-bg-disabled); color: var(--color-fg-disabled); cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
+
+  /* ============ responsive ============ */
+  @media (max-width: 1200px) {
+    .workspace { grid-template-columns: 260px 1fr; }
+    .circuitos-table thead th { padding: 6px 8px; font-size: 9px; }
+    .circuitos-table tbody td { padding: 6px 8px; font-size: 12px; }
+  }
+  @media (max-width: 1024px) {
+    .circuitos-table { font-size: 11px; }
+    .pdf-mock-table th, .pdf-mock-table td { padding: 2px 4px; font-size: 8px; }
+  }
+  @media (max-width: 768px) {
+    .page-title { font-size: 22px; line-height: 30px; }
+    .workspace { grid-template-columns: 1fr; min-height: auto; }
+    .quadro-list { max-height: 280px; overflow-y: auto; }
+    .ready-strip { flex-direction: column; align-items: flex-start; }
+    .ready-strip .spacer { display: none; }
+  }
+</style>
+
+<div class="screen-body">
+
+  <div class="page-eyebrow">Etapa 5 de 8 · Quadros de cargas</div>
+  <h1 class="page-title">Confere os circuitos extraídos</h1>
+  <p class="page-lead">O airio leu a tabela de cada quadro e separou os <strong>alimentadores</strong> (têm comprimento no quadro) dos <strong>circuitos internos</strong> (padrão 250&nbsp;m por circuito — ajusta se souber melhor). Confere linha por linha; o que confirmar aqui vira metragem real no orçamento.</p>
+
+  <!-- ready strip + global bulk -->
+  <div class="ready-strip" role="region" aria-label="Estado dos quadros">
+    <div class="stat"><span class="v">5</span><span class="l">Quadros</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v">9</span><span class="l">Alimentadores</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v">67</span><span class="l">Circuitos internos</span></div>
+    <span class="sep">·</span>
+    <div class="stat"><span class="v is-warn">2</span><span class="l">Pra ajustar</span></div>
+    <span class="spacer"></span>
+    <button class="bulk-btn" type="button">
+      <span class="icon" aria-hidden="true">⚡</span>
+      Confirmar todos alimentadores (9)
+    </button>
+  </div>
+
+  <!-- 2-pane workspace -->
+  <div class="workspace">
+
+    <!-- LEFT: quadro list -->
+    <aside class="quadro-list" aria-label="Quadros do projeto">
+      <div class="quadro-list-header">
+        <span>Quadros</span>
+        <span class="count">5</span>
+      </div>
+
+      <div class="quadro-row is-active" tabindex="0">
+        <div class="row-icon" aria-hidden="true"></div>
+        <div class="row-meta">
+          <span class="row-name">QGBT</span>
+          <span class="row-detail">geral · 12 circuitos · 3 alim.</span>
+        </div>
+        <span class="row-status is-ajustes" title="1 circuito vago pra ajustar">!</span>
+      </div>
+
+      <div class="quadro-row" tabindex="0">
+        <div class="row-icon" aria-hidden="true"></div>
+        <div class="row-meta">
+          <span class="row-name">QD-1A</span>
+          <span class="row-detail">térreo · 18 circuitos · 2 alim.</span>
+        </div>
+        <span class="row-status is-verificado" title="Verificado">✓</span>
+      </div>
+
+      <div class="quadro-row" tabindex="0">
+        <div class="row-icon" aria-hidden="true"></div>
+        <div class="row-meta">
+          <span class="row-name">QD-2A</span>
+          <span class="row-detail">térreo · 14 circuitos · 2 alim.</span>
+        </div>
+        <span class="row-status is-verificado" title="Verificado">✓</span>
+      </div>
+
+      <div class="quadro-row" tabindex="0">
+        <div class="row-icon" aria-hidden="true"></div>
+        <div class="row-meta">
+          <span class="row-name">QD-Pav1</span>
+          <span class="row-detail">1º pav · 16 circuitos · 1 alim.</span>
+        </div>
+        <span class="row-status is-ajustes" title="1 descrição vaga">!</span>
+      </div>
+
+      <div class="quadro-row" tabindex="0">
+        <div class="row-icon" aria-hidden="true"></div>
+        <div class="row-meta">
+          <span class="row-name">QD-Pav2</span>
+          <span class="row-detail">2º pav · 16 circuitos · 1 alim.</span>
+        </div>
+        <span class="row-status is-pendente" title="Pendente">·</span>
+      </div>
+    </aside>
+
+    <!-- RIGHT: active quadro workspace -->
+    <section class="active-quadro" aria-label="Quadro ativo">
+
+      <div class="quadro-header">
+        <div>
+          <span class="quadro-tag">PE-ELE-QDC · 01/04</span>
+          <h2>QGBT · Quadro Geral de Baixa Tensão</h2>
+        </div>
+        <span class="quadro-loc">Térreo · entrada · 12 circuitos</span>
+      </div>
+
+      <!-- PDF preview sub-panel -->
+      <div class="sub-panel" aria-label="Tabela original do quadro no PDF">
+        <header class="sub-panel-head">
+          <h3>Tabela original</h3>
+          <span class="hint">Página 01 do quadro QGBT — clica numa linha extraída pra realçar aqui</span>
+        </header>
+        <div class="pdf-preview-body">
+          <div class="pdf-quadro-mock">
+            <div class="pdf-mock-title">Quadro de Cargas — QGBT</div>
+            <div class="pdf-mock-section-title">Alimentadores</div>
+            <table class="pdf-mock-table">
+              <thead>
+                <tr>
+                  <th style="width: 8%;">Circ.</th>
+                  <th style="width: 28%;">Descrição</th>
+                  <th style="width: 12%;">DJ</th>
+                  <th style="width: 18%;">Cabo</th>
+                  <th style="width: 10%;">Ø Eletr.</th>
+                  <th style="width: 12%;">L (m)</th>
+                  <th style="width: 12%;">Pot.</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="is-highlight">
+                  <td>A-01</td>
+                  <td>Alim. QD-1A</td>
+                  <td>70A 3F</td>
+                  <td>F+F+F+N+T 16,0</td>
+                  <td>1-1/2&Prime;</td>
+                  <td class="num">45</td>
+                  <td class="num">14 500</td>
+                </tr>
+                <tr>
+                  <td>A-02</td>
+                  <td>Alim. QD-2A</td>
+                  <td>50A 3F</td>
+                  <td>F+F+F+N+T 10,0</td>
+                  <td>1-1/4&Prime;</td>
+                  <td class="num">28</td>
+                  <td class="num">9 800</td>
+                </tr>
+                <tr>
+                  <td>A-03</td>
+                  <td>Alim. QD-Pav1</td>
+                  <td>50A 3F</td>
+                  <td>F+F+F+N+T 10,0</td>
+                  <td>1-1/4&Prime;</td>
+                  <td class="num">62</td>
+                  <td class="num">9 800</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pdf-mock-section-title">Circuitos internos</div>
+            <table class="pdf-mock-table">
+              <thead>
+                <tr>
+                  <th style="width: 8%;">Circ.</th>
+                  <th style="width: 28%;">Descrição</th>
+                  <th style="width: 12%;">DJ</th>
+                  <th style="width: 18%;">Cabo</th>
+                  <th style="width: 10%;">Ø Eletr.</th>
+                  <th style="width: 12%;">L (m)</th>
+                  <th style="width: 12%;">Pot.</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>C-01</td>
+                  <td>Iluminação Recepção</td>
+                  <td>16A 1F</td>
+                  <td>F+N+T 2,5</td>
+                  <td>3/4&Prime;</td>
+                  <td class="num">—</td>
+                  <td class="num">480</td>
+                </tr>
+                <tr>
+                  <td>C-02</td>
+                  <td>TUG Recepção</td>
+                  <td>20A 1F</td>
+                  <td>F+N+T 2,5</td>
+                  <td>3/4&Prime;</td>
+                  <td class="num">—</td>
+                  <td class="num">1 200</td>
+                </tr>
+                <tr>
+                  <td>C-03</td>
+                  <td>TUE Ar Cond Sala 01</td>
+                  <td>25A 1F</td>
+                  <td>F+N+T 4,0</td>
+                  <td>1&Prime;</td>
+                  <td class="num">—</td>
+                  <td class="num">3 500</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="pdf-preview-hint">Trecho recortado da prancha PE-ELE-QDC · 01/04. A linha realçada acima corresponde à linha selecionada na tabela abaixo.</p>
+        </div>
+      </div>
+
+      <!-- Circuitos extraídos sub-panel -->
+      <div class="sub-panel" aria-label="Circuitos extraídos do quadro">
+        <header class="sub-panel-head">
+          <h3>Circuitos extraídos <span class="hint" style="font-weight: 400; margin-left: var(--space-2);">12 linhas · 3 alimentadores · 7 internos · 2 reservas</span></h3>
+          <span class="hint">clica numa linha pra ver no PDF acima</span>
+        </header>
+
+        <div class="circuitos-bulk">
+          <span class="circuitos-bulk-text">
+            <strong>3 alimentadores</strong> identificados (têm comprimento no quadro). Confirmar todos?
+          </span>
+          <button type="button" class="accept-btn">Confirmar 3</button>
+        </div>
+
+        <table class="circuitos-table">
+          <thead>
+            <tr>
+              <th style="width: 6%;">Circ.</th>
+              <th style="width: 22%;">Descrição</th>
+              <th style="width: 8%; text-align: right;">Pot. (W)</th>
+              <th style="width: 6%;">DJ</th>
+              <th style="width: 12%;">Cabo</th>
+              <th style="width: 8%;">Ø Eletr.</th>
+              <th style="width: 13%; text-align: right;">Comprim.</th>
+              <th style="width: 13%;">Tipo</th>
+              <th style="width: 12%;"></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Alimentadores section -->
+            <tr class="is-section-divider"><td colspan="9">Alimentadores · vão do QGBT pra cada QD</td></tr>
+
+            <tr class="is-active">
+              <td class="mono">A-01</td>
+              <td class="descricao">Alimentador QD-1A</td>
+              <td class="num">14 500</td>
+              <td class="mono">70A 3F</td>
+              <td class="mono">F+F+F+N+T 16,0</td>
+              <td class="mono">1-1/2&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">45 m</span>
+                  <span class="len-source is-quadro"><span class="pip"></span>do quadro <span class="src-hint">L=45</span></span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-alim">Alimentador</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">A-02</td>
+              <td class="descricao">Alimentador QD-2A</td>
+              <td class="num">9 800</td>
+              <td class="mono">50A 3F</td>
+              <td class="mono">F+F+F+N+T 10,0</td>
+              <td class="mono">1-1/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">28 m</span>
+                  <span class="len-source is-quadro"><span class="pip"></span>do quadro <span class="src-hint">L=28</span></span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-alim">Alimentador</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">A-03</td>
+              <td class="descricao">Alimentador QD-Pav1</td>
+              <td class="num">9 800</td>
+              <td class="mono">50A 3F</td>
+              <td class="mono">F+F+F+N+T 10,0</td>
+              <td class="mono">1-1/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">62 m</span>
+                  <span class="len-source is-quadro"><span class="pip"></span>do quadro <span class="src-hint">L=62</span></span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-alim">Alimentador</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <!-- Circuitos internos -->
+            <tr class="is-section-divider"><td colspan="9">Circuitos internos · sem comprimento no quadro → padrão 250 m</td></tr>
+
+            <tr>
+              <td class="mono">C-01</td>
+              <td class="descricao">Iluminação Recepção</td>
+              <td class="num">480</td>
+              <td class="mono">16A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão · ajustar?</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-02</td>
+              <td class="descricao">TUG Recepção</td>
+              <td class="num">1 200</td>
+              <td class="mono">20A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão · ajustar?</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-03</td>
+              <td class="descricao">TUE Ar Cond Sala 01</td>
+              <td class="num">3 500</td>
+              <td class="mono">25A 1F</td>
+              <td class="mono">F+N+T 4,0</td>
+              <td class="mono">1&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão · ajustar?</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-04</td>
+              <td class="descricao">Iluminação Sala 02</td>
+              <td class="num">360</td>
+              <td class="mono">16A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-05</td>
+              <td class="descricao">TUG Sala 02</td>
+              <td class="num">1 200</td>
+              <td class="mono">20A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-06</td>
+              <td class="descricao">TUE Ar Cond Sala 02</td>
+              <td class="num">3 500</td>
+              <td class="mono">25A 1F</td>
+              <td class="mono">F+N+T 4,0</td>
+              <td class="mono">1&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-07</td>
+              <td class="descricao">Iluminação Corredor</td>
+              <td class="num">600</td>
+              <td class="mono">16A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-08</td>
+              <td class="descricao">TUG Copa</td>
+              <td class="num">1 200</td>
+              <td class="mono">20A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr>
+              <td class="mono">C-09</td>
+              <td class="descricao">TUE Microondas Copa</td>
+              <td class="num">1 500</td>
+              <td class="mono">20A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <!-- Vague descrição → omisso candidate -->
+            <tr class="is-omisso-flag">
+              <td class="mono">C-10</td>
+              <td class="descricao vague">"a confirmar com projetista"</td>
+              <td class="num">—</td>
+              <td class="mono">20A 1F</td>
+              <td class="mono">F+N+T 2,5</td>
+              <td class="mono">3/4&Prime;</td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value">250 m</span>
+                  <span class="len-source is-default"><span class="pip"></span>padrão</span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-interno">Interno</span></td>
+              <td class="action-cell">
+                <button class="action-confirm" type="button" title="Confirmar">✓</button>
+                <button class="action-omisso" type="button" title="Marcar como omisso (consultar cliente)">!</button>
+              </td>
+            </tr>
+
+            <!-- Reserva rows — muted, no cabo, no BOM entry per BR-quadro conventions -->
+            <tr class="is-reserva">
+              <td class="mono">C-11</td>
+              <td class="descricao">Reserva</td>
+              <td class="num"><span class="empty-dash">—</span></td>
+              <td class="mono">20A 1F</td>
+              <td class="mono"><span class="empty-dash">— sem cabo</span></td>
+              <td class="mono"><span class="empty-dash">—</span></td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value"><span class="empty-dash">— não entra no BOM</span></span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-reserva">Reserva</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+            <tr class="is-reserva">
+              <td class="mono">C-12</td>
+              <td class="descricao">Reserva</td>
+              <td class="num"><span class="empty-dash">—</span></td>
+              <td class="mono">20A 1F</td>
+              <td class="mono"><span class="empty-dash">— sem cabo</span></td>
+              <td class="mono"><span class="empty-dash">—</span></td>
+              <td>
+                <div class="len-cell">
+                  <span class="len-value"><span class="empty-dash">— não entra no BOM</span></span>
+                </div>
+              </td>
+              <td><span class="tipo-chip is-reserva">Reserva</span></td>
+              <td class="action-cell"><button class="action-confirm" type="button">✓</button></td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="circuitos-foot">
+          <span class="counter"><span class="ok">0</span> de 12 confirmadas · <span class="pend">1 omisso candidato</span></span>
+          <span class="scroll-hint">Padrão 250 m por circuito · super-estimativo conservador. Ajusta por linha se souber melhor.</span>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="form-actions">
+    <span class="form-meta">Quadros salvos automaticamente · <span class="mono">há 6s</span></span>
+    <div class="btn-group">
+      <a class="btn btn-ghost" href={`/projects/${id}/preparacao/legenda`}>← Preparação</a>
+      <a class="btn btn-primary" href={`/projects/${id}/memorial`}>Próximo · Memorial →</a>
+    </div>
+  </div>
+
+</div>
+
+</ProjectLayout>
+
+<script is:inline>
+  // quadro list activation
+  (function () {
+    const rows = document.querySelectorAll('.quadro-row');
+    rows.forEach(function (row) {
+      row.addEventListener('click', function () {
+        rows.forEach(function (r) { r.classList.remove('is-active'); });
+        row.classList.add('is-active');
+      });
+    });
+  })();
+
+  // tipo-chip flip (alimentador ↔ interno — reserva stays reserva)
+  (function () {
+    document.querySelectorAll('.tipo-chip:not(.is-reserva)').forEach(function (chip) {
+      chip.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (chip.classList.contains('is-alim')) {
+          chip.classList.replace('is-alim', 'is-interno');
+          chip.textContent = 'Interno';
+        } else if (chip.classList.contains('is-interno')) {
+          chip.classList.replace('is-interno', 'is-alim');
+          chip.textContent = 'Alimentador';
+        }
+      });
+    });
+  })();
+
+  // circuit row → highlight in PDF preview
+  (function () {
+    var rows = document.querySelectorAll('.circuitos-table tbody tr:not(.is-section-divider)');
+    var pdfRows = document.querySelectorAll('.pdf-mock-table tbody tr');
+    rows.forEach(function (row, idx) {
+      row.addEventListener('click', function () {
+        rows.forEach(function (r) { r.classList.remove('is-active'); });
+        row.classList.add('is-active');
+        pdfRows.forEach(function (r) { r.classList.remove('is-highlight'); });
+        if (pdfRows[idx]) pdfRows[idx].classList.add('is-highlight');
+      });
+    });
+  })();
+
+  // action-confirm flips to confirmed state
+  (function () {
+    document.querySelectorAll('.action-confirm').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        btn.style.background = 'var(--color-success)';
+        btn.style.color = '#fff';
+        btn.textContent = '✓';
+        btn.setAttribute('disabled', 'true');
+      });
+    });
+  })();
+
+  // bulk accept alimentadores (confirm all 3 alim rows at once)
+  (function () {
+    var accept = document.querySelector('.accept-btn');
+    if (!accept) return;
+    accept.addEventListener('click', function () {
+      var rows = document.querySelectorAll('.circuitos-table tbody tr');
+      var alimCount = 0;
+      rows.forEach(function (tr) {
+        if (alimCount >= 3) return;
+        var chip = tr.querySelector('.tipo-chip.is-alim');
+        if (chip) {
+          var btn = tr.querySelector('.action-confirm');
+          if (btn) btn.click();
+          alimCount++;
+        }
+      });
+      accept.textContent = '✓ 3 confirmados';
+      accept.style.background = 'var(--color-success)';
+      accept.style.borderColor = 'var(--color-success)';
+      accept.setAttribute('disabled', 'true');
+    });
+  })();
+</script>

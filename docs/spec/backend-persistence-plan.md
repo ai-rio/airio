@@ -1,9 +1,31 @@
 # Backend Persistence Plan
 
-> **Status:** Draft, awaiting first slice implementation. Created 2026-05-27 from this session's research (3 specialist subagent reviews + Carlos's 4 locked decisions).
+> **Status:** Draft, awaiting first slice implementation. Created 2026-05-27 from this session's research (3 specialist subagent reviews + Carlos's 4 locked decisions). Scope-cut decision 2026-05-27 (end of session): wire S1-S3 first as minimum viable proof, then re-evaluate. See "Current scope cut" section below before reading further phases.
 >
 > **Owner:** Carlos.
 > **Spec scope:** how airio's product state persists, how the container exposes JSON API, how cross-project memory accumulates, and the per-screen wiring order.
+
+---
+
+## Current scope cut (Carlos, end-of-session 2026-05-27)
+
+Wire S1-S3 first as **minimum viable proof of the stack**. Then re-evaluate.
+
+**Rationale:** mocks aren't verification (wedge lock says "Verification UI IS the product"). Each unwired mock = guess at data shape. 3-screen wire = cheapest possible proof that R2 + D1 + Drizzle + audit_log + Queue all wire together without burning weeks on container work first. S1-S3 exercise Astro+D1+R2 only — no container call — so the proof isolates the persistence stack from the Python compute path.
+
+**What this cut means concretely:**
+
+- **In scope, this slice:** Phase 0 (prereqs) → Phase 1 (Drizzle schema for projects + sheets + audit_log + global_layer_dict + global_glyph_dict) → Phase 3 (Astro CRUD for projects/sheets/triagem + Queue consumer for global counters) → Phase 4 (S1 wire) → Phase 5 (S2 wire) → Phase 6 (S3 wire).
+- **Deferred, this slice:** Phase 2 (container JSON API) → not needed for S1-S3 since none of them call the Python extractor. Phase 7+ (S4 scale through S7 quadro) → wait for S1-S3 proof first.
+- **Schema scope cut:** Phase 1 migration includes ONLY the tables S1-S3 touch (projects, sheets, audit_log, global_layer_dict, global_glyph_dict). Tables for layer_mappings / glyph_overrides / quadros / quadro_rows / bom_rows / omissos / etc. defer to their wire phase (one migration per phase keeps diffs reviewable).
+
+**Re-evaluation triggers after S1-S3 ships:**
+
+- If wire surfaces nasty issues (Queue contention, audit_log volume, FK constraint pain) → pause forward wire, iterate on the persistence layer until smooth.
+- If wire is smooth → continue to Phase 7 (S4 first container call) and validate the container path.
+- If S9-S11 visual ports become a bottleneck for Carlos's dogfood flow → batch-port them visually before continuing to wire forward.
+
+Do NOT pre-commit beyond S1-S3 wire. Decision deferred until proof in hand.
 
 ---
 

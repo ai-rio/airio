@@ -1,27 +1,57 @@
 ---
 import ProjectLayout from '../../../layouts/ProjectLayout.astro';
+import { loadProject } from '../../../lib/projects';
+import { getDb } from '../../../lib/db';
+import { sheets } from '../../../../db/schema';
+import { asc, eq } from 'drizzle-orm';
+
 const { id } = Astro.params;
+const projectId = String(id ?? '');
+const project = await loadProject(projectId);
+
+if (!project) {
+	return new Response('Project not found', { status: 404 });
+}
+
+const db = getDb();
+const sheetRows = await db
+	.select()
+	.from(sheets)
+	.where(eq(sheets.projectId, projectId))
+	.orderBy(asc(sheets.createdAt));
+
+// Kind labels (Portuguese). Inline per CLAUDE.md §2 — single consumer right
+// now. Extract to src/lib/labels.ts when S6 or S9 consumes the same map.
+const KIND_LABEL: Record<string, { full: string; short: string }> = {
+	planta_forca: { full: 'Planta de Força', short: 'FRC' },
+	iluminacao: { full: 'Planta de Iluminação', short: 'ILU' },
+	quadro: { full: 'Quadro de Cargas', short: 'QDC' },
+	unifilar: { full: 'Diagrama Unifilar', short: 'UNI' },
+};
+const KIND_ORDER = ['planta_forca', 'iluminacao', 'quadro', 'unifilar'] as const;
+
+const total = sheetRows.length;
+const tagged = sheetRows.filter((s) => s.kind && !s.ignored).length;
+const ignored = sheetRows.filter((s) => s.ignored === 1).length;
+const pending = total - tagged - ignored;
+const nextReady = total > 0 && pending === 0;
+const projectName = project.name;
 ---
 
 <ProjectLayout
-	title="airio · Triagem · PROJECT-A PE06"
+	title={`airio · Triagem · ${projectName}`}
 	step={3}
 	doneSteps={[1, 2]}
-	projectName="PROJECT-A PE06"
+	projectName={projectName}
 	breadcrumbTail="Triagem"
-	keymap={['⌘ + Enter · próximo', 'ESC · cancelar', '⌘ + A · selecionar todas', '1/2/3 · filtrar']}
+	keymap={['⌘ + Enter · próximo', 'ESC · cancelar']}
 	footerLeftText="Triagem salva automaticamente"
 	contentMaxWidth={1280}
 >
 
 <style>
-  /* ============ screen body ============ */
-  .screen-body {
-    width: 100%;
-    padding-bottom: var(--space-12);
-  }
+  .screen-body { width: 100%; padding-bottom: var(--space-12); }
 
-  /* ============ page header ============ */
   .page-eyebrow {
     font: 500 11px/16px var(--font-sans);
     text-transform: uppercase;
@@ -42,7 +72,7 @@ const { id } = Astro.params;
     max-width: 70ch;
   }
 
-  /* ============ scope strip ============ */
+  /* scope strip — REAL counts only (no mocked area / pavimentos / sistemas) */
   .scope-strip {
     display: flex;
     flex-wrap: wrap;
@@ -76,13 +106,14 @@ const { id } = Astro.params;
   .scope-stat.is-warn .val { color: var(--color-warning); }
   .scope-stat.is-warn .lbl { color: var(--color-warning); }
   .scope-stat.is-ok .val { color: var(--color-success); }
+  .scope-stat.is-muted .val { color: var(--color-fg-muted); }
 
-  /* ============ toolbar ============ */
+  /* toolbar */
   .toolbar {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
     flex-wrap: wrap;
   }
   .filter-group {
@@ -122,14 +153,12 @@ const { id } = Astro.params;
   }
   .toolbar .bulk-msg .ok { color: var(--color-success); font-weight: 600; }
   .toolbar .bulk-msg .warn { color: var(--color-warning); font-weight: 600; }
+  .toolbar .bulk-msg .muted { color: var(--color-fg-muted); }
 
-  /* ============ sheet grid ============ */
-  /* 5 cards across at 1440 viewport (contentMaxWidth=1280, ~1157px inner).
-     220px minmax + 16px gap rounded to 4 cols (off by ~7px); 210px keeps the
-     5-col density of the baseline. */
+  /* sheet grid */
   .sheet-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: var(--space-4);
     margin-bottom: var(--space-8);
   }
@@ -138,190 +167,143 @@ const { id } = Astro.params;
     border: 1px solid var(--color-border-default);
     border-radius: var(--radius-md);
     overflow: hidden;
-    cursor: pointer;
-    transition: border-color var(--motion-fast) var(--ease-default);
     display: flex;
     flex-direction: column;
+    transition: border-color var(--motion-fast) var(--ease-default), opacity var(--motion-fast) var(--ease-default);
   }
-  .sheet-card:hover { border-color: var(--color-border-strong); }
-  /* is-selected uses accent — legitimate active/selection state per DESIGN.md */
-  .sheet-card.is-selected { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
-  .sheet-card.is-warn { border-color: var(--color-warning-soft-border); }
-  .sheet-card.is-outside { opacity: 0.55; }
+  .sheet-card[data-state="ignored"] { opacity: 0.55; }
+  .sheet-card[data-state="pending"] { border-color: var(--color-warning-soft-border); }
 
-  /* ============ thumbnail ============ */
-  .thumb {
-    position: relative;
-    aspect-ratio: 16 / 11;
-    background:
-      repeating-linear-gradient(0deg, rgba(10,10,10,0.04) 0 1px, transparent 1px 16px),
-      repeating-linear-gradient(90deg, rgba(10,10,10,0.04) 0 1px, transparent 1px 16px),
-      var(--color-bg-surface);
-    overflow: hidden;
-    border-bottom: 1px solid var(--color-border-default);
+  /* meta block */
+  .sheet-meta {
+    padding: var(--space-3) var(--space-4);
+    display: grid;
+    gap: 4px;
+    border-bottom: 1px solid var(--color-border-subtle);
   }
-  .thumb-overlay {
-    position: absolute;
-    inset: 0;
-    padding: 8px 10px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-  .thumb-sheet-num {
+  .sheet-filename {
     font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.02em;
-    color: var(--color-fg-secondary);
-    background: rgba(255,255,255,0.85);
-    padding: 2px 5px;
-    border-radius: 2px;
+    font-size: 12px;
+    color: var(--color-fg-primary);
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
   }
-  .thumb-status-dot {
+  .sheet-sub {
+    font: 400 11px/14px var(--font-mono);
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sheet-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 11px/14px var(--font-sans);
+    margin-top: 2px;
+  }
+  .sheet-status .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-success);
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+    background: var(--color-fg-disabled);
   }
-  .thumb-status-dot.is-warn { background: var(--color-warning); }
-  .thumb-status-dot.is-outside { background: var(--color-fg-disabled); }
-  .thumb-checkbox {
-    position: absolute;
-    bottom: 8px;
-    left: 8px;
-    width: 18px;
-    height: 18px;
-    background: rgba(255,255,255,0.9);
-    border-radius: 2px;
-    cursor: pointer;
-  }
-  .thumb-checkbox input {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    cursor: pointer;
-  }
-  /* fake drawing strokes to suggest a planta */
-  .thumb-stroke {
-    position: absolute;
-    background: rgba(10,10,10,0.12);
-  }
-  .thumb-stroke.s1 { top: 22%; left: 12%; right: 12%; height: 1px; }
-  .thumb-stroke.s2 { top: 22%; bottom: 22%; left: 12%; width: 1px; }
-  .thumb-stroke.s3 { top: 22%; bottom: 22%; right: 12%; width: 1px; }
-  .thumb-stroke.s4 { bottom: 22%; left: 12%; right: 12%; height: 1px; }
-  .thumb-stroke.s5 { top: 22%; bottom: 22%; left: 42%; width: 1px; opacity: 0.6; }
-  .thumb-stroke.s6 { top: 50%; left: 12%; right: 12%; height: 1px; opacity: 0.6; }
+  .sheet-status[data-state="tagged"] { color: var(--color-success); }
+  .sheet-status[data-state="tagged"] .dot { background: var(--color-success); }
+  .sheet-status[data-state="pending"] { color: var(--color-warning); }
+  .sheet-status[data-state="pending"] .dot { background: var(--color-warning); }
+  .sheet-status[data-state="ignored"] { color: var(--color-fg-muted); }
+  .sheet-status[data-state="ignored"] .dot { background: var(--color-fg-muted); }
 
-  /* ============ sheet meta ============ */
-  .sheet-meta {
-    padding: var(--space-3);
+  /* tag buttons grid */
+  .kind-grid {
     display: grid;
-    gap: 6px;
-  }
-  .sheet-title {
-    font: 600 13px/18px var(--font-sans);
-    color: var(--color-fg-primary);
-    letter-spacing: -0.005em;
-  }
-  .sheet-subtitle {
-    font: 400 12px/16px var(--font-sans);
-    color: var(--color-fg-secondary);
-  }
-  .sheet-tags {
-    display: flex;
-    flex-wrap: wrap;
+    grid-template-columns: repeat(2, 1fr);
     gap: 4px;
-    margin-top: 2px;
+    padding: var(--space-3) var(--space-4);
   }
-  .sheet-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.02em;
-    color: var(--color-fg-secondary);
-    padding: 1px 6px;
+  .kind-btn {
+    font: 500 12px/16px var(--font-sans);
+    padding: 6px 8px;
     background: var(--color-bg-surface);
     border: 1px solid var(--color-border-default);
-    border-radius: 2px;
-  }
-  .sheet-tag.auto { color: var(--color-success); border-color: transparent; background: var(--color-success-soft-bg); }
-  .sheet-tag.revisar { color: var(--color-warning); border-color: transparent; background: var(--color-warning-soft-bg); }
-  .sheet-tag.fora { color: var(--color-fg-muted); }
-
-  /* ============ MD card ============ */
-  .md-card {
-    display: grid;
-    grid-template-columns: 200px 1fr auto;
-    gap: var(--space-4);
-    padding: var(--space-4);
-    background: var(--color-info-soft-bg);
-    border: 1px solid #bae6fd;
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-6);
-    align-items: center;
-  }
-  .md-card .visual {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-  .md-card .doc-stack {
-    width: 56px;
-    height: 72px;
-    background: var(--color-bg-elevated);
-    border: 1px solid var(--color-border-default);
-    border-radius: 3px;
-    position: relative;
-    box-shadow: 4px 4px 0 -1px var(--color-bg-elevated), 4px 4px 0 0 var(--color-border-default);
-    flex-shrink: 0;
-  }
-  .md-card .doc-stack::before, .md-card .doc-stack::after {
-    content: '';
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    height: 1px;
-    background: rgba(10,10,10,0.15);
-  }
-  .md-card .doc-stack::before { top: 14px; }
-  .md-card .doc-stack::after { top: 22px; }
-  .md-card .doc-label {
-    font: 600 14px/20px var(--font-sans);
-    color: var(--color-info);
-  }
-  .md-card .doc-sub {
-    font: 400 12px/16px var(--font-mono);
+    border-radius: var(--radius-xs);
     color: var(--color-fg-secondary);
-    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default), color var(--motion-fast) var(--ease-default);
+    text-align: left;
   }
-  .md-card .sections {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 4px;
+  .kind-btn:hover {
+    background: var(--color-bg-elevated);
+    border-color: var(--color-border-strong);
+    color: var(--color-fg-primary);
   }
-  .md-section-pill {
+  /* is-active uses accent — legitimate active/selection state per DESIGN.md orange-discipline */
+  .kind-btn.is-active {
+    background: var(--color-accent-soft-bg);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+  .kind-btn:disabled {
+    opacity: 0.5;
+    cursor: progress;
+  }
+  .kind-btn .short {
     font-family: var(--font-mono);
     font-size: 10px;
+    color: var(--color-fg-muted);
+    margin-left: 6px;
     letter-spacing: 0.02em;
-    padding: 3px 6px;
-    background: var(--color-bg-elevated);
-    border: 1px solid #bae6fd;
-    border-radius: 2px;
-    color: var(--color-fg-secondary);
-    text-transform: uppercase;
   }
-  .md-card .action {
-    font: 500 12px/16px var(--font-sans);
-    color: var(--color-info);
-    text-decoration: none;
-    white-space: nowrap;
-  }
+  .kind-btn.is-active .short { color: var(--color-accent); }
 
-  /* ============ form actions ============ */
+  .ignore-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 var(--space-4) var(--space-3);
+  }
+  .ignore-btn {
+    font: 500 11px/16px var(--font-sans);
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    color: var(--color-fg-muted);
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-default), color var(--motion-fast) var(--ease-default);
+  }
+  .ignore-btn:hover {
+    background: var(--color-bg-surface);
+    color: var(--color-fg-secondary);
+  }
+  .ignore-btn.is-active {
+    color: var(--color-warning);
+    background: var(--color-warning-soft-bg);
+    border-color: var(--color-warning-soft-border);
+  }
+  .ignore-btn:disabled { opacity: 0.5; cursor: progress; }
+
+  /* row-level status banner */
+  .row-status {
+    font: 400 11px/14px var(--font-sans);
+    color: var(--color-fg-muted);
+    padding: 0 var(--space-4) var(--space-2);
+    min-height: 14px;
+  }
+  .row-status.is-error { color: var(--color-danger); }
+
+  /* empty state */
+  .empty {
+    padding: var(--space-8);
+    text-align: center;
+    background: var(--color-bg-surface);
+    border: 1px dashed var(--color-border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-8);
+  }
+  .empty h2 { font: 600 16px/22px var(--font-sans); margin: 0 0 var(--space-2); color: var(--color-fg-primary); }
+  .empty p { font: 400 13px/18px var(--font-sans); color: var(--color-fg-secondary); margin: 0; }
+  .empty a { color: var(--color-accent); text-decoration: none; font-weight: 500; }
+
+  /* form actions */
   .form-actions {
     display: flex;
     justify-content: space-between;
@@ -344,21 +326,25 @@ const { id } = Astro.params;
     border: 1px solid transparent;
     background: transparent;
     cursor: pointer;
+    text-decoration: none;
     transition: background var(--motion-fast) var(--ease-default), border-color var(--motion-fast) var(--ease-default);
   }
   .btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-  .btn-primary { background: var(--color-accent); color: #ffffff; text-decoration: none; }
+  .btn-primary { background: var(--color-accent); color: #ffffff; }
   .btn-primary:hover { background: var(--color-accent-hover); }
-  .btn-ghost { background: transparent; color: var(--color-fg-secondary); text-decoration: none; }
+  .btn-ghost { color: var(--color-fg-secondary); }
   .btn-ghost:hover { background: var(--color-bg-surface); color: var(--color-fg-primary); }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn.is-disabled, .btn[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
 
   @media (max-width: 768px) {
     .page-title { font-size: 22px; line-height: 30px; }
     .scope-strip { flex-direction: column; }
     .scope-stat { border-right: none; border-bottom: 1px solid var(--color-border-default); padding-bottom: var(--space-2); }
     .scope-stat:last-child { border-bottom: none; }
-    .md-card { grid-template-columns: 1fr; }
+    .kind-grid { grid-template-columns: 1fr; }
   }
 </style>
 
@@ -366,290 +352,106 @@ const { id } = Astro.params;
 
   <div class="page-eyebrow">Etapa 3 de 8 · Triagem das pranchas</div>
   <h1 class="page-title">O que tem em cada prancha</h1>
-  <p class="page-lead">O airio leu o título de cada prancha e adivinhou o que ela é (planta de força, planta de iluminação, SDAI, corte, detalhe…). Confere as <strong>6 pra revisar</strong> abaixo e segue.</p>
+  <p class="page-lead">Para cada PDF enviado, classifique o tipo. <strong>Planta de Força</strong>, <strong>Iluminação</strong>, <strong>Quadro de Cargas</strong> ou <strong>Unifilar</strong>. Se não for elétrico (capa, arquitetura, índice), ignorar — não entra nos cálculos.</p>
 
-  <!-- scope strip -->
-  <section class="scope-strip" aria-label="Escopo do projeto">
-    <div class="scope-stat is-ok">
-      <span class="val">4 255 m²</span>
-      <span class="lbl">Área total (MD)</span>
-    </div>
+  <section class="scope-strip" aria-label="Status da triagem">
     <div class="scope-stat">
-      <span class="val">47</span>
+      <span class="val">{total}</span>
       <span class="lbl">Pranchas</span>
     </div>
-    <div class="scope-stat is-ok">
-      <span class="val">41</span>
-      <span class="lbl">Confirmadas (auto)</span>
+    <div class={`scope-stat ${tagged === total && total > 0 ? 'is-ok' : ''}`}>
+      <span class="val">{tagged}</span>
+      <span class="lbl">Classificadas</span>
     </div>
-    <div class="scope-stat is-warn">
-      <span class="val">6</span>
-      <span class="lbl">Pra revisar</span>
+    <div class={`scope-stat ${pending > 0 ? 'is-warn' : ''}`}>
+      <span class="val">{pending}</span>
+      <span class="lbl">Pendentes</span>
     </div>
-    <div class="scope-stat">
-      <span class="val">3</span>
-      <span class="lbl">Pavimentos</span>
-    </div>
-    <div class="scope-stat">
-      <span class="val">7</span>
-      <span class="lbl">Sistemas elétricos</span>
+    <div class="scope-stat is-muted">
+      <span class="val">{ignored}</span>
+      <span class="lbl">Ignoradas</span>
     </div>
   </section>
 
-  <!-- toolbar -->
-  <div class="toolbar" role="toolbar" aria-label="Filtros">
-    <div class="filter-group">
-      <button class="filter-btn is-active">Todas <span class="count">47</span></button>
-      <button class="filter-btn">Confirmadas <span class="count">41</span></button>
-      <button class="filter-btn">Pra revisar <span class="count">6</span></button>
-      <button class="filter-btn">Fora de escopo <span class="count">8</span></button>
+  {total > 0 && (
+    <div class="toolbar" role="toolbar" aria-label="Filtros">
+      <div class="filter-group" data-filter-group>
+        <button class="filter-btn is-active" data-filter="all">Todas <span class="count">{total}</span></button>
+        <button class="filter-btn" data-filter="pending">Pendentes <span class="count">{pending}</span></button>
+        <button class="filter-btn" data-filter="tagged">Classificadas <span class="count">{tagged}</span></button>
+        <button class="filter-btn" data-filter="ignored">Ignoradas <span class="count">{ignored}</span></button>
+      </div>
+      <span class="spacer"></span>
+      <span class="bulk-msg">
+        {pending === 0 && total > 0
+          ? <Fragment><span class="ok">Tudo classificado</span> · próximo desbloqueado</Fragment>
+          : <Fragment><span class="warn">{pending} pendente{pending === 1 ? '' : 's'}</span> · <span class="muted">classifique para liberar próximo</span></Fragment>}
+      </span>
     </div>
-    <div class="filter-group">
-      <button class="filter-btn is-active">Por arquivo</button>
-      <button class="filter-btn">Por pavimento</button>
-      <button class="filter-btn">Por sistema</button>
+  )}
+
+  {total === 0 ? (
+    <div class="empty">
+      <h2>Sem PDFs enviados</h2>
+      <p>Volte para <a href={`/projects/${projectId}/documentos`}>Documentos</a> e envie ao menos um PDF.</p>
     </div>
-    <span class="spacer"></span>
-    <span class="bulk-msg"><span class="ok">41 prontas</span> · <span class="warn">6 pra revisar</span></span>
-    <button class="btn btn-ghost btn-sm">Confirmar todas as auto</button>
-  </div>
-
-  <!-- sheet grid -->
-  <section class="sheet-grid" aria-label="Pranchas">
-
-    <article class="sheet-card">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div>
-        <div class="thumb-stroke s2"></div>
-        <div class="thumb-stroke s3"></div>
-        <div class="thumb-stroke s4"></div>
-        <div class="thumb-stroke s5"></div>
-        <div class="thumb-stroke s6"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-FRC · 01/12</span>
-          <span class="thumb-status-dot" aria-label="confirmada"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Planta de Força</span>
-        <span class="sheet-subtitle">Térreo · Esc. 1:50</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">FRC</span>
-          <span class="sheet-tag">TER</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-FRC · 02/12</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Planta de Força</span>
-        <span class="sheet-subtitle">1º Pavimento · Esc. 1:50</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">FRC</span>
-          <span class="sheet-tag">P1</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div><div class="thumb-stroke s6"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-FRC · 03/12</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Planta de Força</span>
-        <span class="sheet-subtitle">2º Pavimento · Esc. 1:50</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">FRC</span>
-          <span class="sheet-tag">P2</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-ILU · 01/12</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Planta de Iluminação</span>
-        <span class="sheet-subtitle">Térreo · Esc. 1:50</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">ILU</span>
-          <span class="sheet-tag">TER</span>
-        </div>
-      </div>
-    </article>
-
-    <!-- needs review: titleblock unreadable -->
-    <article class="sheet-card is-warn">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s4"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-FRC · 09/12</span>
-          <span class="thumb-status-dot is-warn"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Detalhe ou Corte?</span>
-        <span class="sheet-subtitle">Carimbo ilegível · pavimento ?</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag revisar">REVISAR</span>
-          <span class="sheet-tag">CONFIRMAR TIPO</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-SDA · 01/08</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Planta de SDAI</span>
-        <span class="sheet-subtitle">Térreo · Esc. 1:75</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">SDA</span>
-          <span class="sheet-tag">TER</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb" style="background: repeating-linear-gradient(0deg, rgba(10,10,10,0.06) 0 1px, transparent 1px 14px), var(--color-bg-surface);">
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-QDC · 01/04</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Quadro de Cargas QGBT</span>
-        <span class="sheet-subtitle">Tabela · 38 circuitos</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">QDC</span>
-          <span class="sheet-tag">QGBT</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb" style="background: repeating-linear-gradient(0deg, rgba(10,10,10,0.06) 0 1px, transparent 1px 14px), var(--color-bg-surface);">
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-QDC · 02/04</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Quadro de Cargas QD-1A</span>
-        <span class="sheet-subtitle">Tabela · 24 circuitos</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">QDC</span>
-          <span class="sheet-tag">QD-1A</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="sheet-card">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div>
-        <div class="thumb-stroke s5" style="left: 30%;"></div>
-        <div class="thumb-stroke" style="top: 35%; left: 30%; right: 12%; height: 1px;"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ELE-UNI · 01/03</span>
-          <span class="thumb-status-dot"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Diagrama Unifilar</span>
-        <span class="sheet-subtitle">Entrada + QGBT · Esc. SE</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag auto">AUTO</span>
-          <span class="sheet-tag">UNI</span>
-        </div>
-      </div>
-    </article>
-
-    <!-- out of scope: architectural -->
-    <article class="sheet-card is-outside">
-      <div class="thumb">
-        <div class="thumb-stroke s1"></div><div class="thumb-stroke s2"></div><div class="thumb-stroke s3"></div><div class="thumb-stroke s4"></div><div class="thumb-stroke s5"></div><div class="thumb-stroke s6"></div>
-        <div class="thumb-overlay">
-          <span class="thumb-sheet-num">PE-ARQ-CAD · 01/08</span>
-          <span class="thumb-status-dot is-outside"></span>
-        </div>
-        <span class="thumb-checkbox"><input type="checkbox" aria-label="Selecionar prancha" /></span>
-      </div>
-      <div class="sheet-meta">
-        <span class="sheet-title">Planta de Arquitetura</span>
-        <span class="sheet-subtitle">Referência apenas</span>
-        <div class="sheet-tags">
-          <span class="sheet-tag fora">FORA DE ESCOPO</span>
-          <span class="sheet-tag">ARQ</span>
-        </div>
-      </div>
-    </article>
-
-  </section>
-
-  <!-- MD section card -->
-  <section class="md-card" aria-label="Memorial Descritivo">
-    <div class="visual">
-      <div class="doc-stack" aria-hidden="true"></div>
-      <div>
-        <div class="doc-label">Memorial Descritivo</div>
-        <div class="doc-sub">56 páginas · 14 sistemas</div>
-      </div>
-    </div>
-    <div class="sections">
-      <span class="md-section-pill">2.1 Alcance</span>
-      <span class="md-section-pill">2.3 Normas</span>
-      <span class="md-section-pill">4.1 Sistema</span>
-      <span class="md-section-pill">7.1.3 Cabos</span>
-      <span class="md-section-pill">7.1.4 Interrup.</span>
-      <span class="md-section-pill">7.1.5 Tomadas</span>
-      <span class="md-section-pill">7.1.6 Luminár.</span>
-      <span class="md-section-pill">7.1.15 Infra</span>
-    </div>
-    <a href="#" class="action">Abrir memorial →</a>
-  </section>
+  ) : (
+    <section class="sheet-grid" aria-label="Pranchas" id="sheet-grid">
+      {sheetRows.map((s) => {
+        const state = s.ignored === 1 ? 'ignored' : s.kind ? 'tagged' : 'pending';
+        return (
+          <article class="sheet-card" data-sheet-id={s.id} data-state={state}>
+            <div class="sheet-meta">
+              <span class="sheet-filename">{s.filename ?? '(sem nome)'}</span>
+              <span class="sheet-sub">Pág. {String((s.pageIndex ?? 0) + 1).padStart(2, '0')} · {new Date(s.createdAt).toLocaleDateString('pt-BR')}</span>
+              <span class="sheet-status" data-status data-state={state}>
+                <span class="dot"></span>
+                <span data-status-label>{
+                  state === 'tagged' ? KIND_LABEL[s.kind!].full :
+                  state === 'ignored' ? 'Ignorada' : 'Pendente'
+                }</span>
+              </span>
+            </div>
+            <div class="kind-grid" role="radiogroup" aria-label="Classificar tipo">
+              {KIND_ORDER.map((k) => (
+                <button
+                  type="button"
+                  class={`kind-btn ${s.kind === k && s.ignored !== 1 ? 'is-active' : ''}`}
+                  data-kind={k}
+                  aria-pressed={s.kind === k && s.ignored !== 1 ? 'true' : 'false'}
+                >
+                  {KIND_LABEL[k].full}<span class="short">{KIND_LABEL[k].short}</span>
+                </button>
+              ))}
+            </div>
+            <div class="ignore-row">
+              <button
+                type="button"
+                class={`ignore-btn ${s.ignored === 1 ? 'is-active' : ''}`}
+                data-ignore
+                aria-pressed={s.ignored === 1 ? 'true' : 'false'}
+              >{s.ignored === 1 ? 'Ignorada · desfazer' : 'Ignorar'}</button>
+            </div>
+            <p class="row-status" data-row-status></p>
+          </article>
+        );
+      })}
+    </section>
+  )}
 
   <div class="form-actions">
-    <span class="form-meta">Triagem salva · <span style="font-family: var(--font-mono);">há 6s</span></span>
+    <span class="form-meta">{total === 0
+      ? 'Envie PDFs em Documentos para começar'
+      : pending === 0
+        ? 'Triagem completa · pode seguir'
+        : `${pending} prancha${pending === 1 ? '' : 's'} aguardando classificação`}</span>
     <div class="btn-group">
-      <a class="btn btn-ghost" href={`/projects/${id}/documentos`}>← Documentos</a>
-      <a class="btn btn-primary" href={`/projects/${id}/preparacao`}>Próximo · Preparação →</a>
+      <a class="btn btn-ghost" href={`/projects/${projectId}/documentos`}>← Documentos</a>
+      <a
+        class={nextReady ? 'btn btn-primary' : 'btn btn-primary is-disabled'}
+        href={nextReady ? `/projects/${projectId}/preparacao` : '#'}
+        aria-disabled={nextReady ? 'false' : 'true'}
+      >Próximo · Preparação →</a>
     </div>
   </div>
 
@@ -657,48 +459,233 @@ const { id } = Astro.params;
 
 </ProjectLayout>
 
-<script is:inline>
-  // filter tab toggle
+<script is:inline define:vars={{ projectId }}>
+  // S3 Triagem wire: click-to-tag / ignore → PATCH → optimistic update.
+  // Per .claude/rules/dev-workflow.md §1: gate = curl smoke + audit_log row +
+  // browser SSR re-render. Optimistic UI fine because data fits in client state
+  // and the next page-load re-fetches from D1.
   (function () {
-    document.querySelectorAll('.filter-group').forEach(function (grp) {
-      var btns = grp.querySelectorAll('.filter-btn');
-      btns.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          btns.forEach(function (b) { b.classList.remove('is-active'); });
-          btn.classList.add('is-active');
+    const SESSION_KEY = 'airio.session';
+    function getSessionId() {
+      let id = localStorage.getItem(SESSION_KEY);
+      if (!id) {
+        id = 'sess_' + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+        localStorage.setItem(SESSION_KEY, id);
+      }
+      return id;
+    }
+
+    const KIND_LABEL = {
+      planta_forca: 'Planta de Força',
+      iluminacao: 'Planta de Iluminação',
+      quadro: 'Quadro de Cargas',
+      unifilar: 'Diagrama Unifilar',
+    };
+
+    async function patchSheet(sheetId, body) {
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/sheets/${encodeURIComponent(sheetId)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'content-type': 'application/json',
+            'x-airio-session': getSessionId(),
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+      return data.sheet;
+    }
+
+    function setRowStatus(card, msg, isError) {
+      const el = card.querySelector('[data-row-status]');
+      if (!el) return;
+      el.textContent = msg || '';
+      el.classList.toggle('is-error', !!isError);
+    }
+
+    function applySheetState(card, sheet) {
+      const ignored = sheet.ignored === 1;
+      const state = ignored ? 'ignored' : sheet.kind ? 'tagged' : 'pending';
+      card.setAttribute('data-state', state);
+
+      // status pill
+      const statusEl = card.querySelector('[data-status]');
+      const statusLbl = card.querySelector('[data-status-label]');
+      if (statusEl) statusEl.setAttribute('data-state', state);
+      if (statusLbl) {
+        statusLbl.textContent = state === 'tagged' ? KIND_LABEL[sheet.kind] :
+                                state === 'ignored' ? 'Ignorada' : 'Pendente';
+      }
+
+      // kind buttons
+      card.querySelectorAll('.kind-btn').forEach((btn) => {
+        const k = btn.getAttribute('data-kind');
+        const active = !ignored && sheet.kind === k;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+
+      // ignore button
+      const ignBtn = card.querySelector('[data-ignore]');
+      if (ignBtn) {
+        ignBtn.classList.toggle('is-active', ignored);
+        ignBtn.setAttribute('aria-pressed', ignored ? 'true' : 'false');
+        ignBtn.textContent = ignored ? 'Ignorada · desfazer' : 'Ignorar';
+      }
+    }
+
+    function recountScopeStrip() {
+      const cards = document.querySelectorAll('.sheet-card');
+      let total = 0, tagged = 0, pending = 0, ignored = 0;
+      cards.forEach((c) => {
+        total++;
+        const s = c.getAttribute('data-state');
+        if (s === 'tagged') tagged++;
+        else if (s === 'ignored') ignored++;
+        else pending++;
+      });
+      const stats = document.querySelectorAll('.scope-strip .scope-stat');
+      if (stats.length >= 4) {
+        stats[0].querySelector('.val').textContent = String(total);
+        stats[1].querySelector('.val').textContent = String(tagged);
+        stats[1].classList.toggle('is-ok', tagged === total && total > 0);
+        stats[2].querySelector('.val').textContent = String(pending);
+        stats[2].classList.toggle('is-warn', pending > 0);
+        stats[3].querySelector('.val').textContent = String(ignored);
+      }
+      // toolbar counters
+      const f = document.querySelector('[data-filter-group]');
+      if (f) {
+        const set = (sel, n) => { const el = f.querySelector(sel); if (el) el.textContent = String(n); };
+        set('[data-filter="all"] .count', total);
+        set('[data-filter="pending"] .count', pending);
+        set('[data-filter="tagged"] .count', tagged);
+        set('[data-filter="ignored"] .count', ignored);
+      }
+      // bulk message
+      const bulk = document.querySelector('.toolbar .bulk-msg');
+      if (bulk) {
+        if (pending === 0 && total > 0) {
+          bulk.innerHTML = '<span class="ok">Tudo classificado</span> · próximo desbloqueado';
+        } else {
+          bulk.innerHTML = `<span class="warn">${pending} pendente${pending === 1 ? '' : 's'}</span> · <span class="muted">classifique para liberar próximo</span>`;
+        }
+      }
+      // next button
+      const nextBtn = document.querySelector('.form-actions .btn-primary');
+      const formMeta = document.querySelector('.form-meta');
+      const ready = total > 0 && pending === 0;
+      if (nextBtn) {
+        nextBtn.classList.toggle('is-disabled', !ready);
+        nextBtn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+        nextBtn.setAttribute('href', ready ? `/projects/${projectId}/preparacao` : '#');
+      }
+      if (formMeta) {
+        formMeta.textContent = total === 0
+          ? 'Envie PDFs em Documentos para começar'
+          : ready
+            ? 'Triagem completa · pode seguir'
+            : `${pending} prancha${pending === 1 ? '' : 's'} aguardando classificação`;
+      }
+    }
+
+    function lockButtons(card, lock) {
+      card.querySelectorAll('button').forEach((b) => { b.disabled = lock; });
+    }
+
+    document.querySelectorAll('.sheet-card').forEach((card) => {
+      const sheetId = card.getAttribute('data-sheet-id');
+      if (!sheetId) return;
+
+      // Kind buttons
+      card.querySelectorAll('.kind-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const kind = btn.getAttribute('data-kind');
+          const isActive = btn.classList.contains('is-active');
+          // toggle off if clicking the active one → kind=null + ignored=0
+          const body = isActive
+            ? { kind: null, ignored: 0 }
+            : { kind, ignored: 0 };
+          setRowStatus(card, 'Salvando…');
+          lockButtons(card, true);
+          try {
+            const sheet = await patchSheet(sheetId, body);
+            applySheetState(card, sheet);
+            recountScopeStrip();
+            setRowStatus(card, '');
+          } catch (err) {
+            setRowStatus(card, 'Falhou ao salvar — ' + (err.message || 'erro'), true);
+            console.error('[S3 patch]', err);
+          } finally {
+            lockButtons(card, false);
+          }
         });
       });
-    });
-  })();
 
-  // sheet card selection via checkbox
-  (function () {
-    document.querySelectorAll('.sheet-card').forEach(function (card) {
-      var cb = card.querySelector('input[type="checkbox"]');
-      if (!cb) return;
-      cb.addEventListener('change', function () {
-        card.classList.toggle('is-selected', cb.checked);
-      });
+      // Ignore button
+      const ignBtn = card.querySelector('[data-ignore]');
+      if (ignBtn) {
+        ignBtn.addEventListener('click', async () => {
+          const wasIgnored = ignBtn.classList.contains('is-active');
+          const body = wasIgnored ? { ignored: 0 } : { ignored: 1, kind: null };
+          setRowStatus(card, 'Salvando…');
+          lockButtons(card, true);
+          try {
+            const sheet = await patchSheet(sheetId, body);
+            applySheetState(card, sheet);
+            recountScopeStrip();
+            setRowStatus(card, '');
+          } catch (err) {
+            setRowStatus(card, 'Falhou ao salvar — ' + (err.message || 'erro'), true);
+            console.error('[S3 patch]', err);
+          } finally {
+            lockButtons(card, false);
+          }
+        });
+      }
     });
+
+    // Filter tabs
+    const filterGroup = document.querySelector('[data-filter-group]');
+    if (filterGroup) {
+      filterGroup.querySelectorAll('.filter-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          filterGroup.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          const filter = btn.getAttribute('data-filter');
+          document.querySelectorAll('.sheet-card').forEach((card) => {
+            const s = card.getAttribute('data-state');
+            const show = filter === 'all' ||
+              (filter === 'pending' && s === 'pending') ||
+              (filter === 'tagged' && s === 'tagged') ||
+              (filter === 'ignored' && s === 'ignored');
+            card.style.display = show ? '' : 'none';
+          });
+        });
+      });
+    }
   })();
 
   // Pretext reflow (no-op if not present)
   (async function () {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
-    var PT = window.Pretext || window.pretext || globalThis.Pretext;
+    const PT = window.Pretext || window.pretext || globalThis.Pretext;
     if (!PT || !PT.prepare || !PT.layout) return;
-    var els = document.querySelectorAll('.page-lead, .sheet-title, .sheet-subtitle, .md-card .doc-sub');
-    var prepared = new Map();
-    els.forEach(function (el) { prepared.set(el, PT.prepare(el.textContent || '', getComputedStyle(el).font)); });
+    const els = document.querySelectorAll('.page-lead, .sheet-filename');
+    const prepared = new Map();
+    els.forEach((el) => { prepared.set(el, PT.prepare(el.textContent || '', getComputedStyle(el).font)); });
     function relayout() {
-      els.forEach(function (el) {
-        var h = prepared.get(el); if (!h) return;
-        var lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
-        var r = PT.layout(h, el.clientWidth || 200, lh);
+      els.forEach((el) => {
+        const h = prepared.get(el); if (!h) return;
+        const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+        const r = PT.layout(h, el.clientWidth || 200, lh);
         el.style.minHeight = r.height + 'px';
       });
     }
-    new ResizeObserver(function () { relayout(); }).observe(document.body);
+    new ResizeObserver(() => relayout()).observe(document.body);
     relayout();
   })();
 </script>

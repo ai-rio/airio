@@ -1,0 +1,100 @@
+---
+interface Props {
+	step: number;
+	doneSteps?: number[];
+}
+
+const { step, doneSteps = [] } = Astro.props;
+
+const LABELS = [
+	'Cadastro',
+	'Documentos',
+	'Triagem',
+	'Preparação',
+	'Quadro de Cargas',
+	'Memorial',
+	'Quantitativos',
+	'Orçamento',
+];
+---
+
+<nav class="progress" aria-label="Etapas do projeto">
+	{LABELS.map((label, i) => {
+		const n = i + 1;
+		const isDone = doneSteps.includes(n);
+		const isCurrent = n === step;
+		const isFuture = !isDone && !isCurrent;
+		return (
+			<>
+				{n > 1 && <span class="progress-arrow">→</span>}
+				<span
+					class:list={[
+						'progress-step',
+						isDone && 'is-done',
+						isCurrent && 'is-current',
+						isFuture && 'is-future',
+					]}
+				>
+					<span class="num">{isDone ? '✓' : n}</span>
+					{label}
+				</span>
+			</>
+		);
+	})}
+</nav>
+
+<style>
+	.progress {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-bottom: var(--space-12);
+		flex-wrap: wrap;
+	}
+	.progress-step {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-2);
+		font: 500 11px/16px var(--font-sans);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-fg-muted);
+		border-radius: var(--radius-xs);
+	}
+	.progress-step .num {
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		font-weight: 500;
+		background: var(--color-bg-surface);
+		color: var(--color-fg-muted);
+		border: 1px solid var(--color-border-default);
+	}
+	/* done */
+	.progress-step.is-done { color: var(--color-fg-secondary); }
+	.progress-step.is-done .num {
+		background: var(--color-success-soft-bg);
+		color: var(--color-success);
+		border-color: var(--color-success);
+	}
+	/* current */
+	.progress-step.is-current { color: var(--color-fg-primary); }
+	.progress-step.is-current .num {
+		background: var(--color-accent);
+		color: #ffffff;
+		border-color: var(--color-accent);
+	}
+	/* future */
+	.progress-step.is-future { opacity: 0.55; }
+	/* arrow */
+	.progress-arrow {
+		color: var(--color-fg-disabled);
+		font-size: 11px;
+	}
+</style>

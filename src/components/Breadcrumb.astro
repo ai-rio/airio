@@ -1,0 +1,35 @@
+---
+interface Props {
+	segments: string[];
+}
+
+const { segments } = Astro.props;
+---
+
+<nav class="breadcrumb-nav" aria-label="Onde estou">
+	{segments.map((seg, i) => (
+		<>
+			{i > 0 && <span class="sep">/</span>}
+			{i === segments.length - 1
+				? <span class="current">{seg}</span>
+				: <span>{seg}</span>
+			}
+		</>
+	))}
+</nav>
+
+<style>
+	.breadcrumb-nav {
+		font: 500 12px/1 var(--font-sans);
+		color: var(--color-fg-secondary);
+		letter-spacing: 0.01em;
+	}
+	.breadcrumb-nav .sep {
+		color: var(--color-fg-disabled);
+		margin: 0 var(--space-2);
+	}
+	.breadcrumb-nav .current {
+		color: var(--color-fg-primary);
+		font-weight: 600;
+	}
+</style>

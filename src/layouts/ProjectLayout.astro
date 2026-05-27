@@ -1,0 +1,82 @@
+---
+import Layout from './Layout.astro';
+import Brand from '../components/Brand.astro';
+import Breadcrumb from '../components/Breadcrumb.astro';
+import UserChip from '../components/UserChip.astro';
+import PhaseStrip from '../components/PhaseStrip.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+	title: string;
+	step: number;
+	doneSteps?: number[];
+	projectName?: string | null;
+	/** Final breadcrumb segment (e.g. "Documentos"). For sub-page nesting use `breadcrumbParents`. */
+	breadcrumbTail: string;
+	/** Intermediate breadcrumb segments between projectName and breadcrumbTail (e.g. ["Preparação"] for /preparacao/legenda). */
+	breadcrumbParents?: string[];
+	userName?: string;
+	keymap?: string[];
+	footerLeftText?: string;
+	contentMaxWidth?: number;
+	mainTopPadding?: string;
+}
+
+const {
+	title,
+	step,
+	doneSteps = [],
+	projectName = null,
+	breadcrumbTail,
+	breadcrumbParents = [],
+	userName = 'Carlos N.',
+	keymap = ['⌘ + Enter · próximo', 'ESC · cancelar'],
+	footerLeftText,
+	contentMaxWidth,
+	mainTopPadding = 'var(--space-8)',
+} = Astro.props;
+
+const breadcrumbSegments = [
+	'Projetos',
+	...(projectName ? [projectName] : []),
+	...breadcrumbParents,
+	breadcrumbTail,
+];
+---
+
+<Layout title={title}>
+	<div class="app">
+		<header class="topnav" role="banner">
+			<Brand />
+			<Breadcrumb segments={breadcrumbSegments} />
+			<UserChip name={userName} />
+		</header>
+
+		<main role="main" style={`max-width: ${contentMaxWidth ? contentMaxWidth + 'px' : 'none'}; margin: 0 auto; padding-top: ${mainTopPadding};`}>
+			<PhaseStrip step={step} doneSteps={doneSteps} />
+			<slot />
+		</main>
+
+		<Footer keymap={keymap} leftText={footerLeftText} />
+	</div>
+</Layout>
+
+<style>
+	.app {
+		display: grid;
+		grid-template-rows: 48px 1fr 28px;
+		min-height: 100vh;
+	}
+	.topnav {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 var(--space-4);
+		border-bottom: 1px solid var(--color-border-default);
+		background: var(--color-bg-app);
+	}
+	main {
+		padding-left: var(--space-6);
+		padding-right: var(--space-6);
+	}
+</style>

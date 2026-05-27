@@ -205,9 +205,9 @@ When a memory marked SUPERSEDED is encountered (most Tagsmith entries), ignore.
 Always read `DESIGN.md` (repo root) before making any visual or UI decisions. Full token detail in `docs/spec/design-tokens.md`.
 
 Locked 2026-05-26 via `/design-consultation`:
-- **Sans:** Bricolage Grotesque (Google OFL, variable)
-- **Mono:** Iosevka (free OFL, variable, condensed)
-- **Accent:** `#ea580c` (construction safety orange) — primary CTAs / links / focus only
+- **Sans:** Bricolage Grotesque (Google OFL, variable) — installed as `@fontsource-variable/bricolage-grotesque@5.2.10`; registers family `"Bricolage Grotesque Variable"` (stack leads with that alias).
+- **Mono:** Iosevka (free OFL, condensed) — installed as `@fontsource/iosevka@5.2.5` (static, weights 400/500/600 only); `@fontsource-variable/iosevka` does not exist on npm as of 2026-05-27. Stack keeps `"Iosevka Variable"` as forward-compatible alias.
+- **Accent:** `#ea580c` (construction safety orange) — primary CTAs / links / focus / active states only
 - **Mark:** Tier 2 wordmark `ai·rio` with U+00B7 center-dot
 - **Theme:** light only (MVP); dark deferred
 - **Spacing base:** 4px; **radius range:** 0-8px; **min decoration**

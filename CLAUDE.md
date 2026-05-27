@@ -203,6 +203,7 @@ When a memory marked SUPERSEDED is encountered (most Tagsmith entries), ignore.
 
 | file | use |
 |---|---|
+| `dev-workflow.md` | **read before any wire slice (S3+) — migration discipline, dogfood-is-the-test gate, specialist agent dispatch, module boundaries, drift guards** |
 | `ai-output-handling.md` | validate untrusted AI outputs (Intel vision/text, Claude API responses) |
 | `codebase-graph.md` | **default discovery tool — consult before grep/glob for any repo-wide question** |
 | `observability.md` | structured logging + correlation IDs for analyzer pipelines |

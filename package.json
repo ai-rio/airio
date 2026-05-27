@@ -14,7 +14,8 @@
     "preview": "astro preview",
     "deploy": "WITH_CONTAINER=1 wrangler deploy",
     "astro": "astro",
-    "generate-types": "wrangler types"
+    "generate-types": "wrangler types",
+    "typecheck": "astro check"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.5.4",
@@ -29,7 +30,9 @@
     "vite": "^7"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "@types/node": "^25.9.1",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^6.0.3"
   }
 }

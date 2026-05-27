@@ -63,10 +63,12 @@ airio is a **working tool** the orçamentista uses for hours per day. The interf
 | `--color-success-soft-bg` | `#f0fdf4` | Success banners / row tints |
 | `--color-warning` | `#d97706` | Stale dispatches, MD vagueness flags, "force send" overrides |
 | `--color-warning-soft-bg` | `#fffbeb` | Warning banners |
+| `--color-warning-soft-border` | `#fed7aa` *(Tailwind amber-200)* | Warning banner border, focus ring on warning state |
 | `--color-danger` | `#dc2626` | Missing required field, omissos blocking send, schema validation failure |
 | `--color-danger-soft-bg` | `#fef2f2` | Error banners |
 | `--color-info` | `#0284c7` | Hints, secondary CTAs, "what's this?" callouts |
 | `--color-info-soft-bg` | `#f0f9ff` | Info banners |
+| `--color-info-soft-border` | `#bae6fd` *(Tailwind sky-200)* | Info banner border, focus ring on info state |
 
 ### Data Visualization (overlay colors on PDF)
 
@@ -90,9 +92,13 @@ Used by S9 (Planta count workspace) to differentiate layer kinds visually on top
 ### Type Stack — 🟢 LOCKED 2026-05-26 via `/design-consultation`
 
 ```css
---font-sans: "Bricolage Grotesque", -apple-system, "BlinkMacSystemFont", "Segoe UI", "Helvetica Neue", sans-serif;
---font-mono: "Iosevka", "SF Mono", ui-monospace, "Cascadia Code", monospace;
+--font-sans: "Bricolage Grotesque Variable", "Bricolage Grotesque", -apple-system, "BlinkMacSystemFont", "Segoe UI", "Helvetica Neue", sans-serif;
+--font-mono: "Iosevka Variable", "Iosevka", "SF Mono", ui-monospace, "Cascadia Code", monospace;
 ```
+
+> **Font family names — empirical (locked 2026-05-27 during S1 Astro port):**
+> - `@fontsource-variable/bricolage-grotesque` registers family `"Bricolage Grotesque Variable"` (the package exposes weight + width axes via this name). Lead with the Variable alias; fall through to the static `"Bricolage Grotesque"` for any future static-package context.
+> - `@fontsource-variable/iosevka` **does NOT exist on npm** as of 2026-05-27. The static `@fontsource/iosevka` registers family `"Iosevka"` (no variable axis support). The stack still prepends `"Iosevka Variable"` as a forward-compatible alias — falls through to static `"Iosevka"` until/unless a variable Iosevka package ships.
 
 **Sans — Bricolage Grotesque** (Google Fonts, SIL OFL, variable axes: weight + grade + width)
 - Mathieu Triay design with subtle industrial / measurement-annotation character — drafted, not eccentric
@@ -527,10 +533,12 @@ Drop into `src/styles/tokens.css` and `@import` from `src/layouts/Layout.astro`.
   --color-success-soft-bg: #f0fdf4;
   --color-warning: #d97706;
   --color-warning-soft-bg: #fffbeb;
+  --color-warning-soft-border: #fed7aa;
   --color-danger: #dc2626;
   --color-danger-soft-bg: #fef2f2;
   --color-info: #0284c7;
   --color-info-soft-bg: #f0f9ff;
+  --color-info-soft-border: #bae6fd;
 
   /* Colors — PDF Overlays */
   --color-overlay-eletroduto: #2563eb;
@@ -543,8 +551,8 @@ Drop into `src/styles/tokens.css` and `@import` from `src/layouts/Layout.astro`.
   --color-overlay-omisso: #f59e0b;
 
   /* Typography — LOCKED 2026-05-26 via /design-consultation */
-  --font-sans: "Bricolage Grotesque", -apple-system, "BlinkMacSystemFont", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-mono: "Iosevka", "SF Mono", ui-monospace, "Cascadia Code", monospace;
+  --font-sans: "Bricolage Grotesque Variable", "Bricolage Grotesque", -apple-system, "BlinkMacSystemFont", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: "Iosevka Variable", "Iosevka", "SF Mono", ui-monospace, "Cascadia Code", monospace;
 
   --text-xs: 11px;   --lh-xs: 16px;
   --text-sm: 13px;   --lh-sm: 18px;
@@ -657,8 +665,11 @@ Once airio has 3+ paying orçamentistas dogfooding:
 - ✅ **Accent color** — `#ea580c` (construction safety orange) locked 2026-05-26
 - ✅ **Typography** — Bricolage Grotesque (sans) + Iosevka (mono) locked 2026-05-26
 - ✅ **Logo / mark direction** — Tier 2 wordmark: `ai·rio` with center-dot (locked); brand-designer Tier 3 deferred to phase 2
+- ✅ **Semantic border tokens** — `--color-warning-soft-border: #fed7aa` + `--color-info-soft-border: #bae6fd` promoted to canonical 2026-05-27 (7-preview consensus surfaced during Astro port).
+- ✅ **Font-sans stack** — leads with `"Bricolage Grotesque Variable"` (the family name `@fontsource-variable/bricolage-grotesque@5.2.10` registers). Empirical fix landed 2026-05-27 during S1 port.
+- ✅ **Font-mono stack** — leads with `"Iosevka Variable"` as forward-compatible alias; current install is `@fontsource/iosevka@5.2.5` (static, family `"Iosevka"`) because `@fontsource-variable/iosevka` does not exist on npm as of 2026-05-27.
 - ☐ **Favicon** — derive from `ai·rio` wordmark center-dot motif
-- ☐ **Font hosting** — `@fontsource/bricolage-grotesque` + `@fontsource/iosevka` (variable files, ~70KB + ~80KB); self-host (no Google Fonts CDN — privacy + perf)
+- ☐ **Font hosting** — Installed: `@fontsource-variable/bricolage-grotesque` (variable, ~70KB) + `@fontsource/iosevka` (static, weights 400/500/600 ~50KB total). Self-hosted (no Google Fonts CDN — privacy + perf). Switch Iosevka to variable when `@fontsource-variable/iosevka` ships.
 - ☐ **Dark mode** — explicitly deferred from MVP; revisit if Carlos requests after dogfooding
 - ☐ **Component library choice** — do we hand-roll all components from these tokens (more control, more work) or layer on shadcn/ui + retheme (faster, less custom)? TBD before S1 build
 - ☐ **Per-screen density default** — confirm dense default vs comfortable default per screen during wireframing

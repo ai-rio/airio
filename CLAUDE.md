@@ -200,6 +200,20 @@ When a memory marked SUPERSEDED is encountered (most Tagsmith entries), ignore.
 
 **Legacy / Tagsmith-era rules** moved to `.claude/rules/_legacy/`: `convex-action-pattern.md`, `credit-billing-integrity.md`, `seo-aeo-validation.md`, `design-system.md`. Kept for git history; do not enforce.
 
+## Design System
+
+Always read `DESIGN.md` (repo root) before making any visual or UI decisions. Full token detail in `docs/spec/design-tokens.md`.
+
+Locked 2026-05-26 via `/design-consultation`:
+- **Sans:** Bricolage Grotesque (Google OFL, variable)
+- **Mono:** Iosevka (free OFL, variable, condensed)
+- **Accent:** `#ea580c` (construction safety orange) — primary CTAs / links / focus only
+- **Mark:** Tier 2 wordmark `ai·rio` with U+00B7 center-dot
+- **Theme:** light only (MVP); dark deferred
+- **Spacing base:** 4px; **radius range:** 0-8px; **min decoration**
+
+Do NOT inherit Tagsmith's old design system (quarantined at `.claude/rules/_legacy/design-system.md`). Do NOT use AI-default fonts (Inter, Geist, JetBrains Mono, Fira Code, IBM Plex Sans). Flag any code that drifts from DESIGN.md in `/qa` mode.
+
 ## Maintenance
 
 Keep this file focused and under 300 lines for optimal agent performance. The Hard Rules + the two gates (pre-build + anti-sycophancy) are non-negotiable. Iterate the rest as the wedge sharpens.

@@ -22,12 +22,14 @@
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",
     "@fontsource/iosevka": "^5.2.5",
     "astro": "^6.3.7",
+    "drizzle-orm": "^0.45.2",
     "wrangler": "^4.94.0"
   },
   "overrides": {
     "vite": "^7"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1"
+    "@types/node": "^25.9.1",
+    "drizzle-kit": "^0.31.10"
   }
 }

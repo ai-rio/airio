@@ -83,11 +83,12 @@ export async function extractScale(args: ExtractScaleArgs): Promise<ScaleResult>
 	});
 
 	if (!resp.ok) {
+		const raw = await resp.text();
 		let detail: unknown;
 		try {
-			detail = await resp.json();
+			detail = JSON.parse(raw);
 		} catch {
-			detail = await resp.text();
+			detail = raw;
 		}
 		throw new EstimatorError(
 			`extractScale failed: ${resp.status}`,

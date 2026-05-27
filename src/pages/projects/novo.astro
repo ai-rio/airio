@@ -68,6 +68,22 @@ import ProjectLayout from '../../layouts/ProjectLayout.astro';
     font: 400 12px/16px var(--font-sans);
     color: var(--color-fg-muted);
   }
+  .field-error {
+    font: 500 12px/16px var(--font-sans);
+    color: var(--color-danger);
+  }
+  .field-error[hidden] { display: none; }
+  .input.is-invalid {
+    border-color: var(--color-danger);
+    background: var(--color-danger-soft-bg);
+  }
+  .input.is-invalid:focus { box-shadow: 0 0 0 2px var(--color-danger-soft-bg); }
+  .form-meta.is-busy { color: var(--color-info); }
+  .form-meta.is-error { color: var(--color-danger); }
+  .btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   .input, .select {
     background: var(--color-bg-input);
     color: var(--color-fg-primary);
@@ -242,8 +258,9 @@ import ProjectLayout from '../../layouts/ProjectLayout.astro';
 
     <div class="field">
       <label class="label" for="project-name">Nome do projeto <span class="req">*</span></label>
-      <input class="input" id="project-name" type="text" placeholder="ex: PROJECT-A PE06 · Reforma Elétrica" value="PROJECT-A PE06 · Reforma Elétrica" autocomplete="off" />
+      <input class="input" id="project-name" name="name" type="text" placeholder="ex: PROJECT-A PE06 · Reforma Elétrica" value="PROJECT-A PE06 · Reforma Elétrica" autocomplete="off" required maxlength="200" />
       <span class="helper">Aparece em todas as telas e no nome do arquivo de exportação.</span>
+      <span class="field-error" id="project-name-error" hidden></span>
     </div>
 
     <div class="field-row">
@@ -304,10 +321,10 @@ import ProjectLayout from '../../layouts/ProjectLayout.astro';
   </form>
 
   <div class="form-actions">
-    <span class="form-meta">Salvo automaticamente como rascunho · <span class="mono">há 4s</span></span>
+    <span class="form-meta" id="form-status">Pronto para criar</span>
     <div class="btn-group">
-      <button type="button" class="btn btn-ghost">Cancelar</button>
-      <a class="btn btn-primary" href="/projects/demo/documentos">Próximo · Documentos →</a>
+      <button type="button" class="btn btn-ghost" id="cancel-btn">Cancelar</button>
+      <button type="submit" form="intake-form" class="btn btn-primary" id="submit-btn">Próximo · Documentos →</button>
     </div>
   </div>
 
@@ -366,5 +383,103 @@ import ProjectLayout from '../../layouts/ProjectLayout.astro';
     }
     new ResizeObserver(() => relayout()).observe(document.body);
     relayout();
+  })();
+
+  // S1 Cadastro wire — POST /api/projects → redirect to S2 Documentos.
+  // For now only `name` persists; cliente / empreendimento / tipo / porte are
+  // visual-only until schema extends in a later phase.
+  (function () {
+    const form = document.getElementById('intake-form');
+    const nameInput = document.getElementById('project-name');
+    const nameError = document.getElementById('project-name-error');
+    const submitBtn = document.getElementById('submit-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const statusEl = document.getElementById('form-status');
+    if (!form || !nameInput || !submitBtn) return;
+
+    // Session id — generated once per browser, persisted, sent in X-Airio-Session.
+    const SESSION_KEY = 'airio.session';
+    function getSessionId() {
+      let id = localStorage.getItem(SESSION_KEY);
+      if (!id) {
+        id = 'sess_' + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+        localStorage.setItem(SESSION_KEY, id);
+      }
+      return id;
+    }
+
+    function setError(msg) {
+      nameInput.classList.add('is-invalid');
+      nameError.textContent = msg;
+      nameError.removeAttribute('hidden');
+      statusEl.classList.remove('is-busy');
+      statusEl.classList.add('is-error');
+      statusEl.textContent = 'Corrija o erro e tente novamente';
+    }
+    function clearError() {
+      nameInput.classList.remove('is-invalid');
+      nameError.setAttribute('hidden', '');
+      nameError.textContent = '';
+      statusEl.classList.remove('is-error');
+    }
+
+    nameInput.addEventListener('input', clearError);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+
+      const name = (nameInput.value || '').trim();
+      if (!name) {
+        setError('Nome do projeto é obrigatório.');
+        nameInput.focus();
+        return;
+      }
+      if (name.length > 200) {
+        setError('Nome muito longo (máx. 200 caracteres).');
+        nameInput.focus();
+        return;
+      }
+
+      submitBtn.setAttribute('disabled', 'true');
+      statusEl.classList.add('is-busy');
+      statusEl.textContent = 'Criando projeto…';
+
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-airio-session': getSessionId(),
+          },
+          body: JSON.stringify({ name }),
+        });
+
+        if (res.status === 201) {
+          const project = await res.json();
+          // Forward to S2 Documentos with the new project id.
+          window.location.href = '/projects/' + encodeURIComponent(project.id) + '/documentos';
+          return;
+        }
+
+        if (res.status === 400) {
+          const body = await res.json().catch(() => ({}));
+          setError(body.message || 'Dados inválidos.');
+        } else {
+          setError('Erro do servidor (HTTP ' + res.status + '). Tente novamente.');
+        }
+      } catch (err) {
+        setError('Sem conexão. Verifique a rede e tente de novo.');
+        console.error('[S1 submit]', err);
+      } finally {
+        submitBtn.removeAttribute('disabled');
+      }
+    });
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        window.location.href = '/';
+      });
+    }
   })();
 </script>

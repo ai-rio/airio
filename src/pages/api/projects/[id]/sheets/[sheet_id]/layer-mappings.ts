@@ -46,7 +46,9 @@ type SourceEnum = 'cross_project' | 'glossary' | 'intel';
 
 interface MappingInput {
 	layer_name: string;
-	kind: KindEnum;
+	// null = HITL-pending per Carlos's locked decision; DB allows NULL on kind column.
+	// Validator below accepts null OR an enum value (NOT all non-strings).
+	kind: KindEnum | null;
 	source: SourceEnum;
 }
 
@@ -66,8 +68,8 @@ function validateBody(raw: unknown): { ok: true; mappings: MappingInput[] } | { 
 		if (typeof m.layer_name !== 'string' || !m.layer_name) {
 			return { ok: false, message: 'Each mapping must have a string layer_name' };
 		}
-		if (typeof m.kind !== 'string' || !VALID_KINDS.has(m.kind)) {
-			return { ok: false, message: `Invalid kind '${String(m.kind)}' — must be one of: ${[...VALID_KINDS].join(', ')}` };
+		if (m.kind !== null && (typeof m.kind !== 'string' || !VALID_KINDS.has(m.kind))) {
+			return { ok: false, message: `Invalid kind '${String(m.kind)}' — must be null OR one of: ${[...VALID_KINDS].join(', ')}` };
 		}
 		if (typeof m.source !== 'string' || !VALID_SOURCES.has(m.source)) {
 			return { ok: false, message: `Invalid source '${String(m.source)}' — must be one of: ${[...VALID_SOURCES].join(', ')}` };

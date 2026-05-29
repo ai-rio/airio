@@ -43,9 +43,14 @@ export type { LayerInventoryItem };
 //   A_I_ELE_82 (arquitetura w/ ELE infix) — prefix-anchored, not infix
 //   bare LUMIN / ELETRICA substrings (prior regex) — too greedy, removed
 //
-// Known false-negative: SENAC convention E-POWR-CNDT not matched. Add when
-// first non-J&J/non-Boticário dogfood file lands (per
-// project_estimator_eletrica_generalization memo).
+// Known false-negatives (file as task #10, expand on next non-J&J dogfood):
+//   SENAC convention   EL-Condutos / EL-Barramento / AL-BANDEJA
+//                      (per estimator/tests/test_glossary.py)
+//   Bare ELETRICA prefix/infix without ELE_/ELET_ separator
+//                      (e.g. ELETRICA-GERAL, *-ELETRICA, ELETROCALHA, ELETRODUTO)
+//   Non-MMM xref chain (e.g. LEGENDAS$0$ABC-ELETRICA-TOMADAS)
+// QA proposal: add ELECTRICAL_INFIX = /(?:^|[\-_$])(ELETRICA|ELÉTRICA|ELETRO[CD])/i
+// alongside PREFIX + SUBSTRING. Defer until a real customer file requires it.
 const ELECTRICAL_PREFIX = /^(ELE[_\-]|ELET[_\-]|LUZ[_\-\s]|ILUMIN|LUMINOT)/i;
 const ELECTRICAL_SUBSTRING = /MMM-(ELETRIC|LUMINOT)/i;
 

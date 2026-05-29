@@ -214,7 +214,11 @@ export const POST: APIRoute = async ({ params, request }) => {
 		});
 
 		// 4. Queue message for global_layer_dict counter increment.
-		if (countersQueue) {
+		// Skip when kind=null (HITL-pending): global_layer_dict PK is (layer_name, kind)
+		// with kind NOT NULL, so a null-kind message would either be coerced to literal
+		// "null" string or crash the consumer. Pending confirms don't count toward the
+		// cross-project moat — only resolved kinds do.
+		if (countersQueue && mapping.kind !== null) {
 			await countersQueue.send({
 				event: 'layer_confirmed',
 				layer_name: mapping.layer_name,

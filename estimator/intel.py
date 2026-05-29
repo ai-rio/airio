@@ -381,8 +381,12 @@ def propose_layer_kinds(
         "output_token_count": int,
       }
 
-    On any validation failure raises ValueError. Caller is expected to catch and
-    fall back to {name: None for name in names} per ai-output-handling.md §2.
+    May raise: ValueError on validation failure, RuntimeError on transport
+    failure (CLI timeout / SDK error / non-zero exit). Caller MUST catch broadly
+    (e.g. `except Exception`) and fall back to {name: None for name in names}
+    per ai-output-handling.md §2. Do not catch only ValueError — transport
+    errors leak through as RuntimeError by design (so they're loggable
+    distinctly from schema failures).
     """
     if not isinstance(names, list) or not all(isinstance(n, str) and n for n in names):
         raise ValueError("names must be a non-empty list of non-empty strings")

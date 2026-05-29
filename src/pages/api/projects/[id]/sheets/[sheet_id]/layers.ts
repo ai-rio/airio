@@ -21,7 +21,7 @@
 // validated server-side before use.
 
 import type { APIRoute } from 'astro';
-import { and, eq, isNotNull, ne } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 import { sheets, layerMappings as layerMappingsTable } from '../../../../../../../db/schema';
 import { getDb } from '../../../../../../lib/db';
 import { loadProject, jsonError, jsonOk } from '../../../../../../lib/projects';
@@ -74,7 +74,7 @@ export const GET: APIRoute = async ({ params, request }) => {
 		} catch {
 			// Corrupt cache — fall through to container call.
 			allLayers = await callContainer(sheetId, projectId, sheet.pageIndex ?? 0, correlationId);
-			await persistLayersJson(db, sheetId, projectId, allLayers);
+			await persistLayersJsonIfAbsent(db, sheetId, projectId, allLayers);
 		}
 	} else {
 		try {
@@ -93,7 +93,7 @@ export const GET: APIRoute = async ({ params, request }) => {
 			}
 			throw err;
 		}
-		await persistLayersJson(db, sheetId, projectId, allLayers);
+		await persistLayersJsonIfAbsent(db, sheetId, projectId, allLayers);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -231,7 +231,16 @@ async function callContainer(
 	return result.layers;
 }
 
-async function persistLayersJson(
+// Race-safe write: two concurrent cold GETs will both fetch from container,
+// but the second writer's UPDATE here is gated on layers_json still being NULL.
+// "First writer wins" — second silently no-ops (its in-memory layers were valid
+// too; we discard them and let the cached version be served on the next GET).
+// Prevents (a) wasted 2× cold-start cost (already paid, but no point persisting
+// twice), and (b) audit-trail correlation_id drift where the persisted JSON
+// might be from a different container call than the response that returned to
+// the client. Acceptable race window: the in-flight container result for the
+// loser is discarded, but the request still returns the loser's result inline.
+async function persistLayersJsonIfAbsent(
 	db: ReturnType<typeof getDb>,
 	sheetId: string,
 	projectId: string,
@@ -240,5 +249,11 @@ async function persistLayersJson(
 	await db
 		.update(sheets)
 		.set({ layersJson: JSON.stringify(layers) })
-		.where(and(eq(sheets.id, sheetId), eq(sheets.projectId, projectId)));
+		.where(
+			and(
+				eq(sheets.id, sheetId),
+				eq(sheets.projectId, projectId),
+				isNull(sheets.layersJson),
+			),
+		);
 }

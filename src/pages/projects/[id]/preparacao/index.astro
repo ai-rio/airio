@@ -2,10 +2,8 @@
 import ProjectLayout from '../../../../layouts/ProjectLayout.astro';
 import PdfViewer from '../../../../components/PdfViewer.astro';
 import ScaleInspectModal from '../../../../components/ScaleInspectModal.astro';
-import { loadProject } from '../../../../lib/projects';
+import { loadProject, loadSheetsForPhase } from '../../../../lib/projects';
 import { getDb } from '../../../../lib/db';
-import { sheets } from '../../../../../db/schema';
-import { and, asc, eq, inArray } from 'drizzle-orm';
 
 const { id } = Astro.params;
 const projectId = String(id ?? '');
@@ -17,17 +15,12 @@ if (!project) {
 
 const db = getDb();
 // S4 + S6 work on plantas only. Quadros = S7, unifilares = post-MVP.
+// loadSheetsForPhase excludes layers_json (the ~500kB BLOB) — this screen
+// does not need the layer inventory; GET /layers fetches it lazily.
 // Ignored sheets (soft-deleted via S3) are out of every downstream phase.
-const allSheets = await db
-  .select()
-  .from(sheets)
-  .where(
-    and(
-      eq(sheets.projectId, projectId),
-      inArray(sheets.kind, ['planta_forca', 'iluminacao']),
-    ),
-  )
-  .orderBy(asc(sheets.createdAt));
+const allSheets = await loadSheetsForPhase(db, projectId, ['planta_forca', 'iluminacao']);
+// loadSheetsForPhase does not sort — preserve original createdAt order.
+allSheets.sort((a, b) => a.createdAt - b.createdAt);
 
 const eligibleSheets = allSheets.filter((s) => s.ignored !== 1);
 
@@ -428,33 +421,40 @@ const projectName = project.name;
 
   /* ============ camadas panel ============ */
   /*
-   * DESIGN.md orange-discipline: the bulk banner uses accent-soft-bg as a tinted panel.
-   * Per S2 t-quadro precedent: decorative/attention tints → amber family.
-   * The orange CTA button (.accept-btn) is the action signal — it stays accent.
-   * The surrounding panel tint is patched from #fff7ed/#9a3412 to amber #fef3c7/#92400e.
+   * DESIGN.md orange-discipline:
+   * - Bulk banner background: amber #fef3c7 / #92400e (NOT accent-soft-bg). Decorative tint = amber family.
+   * - Bulk-accept CTA: accent (orange) — it's the action signal.
+   * - Source badges: neutral greys only. NOT orange, NOT blue, NOT success-green decoratively.
+   *   Histórico = dark-grey | Glossário = mid-grey | IA = light-grey | Confirmado = success-green
+   * - Orange is only used for: .camadas-bulk-accept-btn, .kind-select:focus-visible ring.
    */
   .camadas-bulk {
     display: flex; align-items: center; justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    background: #fef3c7;  /* amber-100 (was accent-soft-bg #fff7ed) — DESIGN.md patch */
-    border-bottom: 1px solid #fef3c7;
+    background: #fef3c7;  /* amber-100 — NOT accent-soft-bg; decorative emphasis = amber */
+    border-bottom: 1px solid #fde68a;
   }
   .camadas-bulk-text {
     font: 500 13px/18px var(--font-sans);
-    color: #92400e;  /* amber-800 (was accent-soft-fg #9a3412) — DESIGN.md patch */
+    color: #92400e;  /* amber-800 */
   }
   .camadas-bulk-text strong { font-weight: 600; }
-  .camadas-bulk .accept-btn {
-    font: 500 12px/16px var(--font-sans);
-    padding: 5px 10px;
-    background: var(--color-accent);
-    color: #fff;
-    border: 1px solid var(--color-accent);
+  /* .camadas-bulk-accept-btn inherits .btn .btn-primary (accent CTA — correct per spec) */
+
+  /* Skeleton loading rows */
+  .camadas-skel-row td { padding: 8px var(--space-4); border-bottom: 1px solid var(--color-border-subtle); }
+  .skel-bar {
+    display: inline-block;
+    height: 12px;
+    background: var(--color-border-subtle);
     border-radius: var(--radius-xs);
-    cursor: pointer;
+    animation: skel-pulse 1.4s ease-in-out infinite;
   }
-  .camadas-bulk .accept-btn:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+  @keyframes skel-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
 
   .camadas-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   .camadas-table thead th {
@@ -476,12 +476,19 @@ const projectName = project.name;
   }
   .camadas-table tbody tr:hover { background: var(--color-bg-surface); }
   .camadas-table tbody tr:last-child td { border-bottom: none; }
-  .camadas-table tbody tr.is-warn { background: var(--color-warning-soft-bg); }
+  .camadas-table tbody tr.is-saving { opacity: 0.6; }
+  .camadas-table tbody tr.is-error td:first-child { border-left: 2px solid var(--color-danger); }
 
   .layer-name {
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--color-fg-primary);
+  }
+  .elem-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
   }
   .kind-select {
     font: 500 12px/16px var(--font-sans);
@@ -493,51 +500,49 @@ const projectName = project.name;
     min-width: 130px;
   }
   .kind-select:hover { border-color: var(--color-border-strong); }
+  /* focus ring: accent (orange) — correct; this is a focus signal per DESIGN.md */
   .kind-select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; border-color: var(--color-accent); }
-  .kind-select.is-unconfirmed { border-color: var(--color-warning); background: #fffbeb; }
+  .kind-select:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; border-color: var(--color-accent); }
 
+  /*
+   * Source badges — neutral greys per spec decision #8.
+   * Histórico = dark-grey (#404040 on #f5f5f5)
+   * Glossário  = mid-grey  (#737373 on #fafafa)
+   * IA         = light-grey (#a3a3a3 on #fafafa border)
+   * Confirmado = success-green (#16a34a on #f0fdf4) — earned status, not a source
+   */
   .src-chip {
-    display: inline-flex; align-items: center; gap: var(--space-1);
+    display: inline-flex; align-items: center; gap: 5px;
     padding: 2px 7px;
     font: 500 11px/16px var(--font-sans);
     border-radius: var(--radius-xs);
     white-space: nowrap;
   }
   .src-chip .pip { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .src-chip.is-hist { background: var(--color-success-soft-bg); color: var(--color-success); }
-  .src-chip.is-hist .pip { background: var(--color-success); }
-  .src-chip.is-glossary { background: var(--color-info-soft-bg); color: var(--color-info); }
-  .src-chip.is-glossary .pip { background: var(--color-info); }
-  .src-chip.is-intel { background: var(--color-warning-soft-bg); color: var(--color-warning); }
-  .src-chip.is-intel .pip { background: var(--color-warning); }
-  .src-chip.is-none { background: var(--color-bg-surface); color: var(--color-fg-muted); border: 1px solid var(--color-border-default); }
-  .src-chip.is-none .pip { background: var(--color-fg-disabled); }
-  .src-chip .src-detail { font-family: var(--font-mono); font-size: 10px; opacity: 0.8; }
+  /* Histórico: dark-grey — user has been here before; highest confidence signal */
+  .src-chip.is-hist { background: #f5f5f5; color: #404040; border: 1px solid #e5e5e5; }
+  .src-chip.is-hist .pip { background: #525252; }
+  /* Glossário: mid-grey — encoded BR convention, reliable but not user-verified */
+  .src-chip.is-glossary { background: #fafafa; color: #737373; border: 1px solid #e5e5e5; }
+  .src-chip.is-glossary .pip { background: #a3a3a3; }
+  /* IA: lightest grey — LLM proposal, lowest confidence; user must verify */
+  .src-chip.is-intel { background: #fafafa; color: #a3a3a3; border: 1px solid #e5e5e5; }
+  .src-chip.is-intel .pip { background: #d4d4d4; }
+  /* Confirmado: success-green — user committed; stands alone from source provenance */
+  .src-chip.is-confirmed { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .src-chip.is-confirmed .pip { background: #16a34a; }
 
-  .action-cell { text-align: right; }
-  .action-confirm {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px;
-    background: var(--color-success-soft-bg);
-    color: var(--color-success);
-    border: 1px solid var(--color-success-soft-bg);
-    border-radius: var(--radius-xs);
-    font: 600 13px/1 var(--font-sans);
-    cursor: pointer;
+  .action-cell { text-align: right; white-space: nowrap; }
+  .save-spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--color-border-default);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
   }
-  .action-confirm:hover { background: var(--color-success); color: #fff; }
-  .action-pending {
-    font: 500 11px/16px var(--font-sans);
-    color: var(--color-fg-muted);
-    background: var(--color-bg-surface);
-    padding: 3px 8px;
-    border-radius: var(--radius-xs);
-    border: 1px solid var(--color-border-default);
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .action-pending:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .camadas-foot {
     display: flex; align-items: center; justify-content: space-between;
@@ -548,8 +553,7 @@ const projectName = project.name;
     color: var(--color-fg-secondary);
   }
   .camadas-foot .counter { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-  .camadas-foot .counter .ok { color: var(--color-success); font-weight: 500; }
-  .camadas-foot .counter .pend { color: var(--color-warning); font-weight: 500; }
+  .camadas-foot .counter .ok { color: #16a34a; font-weight: 500; }
 
   /* ============ form actions ============ */
   .form-actions {
@@ -745,226 +749,124 @@ const projectName = project.name;
         </div>
       </div>
 
-      <!-- Camadas sub-panel -->
-      <div class="sub-panel" aria-label="Camadas CAD da prancha">
+      <!-- Camadas sub-panel — WIRED to /api/projects/[id]/sheets/[sheet_id]/layers -->
+      <div class="sub-panel" id="camadas-panel" aria-label="Camadas CAD da prancha" data-project-id={projectId}>
         <header class="sub-panel-head">
           <h3>Camadas CAD <span class="hint" style="font-weight: 400; margin-left: var(--space-2);">o que cada camada vira no orçamento</span></h3>
-          <span class="hint">11 camadas detectadas</span>
+          <span class="hint" id="camadas-layer-count">—</span>
         </header>
 
-        <div class="camadas-bulk">
-          <span class="camadas-bulk-text">
-            <strong>8 camadas</strong> já mapeadas em projetos seus anteriores. Aceita todas de uma vez?
-          </span>
-          <button type="button" class="accept-btn">Aceitar 8 com histórico</button>
+        <!-- Intel-fired indicator — shown only when intel_called=true and ≥1 source='intel' -->
+        <p id="camadas-intel-note" style="display:none; font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); margin: 0 0 var(--space-3);">
+          Propostas geradas com IA para <strong id="camadas-intel-count">N</strong> camadas. Confirme cada uma.
+        </p>
+
+        <!-- Bulk-accept — shown only when ≥1 cross_project proposal exists -->
+        <div id="camadas-bulk" class="camadas-bulk" style="display:none">
+          <span class="camadas-bulk-text" id="camadas-bulk-text"></span>
+          <button type="button" id="camadas-bulk-btn" class="btn btn-primary camadas-bulk-accept-btn">Aceitar com histórico</button>
         </div>
 
-        <table class="camadas-table" aria-label="Camadas CAD e seus tipos">
-          <thead>
-            <tr>
-              <th style="width: 28%;">Camada</th>
-              <th style="width: 24%;">Vira no orçamento</th>
-              <th style="width: 34%;">De onde veio a proposta</th>
-              <th style="width: 14%;"></th>
-            </tr>
-          </thead>
-          <tbody>
-
-            <!-- High-confidence cross-project history matches -->
-            <tr>
-              <td><span class="layer-name">EL-Condutos</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Condutos">
-                  <option selected>eletroduto</option>
-                  <option>eletrocalha</option>
-                  <option>perfilado</option>
-                  <option>leito</option>
-                  <option>busway</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 12 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Eletrocalha-Princ</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Eletrocalha-Princ">
-                  <option>eletroduto</option>
-                  <option selected>eletrocalha</option>
-                  <option>perfilado</option>
-                  <option>leito</option>
-                  <option>busway</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 8 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Perfilado-Sec</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Perfilado-Sec">
-                  <option>eletroduto</option>
-                  <option>eletrocalha</option>
-                  <option selected>perfilado</option>
-                  <option>leito</option>
-                  <option>busway</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 5 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Tomadas</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Tomadas">
-                  <option>eletroduto</option>
-                  <option selected>tomada</option>
-                  <option>interruptor</option>
-                  <option>iluminação</option>
-                  <option>quadro</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 14 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Iluminacao</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Iluminacao">
-                  <option>eletroduto</option>
-                  <option>tomada</option>
-                  <option>interruptor</option>
-                  <option selected>iluminação</option>
-                  <option>quadro</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 11 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Interruptores</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Interruptores">
-                  <option>eletroduto</option>
-                  <option>tomada</option>
-                  <option selected>interruptor</option>
-                  <option>iluminação</option>
-                  <option>quadro</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 7 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Quadros</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Quadros">
-                  <option>eletroduto</option>
-                  <option>tomada</option>
-                  <option>interruptor</option>
-                  <option>iluminação</option>
-                  <option selected>quadro</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 10 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <tr>
-              <td><span class="layer-name">EL-Aterramento</span></td>
-              <td>
-                <select class="kind-select" aria-label="Tipo da camada EL-Aterramento">
-                  <option>eletroduto</option>
-                  <option>tomada</option>
-                  <option>interruptor</option>
-                  <option>iluminação</option>
-                  <option>quadro</option>
-                  <option selected>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-hist"><span class="pip"></span>Histórico · 4 projetos</span></td>
-              <td class="action-cell"><button class="action-confirm" type="button" title="Confirmar">✓</button></td>
-            </tr>
-
-            <!-- Glossary seed (BR default), no history -->
-            <tr>
-              <td><span class="layer-name">A-WALL</span></td>
-              <td>
-                <select class="kind-select is-unconfirmed" aria-label="Tipo da camada A-WALL">
-                  <option>eletroduto</option>
-                  <option>tomada</option>
-                  <option>iluminação</option>
-                  <option>quadro</option>
-                  <option selected>ignorar (arquitetura)</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-glossary"><span class="pip"></span>Padrão BR <span class="src-detail">arq</span></span></td>
-              <td class="action-cell"><button class="action-pending" type="button">Confirmar</button></td>
-            </tr>
-
-            <!-- Intel LLM proposal, lower confidence -->
-            <tr>
-              <td><span class="layer-name">EL-Forca-Especial</span></td>
-              <td>
-                <select class="kind-select is-unconfirmed" aria-label="Tipo da camada EL-Forca-Especial">
-                  <option>eletroduto</option>
-                  <option>eletrocalha</option>
-                  <option>perfilado</option>
-                  <option>leito</option>
-                  <option>busway</option>
-                  <option>quadro</option>
-                  <option selected>outro</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-intel"><span class="pip"></span>Sugestão automática</span></td>
-              <td class="action-cell"><button class="action-pending" type="button">Confirmar</button></td>
-            </tr>
-
-            <!-- No history, no match — outlier -->
-            <tr class="is-warn">
-              <td><span class="layer-name">EL-Eletro-NOVA-RDU</span></td>
-              <td>
-                <select class="kind-select is-unconfirmed" aria-label="Escolher tipo para EL-Eletro-NOVA-RDU">
-                  <option selected>— escolher tipo —</option>
-                  <option>eletroduto</option>
-                  <option>eletrocalha</option>
-                  <option>perfilado</option>
-                  <option>leito</option>
-                  <option>busway</option>
-                  <option>tomada</option>
-                  <option>interruptor</option>
-                  <option>iluminação</option>
-                  <option>quadro</option>
-                  <option>outro</option>
-                  <option>ignorar</option>
-                </select>
-              </td>
-              <td><span class="src-chip is-none"><span class="pip"></span>Sem histórico · nunca vista</span></td>
-              <td class="action-cell"><button class="action-pending" type="button">Escolher</button></td>
-            </tr>
-
-          </tbody>
-        </table>
-
-        <div class="camadas-foot">
-          <span class="counter"><span class="ok">8</span> de 11 confirmadas · <span class="pend">3 pendentes</span></span>
-          <span>O que você confirmar aqui melhora a proposta no próximo projeto.</span>
+        <!-- Loading skeleton — 9 grey rows while GET is in flight -->
+        <div id="camadas-skeleton">
+          <table class="camadas-table" aria-hidden="true">
+            <thead>
+              <tr>
+                <th style="width: 28%;">Camada</th>
+                <th style="width: 24%;">Vira no orçamento</th>
+                <th style="width: 28%;">De onde veio a proposta</th>
+                <th style="width: 8%;">Elem.</th>
+                <th style="width: 12%;"></th>
+              </tr>
+            </thead>
+            <tbody id="camadas-skeleton-rows">
+              {Array.from({ length: 9 }).map(() => (
+                <tr class="camadas-skel-row">
+                  <td><span class="skel-bar" style="width: 80%;"></span></td>
+                  <td><span class="skel-bar" style="width: 70%;"></span></td>
+                  <td><span class="skel-bar" style="width: 55%;"></span></td>
+                  <td><span class="skel-bar" style="width: 40%;"></span></td>
+                  <td></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style="font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); margin: var(--space-2) 0 0;">Lendo camadas da prancha…</p>
         </div>
+
+        <!-- Real table — hidden until data loads -->
+        <div id="camadas-loaded" style="display:none">
+          <table class="camadas-table" aria-label="Camadas CAD e seus tipos">
+            <thead>
+              <tr>
+                <th style="width: 28%;">Camada</th>
+                <th style="width: 24%;">Vira no orçamento</th>
+                <th style="width: 28%;">De onde veio a proposta</th>
+                <th style="width: 8%;">Elem.</th>
+                <th style="width: 12%;"></th>
+              </tr>
+            </thead>
+            <tbody id="camadas-tbody">
+              <!-- rows injected by JS -->
+            </tbody>
+          </table>
+
+          <!-- Disclosure link for hidden (non-elétrica) layers -->
+          <div id="camadas-hidden-row" style="display:none; margin-top: var(--space-3);">
+            <button type="button" id="camadas-show-hidden" class="btn btn-ghost" style="font-size: 12px; padding: var(--space-1) var(--space-2);">
+              Mostrar todas as <span id="camadas-total-count">99</span> camadas (<span id="camadas-hidden-count">75</span> ocultas pelo filtro)
+            </button>
+          </div>
+
+          <div class="camadas-foot">
+            <span class="counter">
+              <span class="ok" id="camadas-confirmed-count">0</span> de <span id="camadas-total-visible">0</span> confirmadas
+            </span>
+            <span>O que você confirmar aqui melhora a proposta no próximo projeto.</span>
+          </div>
+        </div>
+
+        <!-- Error state -->
+        <p id="camadas-error" style="display:none; font: 400 13px/18px var(--font-sans); color: var(--color-danger); margin: var(--space-3) 0 0;"></p>
       </div>
+
+      <!-- Hidden-layers modal (native dialog) -->
+      <dialog id="camadas-hidden-modal" style="
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-sm);
+        padding: 0;
+        max-width: 560px;
+        width: 90vw;
+        max-height: 80vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      ">
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: var(--space-4) var(--space-5);
+          border-bottom: 1px solid var(--color-border-subtle);
+        ">
+          <h3 style="font: 600 15px/22px var(--font-sans); color: var(--color-fg-primary); margin: 0;">
+            Camadas ocultas pelo filtro elétrica
+          </h3>
+          <button type="button" id="camadas-modal-close" style="
+            background: none; border: none; cursor: pointer;
+            font-size: 18px; line-height: 1; color: var(--color-fg-muted);
+            padding: 0 var(--space-1);
+          " aria-label="Fechar">×</button>
+        </div>
+        <p style="padding: var(--space-3) var(--space-5) 0; font: 400 12px/16px var(--font-sans); color: var(--color-fg-muted); margin: 0;">
+          Estas camadas não têm prefixo elétrica e não aparecem na tabela principal. Apenas para verificação — não há ação disponível aqui.
+        </p>
+        <div style="overflow-y: auto; padding: var(--space-3) var(--space-5) var(--space-5);">
+          <ul id="camadas-hidden-list" style="list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: 12px; color: var(--color-fg-secondary);">
+            <!-- injected by JS -->
+          </ul>
+        </div>
+      </dialog>
 
     </section>
 
@@ -1260,35 +1162,320 @@ const projectName = project.name;
     recalcCounts();
   })();
 
-  // action-confirm: flip confirmed row to visual confirmed state
+  // ===== Camadas panel — wired to GET /api/projects/[id]/sheets/[sheet_id]/layers =====
+  // and POST /api/projects/[id]/sheets/[sheet_id]/layer-mappings
   (function () {
-    document.querySelectorAll('.action-confirm').forEach(function (btn) {
-      btn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        btn.style.background = 'var(--color-success)';
-        btn.style.color = '#fff';
-        btn.textContent = '✓';
-        btn.setAttribute('disabled', 'true');
-      });
-    });
-  })();
+    // Hardcoded kind options (spec §2 — do NOT fetch from server)
+    var KIND_OPTIONS = [
+      { value: '',             label: '—' },
+      { value: 'eletrocalha', label: 'Eletrocalha' },
+      { value: 'perfilado',   label: 'Perfilado' },
+      { value: 'leito',       label: 'Leito' },
+      { value: 'barramento',  label: 'Barramento' },
+      { value: 'eletroduto',  label: 'Eletroduto' },
+    ];
 
-  // bulk accept: flip first 8 history-matched rows
-  (function () {
-    var accept = document.querySelector('.accept-btn');
-    if (!accept) return;
-    accept.addEventListener('click', function () {
-      var rows = document.querySelectorAll('.camadas-table tbody tr');
-      rows.forEach(function (tr, idx) {
-        if (idx < 8) {
-          var btn = tr.querySelector('.action-confirm');
-          if (btn && !btn.hasAttribute('disabled')) btn.click();
+    var panel       = document.getElementById('camadas-panel');
+    var skeleton    = document.getElementById('camadas-skeleton');
+    var loaded      = document.getElementById('camadas-loaded');
+    var tbody       = document.getElementById('camadas-tbody');
+    var errEl       = document.getElementById('camadas-error');
+    var intelNote   = document.getElementById('camadas-intel-note');
+    var intelCount  = document.getElementById('camadas-intel-count');
+    var bulkEl      = document.getElementById('camadas-bulk');
+    var bulkText    = document.getElementById('camadas-bulk-text');
+    var bulkBtn     = document.getElementById('camadas-bulk-btn');
+    var layerCountEl= document.getElementById('camadas-layer-count');
+    var hiddenRow   = document.getElementById('camadas-hidden-row');
+    var showHiddenBtn = document.getElementById('camadas-show-hidden');
+    var totalCountEl  = document.getElementById('camadas-total-count');
+    var hiddenCountEl = document.getElementById('camadas-hidden-count');
+    var confirmedEl   = document.getElementById('camadas-confirmed-count');
+    var totalVisEl    = document.getElementById('camadas-total-visible');
+    var modal         = document.getElementById('camadas-hidden-modal');
+    var modalClose    = document.getElementById('camadas-modal-close');
+    var hiddenList    = document.getElementById('camadas-hidden-list');
+
+    if (!panel || !skeleton || !loaded || !tbody) return;
+
+    var pId = panel.getAttribute('data-project-id') || '';
+    // Track confirmed rows and stored data
+    var confirmedNames = new Set();
+    var hiddenLayersData = [];
+
+    // ---- source badge HTML ----
+    function sourceBadge(source, isConfirmed) {
+      if (isConfirmed) {
+        return '<span class="src-chip is-confirmed"><span class="pip"></span>Confirmado</span>';
+      }
+      if (source === 'cross_project') {
+        return '<span class="src-chip is-hist"><span class="pip"></span>Histórico</span>';
+      }
+      if (source === 'glossary') {
+        return '<span class="src-chip is-glossary"><span class="pip"></span>Glossário</span>';
+      }
+      if (source === 'intel') {
+        return '<span class="src-chip is-intel"><span class="pip"></span>IA</span>';
+      }
+      return '<span class="src-chip is-glossary"><span class="pip"></span>—</span>';
+    }
+
+    // ---- build kind <select> ----
+    function kindSelect(layerName, currentKind) {
+      var safeLayer = layerName.replace(/"/g, '&quot;');
+      var html = '<select class="kind-select" data-layer="' + safeLayer + '" aria-label="Tipo da camada ' + safeLayer + '">';
+      KIND_OPTIONS.forEach(function (opt) {
+        var sel = (opt.value === (currentKind || '')) ? ' selected' : '';
+        html += '<option value="' + opt.value + '"' + sel + '>' + opt.label + '</option>';
+      });
+      html += '</select>';
+      return html;
+    }
+
+    // ---- render one row ----
+    function buildRow(proposal) {
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-layer-name', proposal.layer_name);
+      tr.setAttribute('data-layer-source', proposal.source || '');
+
+      // Treat any proposal that already has a non-null kind as "Confirmado" on initial load.
+      // The server returns the persisted kind from layer_mappings on subsequent page loads,
+      // so `kind != null` is the proxy for "user already confirmed this" until Wave 2a
+      // adds an explicit confirmed_at field to the GET response.
+      if (proposal.kind != null && proposal.kind !== '') {
+        confirmedNames.add(proposal.layer_name);
+      }
+      var isConfirmed = confirmedNames.has(proposal.layer_name);
+
+      var elemHint = proposal.element_count != null
+        ? String(proposal.element_count)
+        : '—';
+
+      tr.innerHTML =
+        '<td><span class="layer-name">' + proposal.layer_name + '</span></td>' +
+        '<td>' + kindSelect(proposal.layer_name, proposal.kind) + '</td>' +
+        '<td data-badge-cell>' + sourceBadge(proposal.source, isConfirmed) + '</td>' +
+        '<td class="elem-count">' + elemHint + '</td>' +
+        '<td class="action-cell" data-action-cell>' +
+          (isConfirmed
+            ? '<span style="font: 500 11px/16px var(--font-sans); color: #16a34a;">✓</span>'
+            : '') +
+        '</td>';
+
+      return tr;
+    }
+
+    // ---- update footer counts ----
+    function recalcConfirmed() {
+      var rows = tbody.querySelectorAll('tr');
+      var total = rows.length;
+      var conf = confirmedNames.size;
+      if (confirmedEl) confirmedEl.textContent = String(conf);
+      if (totalVisEl) totalVisEl.textContent = String(total);
+    }
+
+    // ---- mark row as confirmed visually ----
+    function markRowConfirmed(tr) {
+      var layerName = tr.getAttribute('data-layer-name');
+      if (layerName) confirmedNames.add(layerName);
+      var badgeCell = tr.querySelector('[data-badge-cell]');
+      var actionCell = tr.querySelector('[data-action-cell]');
+      if (badgeCell) badgeCell.innerHTML = sourceBadge('', true);
+      if (actionCell) actionCell.innerHTML = '<span style="font: 500 11px/16px var(--font-sans); color: #16a34a;">✓</span>';
+      recalcConfirmed();
+    }
+
+    // ---- POST layer-mappings ----
+    async function postMapping(sheetId, mapping) {
+      var url = '/api/projects/' + pId + '/sheets/' + sheetId + '/layer-mappings';
+      var res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mappings: [mapping] }),
+      });
+      if (!res.ok) {
+        var text = await res.text();
+        throw new Error(res.status + ': ' + text.slice(0, 120));
+      }
+      return res.json();
+    }
+
+    // ---- per-row dropdown change handler ----
+    function wireDropdown(tr, sheetId) {
+      var sel = tr.querySelector('select.kind-select');
+      if (!sel) return;
+      sel.addEventListener('change', async function () {
+        var layerName = tr.getAttribute('data-layer-name');
+        var source = tr.getAttribute('data-layer-source') || 'manual';
+        var kind = sel.value || null;
+        tr.classList.add('is-saving');
+        var actionCell = tr.querySelector('[data-action-cell]');
+        if (actionCell) actionCell.innerHTML = '<span class="save-spinner" aria-label="Salvando…"></span>';
+
+        try {
+          await postMapping(sheetId, { layer_name: layerName, kind: kind, source: source });
+          tr.classList.remove('is-saving', 'is-error');
+          markRowConfirmed(tr);
+        } catch (err) {
+          tr.classList.remove('is-saving');
+          tr.classList.add('is-error');
+          if (actionCell) actionCell.innerHTML = '<span style="color: var(--color-danger); font-size: 11px;" title="' + String(err.message || 'erro').replace(/"/g, '&quot;') + '">Erro</span>';
+          // Revert select after 4s so user can retry
+          setTimeout(function () {
+            tr.classList.remove('is-error');
+            if (actionCell) actionCell.innerHTML = '';
+          }, 4000);
         }
       });
-      accept.textContent = '✓ Aceitas';
-      accept.style.background = 'var(--color-success)';
-      accept.style.borderColor = 'var(--color-success)';
-      accept.setAttribute('disabled', 'true');
-    });
+    }
+
+    // ---- fetch layers for given sheet ----
+    async function fetchLayers(sheetId) {
+      skeleton.style.display = '';
+      loaded.style.display = 'none';
+      errEl.style.display = 'none';
+      bulkEl.style.display = 'none';
+      intelNote.style.display = 'none';
+      hiddenRow.style.display = 'none';
+      if (layerCountEl) layerCountEl.textContent = '—';
+
+      try {
+        var url = '/api/projects/' + pId + '/sheets/' + sheetId + '/layers';
+        var res = await fetch(url);
+        if (!res.ok) {
+          var text = await res.text();
+          throw new Error(res.status + ': ' + text.slice(0, 120));
+        }
+        var data = await res.json();
+
+        // ---- intel-fired note ----
+        var intelProposals = (data.proposals || []).filter(function (p) { return p.source === 'intel'; });
+        if (data.intel_called && intelProposals.length > 0) {
+          if (intelCount) intelCount.textContent = String(intelProposals.length);
+          intelNote.style.display = '';
+        }
+
+        // ---- bulk-accept for cross_project proposals ----
+        var histProposals = (data.proposals || []).filter(function (p) { return p.source === 'cross_project'; });
+        if (histProposals.length > 0) {
+          if (bulkText) bulkText.innerHTML = '<strong>' + histProposals.length + ' camadas</strong> com histórico de projetos anteriores. Aceitar todas de uma vez?';
+          if (bulkBtn) bulkBtn.textContent = 'Aceitar ' + histProposals.length + ' com histórico';
+          bulkEl.style.display = '';
+
+          // Bulk-accept handler — wired here after we have sheetId in scope
+          bulkBtn.onclick = async function () {
+            bulkBtn.disabled = true;
+            var mappings = histProposals.map(function (p) {
+              return { layer_name: p.layer_name, kind: p.kind, source: p.source };
+            });
+            for (var i = 0; i < mappings.length; i++) {
+              try { await postMapping(sheetId, mappings[i]); } catch (_) { /* swallow; row will show error on individual try */ }
+              confirmedNames.add(mappings[i].layer_name);
+            }
+            // Refresh badges in DOM
+            tbody.querySelectorAll('tr').forEach(function (tr) {
+              var ln = tr.getAttribute('data-layer-name');
+              if (ln && confirmedNames.has(ln)) markRowConfirmed(tr);
+            });
+            bulkBtn.textContent = '✓ Aceitas';
+            bulkBtn.style.background = '#16a34a';
+            bulkBtn.style.borderColor = '#16a34a';
+          };
+        }
+
+        // ---- render rows ----
+        tbody.innerHTML = '';
+        (data.proposals || []).forEach(function (p) {
+          var tr = buildRow(p);
+          wireDropdown(tr, sheetId);
+          tbody.appendChild(tr);
+        });
+
+        var visibleCount = (data.proposals || []).length;
+        var hiddenCount = (data.hidden_count != null) ? data.hidden_count : 0;
+        var totalLayers = (data.total_layers != null) ? data.total_layers : visibleCount;
+
+        if (layerCountEl) layerCountEl.textContent = visibleCount + ' camadas';
+        if (confirmedEl) confirmedEl.textContent = String(confirmedNames.size);
+        if (totalVisEl) totalVisEl.textContent = String(visibleCount);
+
+        // ---- hidden layers disclosure ----
+        hiddenLayersData = data.hidden_layers || [];
+        if (hiddenCount > 0) {
+          if (totalCountEl) totalCountEl.textContent = String(totalLayers);
+          if (hiddenCountEl) hiddenCountEl.textContent = String(hiddenCount);
+          hiddenRow.style.display = '';
+        }
+
+        skeleton.style.display = 'none';
+        loaded.style.display = '';
+      } catch (err) {
+        skeleton.style.display = 'none';
+        errEl.style.display = '';
+        errEl.textContent = 'Erro ao carregar camadas: ' + (err && err.message ? err.message : 'falha de rede');
+      }
+    }
+
+    // ---- React to active sheet changes (reuses the existing row-activation system) ----
+    // The Escala panel fires a custom event or we can watch for .is-active mutations.
+    // Simplest: observe the sheet-list for class changes.
+    function getActiveSheetId() {
+      var active = document.querySelector('.sheet-row.is-active');
+      return active ? active.getAttribute('data-sheet-id') : null;
+    }
+
+    var currentSheetId = null;
+    function loadForActiveSheet() {
+      var sid = getActiveSheetId();
+      if (sid && sid !== currentSheetId) {
+        currentSheetId = sid;
+        confirmedNames = new Set();
+        fetchLayers(sid);
+      }
+    }
+
+    // Observe .sheet-row class changes (Escala JS adds/removes .is-active)
+    var sheetList = document.querySelector('.sheet-list');
+    if (sheetList) {
+      var mo = new MutationObserver(function () { loadForActiveSheet(); });
+      mo.observe(sheetList, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
+
+    // Initial load
+    loadForActiveSheet();
+
+    // ---- Hidden-layers modal ----
+    if (showHiddenBtn && modal) {
+      showHiddenBtn.addEventListener('click', function () {
+        // Populate hidden list
+        if (hiddenList) {
+          if (hiddenLayersData.length > 0) {
+            hiddenList.innerHTML = hiddenLayersData.map(function (name) {
+              return '<li style="padding: 4px 0; border-bottom: 1px solid var(--color-border-subtle); font-family: var(--font-mono); font-size: 12px; color: var(--color-fg-secondary);">' + name + '</li>';
+            }).join('');
+          } else {
+            // Wave 2a coordination needed: the GET /layers response spec (as of Phase 8 handoff)
+            // does not include a `hidden_layers: string[]` field — only `hidden_count: number`.
+            // Until Wave 2a adds that field, the modal shows a count-only message.
+            // To fix: add `hidden_layers: list[str]` to the Python container /extract/layers
+            // response and mirror it in the API handler.
+            var hc = (hiddenCountEl && hiddenCountEl.textContent) ? hiddenCountEl.textContent : '?';
+            hiddenList.innerHTML = '<li style="color: var(--color-fg-muted); font-family: var(--font-sans); font-size: 13px; padding: var(--space-2) 0;">'
+              + hc + ' camadas com prefixos não-elétrica (arquitetura, hidráulica, etc.) foram filtradas automaticamente. '
+              + 'A lista detalhada de nomes estará disponível após a atualização da API.</li>';
+          }
+        }
+        modal.showModal();
+      });
+    }
+    if (modalClose && modal) {
+      modalClose.addEventListener('click', function () { modal.close(); });
+    }
+    if (modal) {
+      modal.addEventListener('click', function (e) {
+        // Click on backdrop closes modal
+        if (e.target === modal) modal.close();
+      });
+    }
   })();
 </script>

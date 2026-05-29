@@ -47,6 +47,17 @@ interface ExtractScaleBody {
   correlation_id?: string;
 }
 
+interface ExtractLayersBody {
+  r2_key: string;
+  page_index?: number;
+  correlation_id?: string;
+}
+
+interface IntelLayerProposalsBody {
+  layer_names: string[];
+  correlation_id?: string;
+}
+
 function log(event: string, fields: Record<string, unknown>): void {
   console.log(JSON.stringify({ event, ts_ms: Date.now(), ...fields }));
 }
@@ -131,11 +142,134 @@ async function handleExtractScale(request: Request, env: Env): Promise<Response>
   return passthrough;
 }
 
+async function handleExtractLayers(request: Request, env: Env): Promise<Response> {
+  let body: ExtractLayersBody;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError(400, 'invalid_json', 'Body must be JSON');
+  }
+  const { r2_key, page_index = 0 } = body;
+  if (typeof r2_key !== 'string' || !r2_key) {
+    return jsonError(400, 'missing_r2_key', 'r2_key (string) is required');
+  }
+  if (!Number.isInteger(page_index) || page_index < 0) {
+    return jsonError(400, 'invalid_page_index', 'page_index must be non-negative integer');
+  }
+
+  const correlationId = body.correlation_id ?? request.headers.get('x-airio-correlation-id') ?? `aux-${crypto.randomUUID()}`;
+
+  // 1. Fetch PDF bytes from R2.
+  log('aux_r2_get_start', { r2_key, correlation_id: correlationId });
+  const r2Start = Date.now();
+  const obj = await env.PDFS.get(r2_key);
+  if (!obj) {
+    log('aux_r2_get_miss', { r2_key, correlation_id: correlationId, duration_ms: Date.now() - r2Start });
+    return jsonError(404, 'r2_not_found', `R2 key not found: ${r2_key}`);
+  }
+  const bytes = await obj.arrayBuffer();
+  log('aux_r2_get_done', {
+    r2_key,
+    correlation_id: correlationId,
+    duration_ms: Date.now() - r2Start,
+    bytes: bytes.byteLength,
+  });
+
+  // 2. Forward bytes to container DO.
+  const containerUrl = new URL(request.url);
+  containerUrl.pathname = `/extract/layers`;
+  containerUrl.searchParams.set('page_index', String(page_index));
+
+  log('aux_container_fetch_start', {
+    endpoint: '/extract/layers',
+    correlation_id: correlationId,
+  });
+  const fetchStart = Date.now();
+  const containerResp = await getContainer(env.CONTAINER, '/extract/layers').fetch(
+    new Request(containerUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/pdf',
+        'x-airio-correlation-id': correlationId,
+      },
+      body: bytes,
+    }),
+  );
+  log('aux_container_fetch_done', {
+    endpoint: '/extract/layers',
+    correlation_id: correlationId,
+    duration_ms: Date.now() - fetchStart,
+    status: containerResp.status,
+  });
+
+  // 3. Return container response verbatim with correlation header.
+  const passthrough = new Response(containerResp.body, {
+    status: containerResp.status,
+    headers: new Headers(containerResp.headers),
+  });
+  passthrough.headers.set('x-airio-correlation-id', correlationId);
+  return passthrough;
+}
+
+async function handleIntelLayerProposals(request: Request, env: Env): Promise<Response> {
+  let body: IntelLayerProposalsBody;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError(400, 'invalid_json', 'Body must be JSON');
+  }
+  if (!Array.isArray(body.layer_names) || body.layer_names.length === 0) {
+    return jsonError(400, 'missing_layer_names', 'layer_names must be a non-empty array');
+  }
+
+  const correlationId = body.correlation_id ?? request.headers.get('x-airio-correlation-id') ?? `aux-${crypto.randomUUID()}`;
+
+  // Pure JSON passthrough — no R2 fetch needed.
+  const containerUrl = new URL(request.url);
+  containerUrl.pathname = `/intel/layer-proposals`;
+
+  log('aux_container_fetch_start', {
+    endpoint: '/intel/layer-proposals',
+    correlation_id: correlationId,
+    layer_count: body.layer_names.length,
+  });
+  const fetchStart = Date.now();
+  const containerResp = await getContainer(env.CONTAINER, '/intel/layer-proposals').fetch(
+    new Request(containerUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-airio-correlation-id': correlationId,
+      },
+      body: JSON.stringify({ layer_names: body.layer_names }),
+    }),
+  );
+  log('aux_container_fetch_done', {
+    endpoint: '/intel/layer-proposals',
+    correlation_id: correlationId,
+    duration_ms: Date.now() - fetchStart,
+    status: containerResp.status,
+  });
+
+  const passthrough = new Response(containerResp.body, {
+    status: containerResp.status,
+    headers: new Headers(containerResp.headers),
+  });
+  passthrough.headers.set('x-airio-correlation-id', correlationId);
+  return passthrough;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === 'POST' && url.pathname === '/extract/scale') {
       return handleExtractScale(request, env);
+    }
+    if (request.method === 'POST' && url.pathname === '/extract/layers') {
+      return handleExtractLayers(request, env);
+    }
+    if (request.method === 'POST' && url.pathname === '/intel/layer-proposals') {
+      return handleIntelLayerProposals(request, env);
     }
     if (request.method === 'GET' && url.pathname === '/healthz') {
       // Bounce to container for a real readiness check, but cheap path is OK here.

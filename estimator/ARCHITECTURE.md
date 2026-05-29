@@ -142,3 +142,36 @@ uv run --with pymupdf --with fastapi --with python-multipart --with pytest pytes
    recognizes it in future projects. For visually-distinct glyphs (curva vs reta, luminária
    SKUs, new legends) — this is the moat. NOT YET BUILT. Don't build its cross-project map off
    a #1 case (paralelo) — there's no shape to carry across projects. #1 is the substrate.
+
+## Container JSON API surface (`app_api.py`)
+
+The deployable wedge — the only surface the auxiliary CF Worker
+(`workers/estimator-container/src/index.ts`) calls. Stateless compute per the
+backend-persistence-plan; no D1, no R2, no Astro logic in here. Every route
+emits `container_request_start|done` (stdout JSON, CF Logs picks up) with the
+`x-airio-correlation-id` header — the start/done delta against the auxiliary
+Worker's matching pair is the only way to see container cold-start cost.
+
+- `POST /extract/scale` (S4 Escala) — PDF bytes in, scale denominator out
+  (`titleblock_text` regex over PDF words, `1:50`-style). Empty result = 200
+  with `scale_denom=null, source="not_found"`. Mirrors `count.detect_scale`'s
+  two-branch regex; inch markers eliminate eletroduto false positives.
+
+- `POST /extract/layers` (S6 Camadas, phase 8) — PDF bytes in, per-layer
+  inventory out: `{name, element_count, color_rgb, has_lines, has_curves,
+  glossary_kind}` per CAD layer on the page. Aggregates `page.get_drawings()`
+  by the `layer` key (per-2026-05-29 probe, 100% of drawings on J&J PE03_TER
+  have `layer` populated). Empty-string layer = no-OCG catch-all, skipped to
+  match the OCG-derived oracle (99 unique layers on J&J page 0). Calls
+  `glossary.layer_kind()` per layer — pure inventory, **no LLM**. Astro side
+  decides whether residual unknowns need an intel call.
+
+- `POST /intel/layer-proposals` (S6 Camadas, phase 8) — JSON
+  `{layer_names: [...]}` in, `{proposals: {name: kind|null}, model,
+  prompt_version, validation_pass}` out. Wraps `intel.propose_layer_kinds()`.
+  Dual transport: Anthropic SDK if `ANTHROPIC_API_KEY` set + `anthropic`
+  importable, else `claude -p` CLI (subscription OAuth, dev). Output strictly
+  validated against `glossary.INFRA_KINDS ∪ {null}`; on any drift the route
+  returns a safe all-null fallback with `validation_pass=false` and logs the
+  failure (`intel_call` event w/ model, prompt version, token counts) per
+  `.claude/rules/ai-output-handling.md` §2. Prompt version `v1`.

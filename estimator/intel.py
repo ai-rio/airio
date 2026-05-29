@@ -209,6 +209,234 @@ def _validate(data: dict) -> None:
             re.compile(d["match_token"])  # ensure the regex is valid before use
 
 
+# =============================================================================
+# Layer-kind proposals — Phase 8 S6 Camadas
+# =============================================================================
+# Distinct concern from the device-counting ruleset above: given a list of CAD
+# layer names the deterministic glossary couldn't classify, propose a canonical
+# infra kind per layer (or null = "I don't know"). The container's
+# /intel/layer-proposals route wraps this. Output is consumed by the Astro side
+# to either pre-fill HITL suggestions or surface an "unknown — Carlos tags" row.
+#
+# Dual-path routing per ai-output-handling.md §3:
+#   ANTHROPIC_API_KEY set + anthropic SDK importable → SDK (billed, deployable)
+#   else → `claude -p` CLI (subscription OAuth, free in dev)
+#
+# Schema strict: every requested name must appear as a key; every value must be
+# either a member of glossary.INFRA_KINDS or null. _validate_proposals() raises
+# on any drift; caller (the route) catches → safe fallback (all-null) per §2.
+
+PROPOSALS_PROMPT_VERSION = "v1"
+
+# Late-imported to avoid forcing glossary into module-load cost for callers that
+# only use derive_ruleset(). Both modules sit in the same package.
+def _allowed_kinds() -> set[str]:
+    from glossary import INFRA_KINDS  # noqa: PLC0415 — deliberate late import
+    return set(INFRA_KINDS.keys())
+
+
+PROPOSALS_INSTRUCTIONS = """\
+You read Brazilian electrical CAD layer names from a planta and map each to a \
+canonical BR electrical infra kind, so a takeoff tool can measure runs by layer.
+
+You are given a list of CAD layer names. For each name, propose ONE of these \
+canonical kinds (or null if you cannot tell):
+
+  - eletrocalha   sheet-metal cable tray (PT-BR: calha, bandeja)
+  - perfilado     strut profile (ELE_PERF, "perfilado")
+  - leito         ladder tray
+  - barramento    busway / blindado / barra blindada
+  - eletroduto    conduit (eletroduto, duto, conduto) — the generic run
+
+Heuristics:
+  - BR projects abbreviate. ELE_TA / ELE_TE / ELE_TP / ELE_TX / ELE_TXE family \
+on a planta usually means eletroduto variants (telephone, electrical, etc.).
+  - Layers that clearly carry POINT devices (tomada, interruptor, luminária, \
+emergência) are NOT infra runs → propose null.
+  - Legend / annotation / titleblock layers (LEG, LEGENDA, CARIMBO, TEXTO) → null.
+  - Quadro / panel layers → null (those are device boxes, not runs).
+  - Other-discipline layers (CFTV, dados, voz, SDAI, fire) → null.
+  - When in genuine doubt → null. Do NOT guess kinds you are unsure about; null \
+is the honest signal and the human will adjudicate.
+
+Return ONLY a single JSON object (no markdown, no prose) of shape:
+  {"proposals": {"LAYER_NAME": "eletroduto" | "eletrocalha" | "perfilado" | \
+"leito" | "barramento" | null, ...}}
+
+Every input layer name MUST appear exactly once as a key. Do not add keys for \
+names not in the input.
+"""
+
+
+def _build_proposals_user_payload(names: list[str]) -> str:
+    return "LAYER NAMES:\n" + "\n".join(names)
+
+
+def _validate_proposals(data: dict, requested: list[str]) -> None:
+    """Strict shape check — every requested name present, every value allowed.
+
+    Raises ValueError on any drift. Caller falls back to all-null map.
+    """
+    if not isinstance(data, dict):
+        raise ValueError("proposals payload is not a dict")
+    proposals = data.get("proposals")
+    if not isinstance(proposals, dict):
+        raise ValueError("proposals.proposals is not a dict")
+    requested_set = set(requested)
+    keys = set(proposals.keys())
+    if keys != requested_set:
+        missing = requested_set - keys
+        extra = keys - requested_set
+        raise ValueError(
+            f"proposals key mismatch (missing={sorted(missing)[:5]} "
+            f"extra={sorted(extra)[:5]})"
+        )
+    allowed = _allowed_kinds()
+    for k, v in proposals.items():
+        if v is None:
+            continue
+        if not isinstance(v, str) or v not in allowed:
+            raise ValueError(
+                f"proposals[{k!r}] = {v!r} not in {sorted(allowed)} or null"
+            )
+
+
+def _call_anthropic_sdk(system: str, user: str, model: str) -> tuple[str, dict]:
+    """SDK path — used when ANTHROPIC_API_KEY is set and anthropic is importable.
+
+    Returns (raw_text, usage_dict).
+    """
+    import anthropic  # noqa: PLC0415 — optional dep, imported on demand
+
+    client = anthropic.Anthropic()
+    # Map our short alias to the SDK's full id when present; pass-through otherwise
+    # so callers can pin a specific model id from outside.
+    sdk_model = {
+        "sonnet": "claude-sonnet-4-5-20250929",
+    }.get(model, model)
+    resp = client.messages.create(
+        model=sdk_model,
+        max_tokens=4096,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+    )
+    text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+    usage = {
+        "input": getattr(resp.usage, "input_tokens", 0),
+        "output": getattr(resp.usage, "output_tokens", 0),
+        "model": sdk_model,
+        "transport": "sdk",
+    }
+    return text, usage
+
+
+def _call_claude_cli(system: str, user: str, model: str) -> tuple[str, dict]:
+    """CLI path — subscription OAuth, free in dev. Mirrors derive_ruleset()."""
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    try:
+        proc = subprocess.run(
+            ["claude", "-p",
+             "--model", model,
+             "--output-format", "json",
+             "--system-prompt", system,
+             "--disallowed-tools",
+             "Bash Read Edit Write Glob Grep WebFetch WebSearch Task TodoWrite"],
+            input=user, text=True, capture_output=True,
+            cwd="/tmp",
+            env=env, timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("claude CLI timed out after 120s")
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude CLI failed ({proc.returncode}): {proc.stderr[-500:]}")
+    env_out = json.loads(proc.stdout)
+    if env_out.get("is_error") or env_out.get("subtype") != "success":
+        raise RuntimeError(f"claude CLI error: subtype={env_out.get('subtype')}")
+    u = env_out.get("usage", {})
+    usage = {
+        "input": u.get("input_tokens", 0),
+        "output": u.get("output_tokens", 0),
+        "cache_read": u.get("cache_read_input_tokens", 0),
+        "cost_usd": env_out.get("total_cost_usd", 0),
+        "model": model,
+        "transport": "cli",
+    }
+    return env_out["result"], usage
+
+
+def propose_layer_kinds(
+    names: list[str],
+    model: str = DEFAULT_MODEL,
+) -> dict:
+    """Map residual unknown layer names → proposed infra kind (or null).
+
+    Returns a dict shaped like:
+      {
+        "proposals": {"ELE_TA": "eletroduto", ...},
+        "model": <id>,
+        "prompt_version": "v1",
+        "validation_pass": True,
+        "transport": "sdk" | "cli",
+        "input_token_count": int,
+        "output_token_count": int,
+      }
+
+    On any validation failure raises ValueError. Caller is expected to catch and
+    fall back to {name: None for name in names} per ai-output-handling.md §2.
+    """
+    if not isinstance(names, list) or not all(isinstance(n, str) and n for n in names):
+        raise ValueError("names must be a non-empty list of non-empty strings")
+    if not names:
+        return {
+            "proposals": {},
+            "model": model,
+            "prompt_version": PROPOSALS_PROMPT_VERSION,
+            "validation_pass": True,
+            "transport": "noop",
+            "input_token_count": 0,
+            "output_token_count": 0,
+        }
+
+    system = PROPOSALS_INSTRUCTIONS
+    user = _build_proposals_user_payload(names)
+
+    # Routing: SDK if key present AND module importable; else CLI.
+    use_sdk = False
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        try:
+            import anthropic  # noqa: F401,PLC0415
+            use_sdk = True
+        except ImportError:
+            use_sdk = False
+
+    raw, usage = (
+        _call_anthropic_sdk(system, user, model) if use_sdk
+        else _call_claude_cli(system, user, model)
+    )
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```[a-zA-Z]*\n?|\n?```$", "", raw).strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not m:
+            raise ValueError(f"no JSON in LLM result: {raw[:200]!r}")
+        data = json.loads(m.group(0))
+
+    _validate_proposals(data, names)
+
+    return {
+        "proposals": data["proposals"],
+        "model": usage.get("model", model),
+        "prompt_version": PROPOSALS_PROMPT_VERSION,
+        "validation_pass": True,
+        "transport": usage.get("transport", "unknown"),
+        "input_token_count": usage.get("input", 0),
+        "output_token_count": usage.get("output", 0),
+    }
+
+
 if __name__ == "__main__":
     import sys
     model = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_MODEL

@@ -9,7 +9,7 @@ Per the wedge lock (`project_estimator_wedge_and_product_lock`) + 5-day-drift me
 Concrete gate for a new wire slice (e.g. S3 Triagem, S4 Escala):
 
 1. **curl smoke test** of every new endpoint (POST/GET/PATCH) with one real input + one malformed input. Returns expected status + body shape. Captured in commit message or `.agents/handoff/`.
-2. **Audit trail verification:** `SELECT * FROM audit_log WHERE project_id = ? ORDER BY ts` after the smoke run shows one row per write with non-null `r2_key_after`. The audit trail IS the proof; no audit row = no ship.
+2. **Audit trail verification:** `SELECT * FROM audit_log WHERE project_id = ? ORDER BY ts` after the smoke run shows one row per write. **R2 writes additionally require non-null `r2_key_after`**; non-R2 writes (e.g. S6 layer-mapping confirms, HITL tag updates) are allowed `r2_key_after IS NULL` — the row's existence is the proof. The audit trail IS the proof; no audit row = no ship. (Amended 2026-05-29 in Phase 8 S6 — prior version required r2_key_after non-null universally, which would have failed the layer-mapping gate that produces no R2 artifact.)
 3. **SSR re-render check:** load the page in the browser (or `curl` the HTML) after the mutation, confirm the new state is visible. Optimistic-only UI is fine if the next page-load matches.
 4. **Dogfood on at least one real Aeronet PDF** before declaring done — not just synthetic curl.
 

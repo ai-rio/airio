@@ -1,12 +1,12 @@
 """
-airio container JSON API — phase 7 (S4 Escala) entry point.
+airio container JSON API — phase 7 (S4 Escala) + phase 8 (S6 Camadas) entry point.
 
 Wraps the existing Python analyzers (count.detect_scale, schedule, points, ele,
 quadro_pontos) behind a small uvicorn JSON surface. The Astro UI never talks to
 this directly; the auxiliary Worker at workers/estimator-container/src/index.ts
 fronts it and is the only caller.
 
-S4 surface (this file):
+S4 surface:
     POST /extract/scale
         body: PDF bytes
         headers/query: page_index (int, default 0), x-airio-correlation-id (str)
@@ -21,6 +21,21 @@ S4 surface (this file):
 
         Empty extraction = 200 with scale_denom: null + source: not_found.
         5xx reserved for unhandled crashes only.
+
+S6 surface:
+    POST /extract/layers
+        body: PDF bytes
+        query: page_index (int, default 0)
+        returns 200 JSON: {page_index, page_count, layers: [{name,
+          element_count, color_rgb, has_lines, has_curves, glossary_kind}, …]}
+        Pure inventory — no LLM call. Astro merges with cross-project memory.
+
+    POST /intel/layer-proposals
+        body: JSON {"layer_names": ["ELE_TA", …]}
+        returns 200 JSON: {proposals: {name: kind|null, …}, model,
+          prompt_version, validation_pass}
+        On schema-validation failure: 200 with all-null proposals + flag false
+        (safe fallback per .claude/rules/ai-output-handling.md §2).
 
 Per docs/spec/backend-persistence-plan.md "Container JSON API surface" +
 "Two-sided instrumentation". Container logs container_request_start|done
@@ -37,6 +52,7 @@ import re
 import sys
 import time
 import uuid
+from collections import Counter
 from pathlib import Path
 from typing import Optional
 
@@ -47,6 +63,8 @@ from fastapi.responses import JSONResponse
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import count as count_mod  # noqa: E402
+import glossary as glossary_mod  # noqa: E402
+import intel as intel_mod  # noqa: E402
 
 app = FastAPI(title="airio estimator container API")
 
@@ -218,6 +236,168 @@ async def extract_scale(
             "page_size_pt": page_size_pt,
         }
     )
+
+
+# --- /extract/layers ---------------------------------------------------------
+
+# `page.get_drawings()` returns a list of dicts. The `layer` key carries the
+# OCG name when the drawing is on a layer (per probe 2026-05-29: J&J PE03_TER
+# page 0 → 94,685 drawings, 100% have `layer` set, 99 unique names). `color`
+# is the stroke color as an RGB tuple of floats 0-1, or None for stroke-less.
+# `items` is a list of `(op, ...)` tuples — op == 'l' = line, 'c' = curve.
+
+
+def _aggregate_layers(page: fitz.Page) -> list[dict]:
+    """Build per-layer inventory for one page — pure, no LLM, no glossary.
+
+    Glossary lookup happens at the caller so the pure helper stays a thin
+    wrapper around PyMuPDF.
+    """
+    per_layer: dict[str, dict] = {}
+    for d in page.get_drawings():
+        name = d.get("layer")
+        # Skip both missing layers and the empty-string "no-layer" bucket. The
+        # empty bucket is fitz's catch-all for drawings outside any OCG (J&J
+        # PE03_TER page 0: 376 such drawings); it is not a real CAD layer
+        # name and would inflate the layer count past the OCG-derived oracle.
+        if not name:
+            continue
+        bucket = per_layer.setdefault(name, {
+            "element_count": 0,
+            "color_counter": Counter(),
+            "has_lines": False,
+            "has_curves": False,
+        })
+        bucket["element_count"] += 1
+        c = d.get("color")
+        if c is not None:
+            # PyMuPDF gives floats 0-1; round each channel to int 0-255
+            try:
+                rgb = tuple(int(round(float(ch) * 255)) for ch in c[:3])
+                if len(rgb) == 3:
+                    bucket["color_counter"][rgb] += 1
+            except (TypeError, ValueError):
+                pass
+        # detect item operators — 'l' = line segment, 'c' = bezier curve
+        items = d.get("items") or ()
+        for it in items:
+            if not it:
+                continue
+            op = it[0]
+            if op == "l":
+                bucket["has_lines"] = True
+            elif op == "c":
+                bucket["has_curves"] = True
+
+    out: list[dict] = []
+    for name, agg in per_layer.items():
+        color_rgb: Optional[str] = None
+        if agg["color_counter"]:
+            winning_rgb = agg["color_counter"].most_common(1)[0][0]
+            color_rgb = "#{:02x}{:02x}{:02x}".format(*winning_rgb)
+        out.append({
+            "name": name,
+            "element_count": agg["element_count"],
+            "color_rgb": color_rgb,
+            "has_lines": agg["has_lines"],
+            "has_curves": agg["has_curves"],
+        })
+    # Stable order: by descending element_count then name for deterministic responses
+    out.sort(key=lambda r: (-r["element_count"], r["name"]))
+    return out
+
+
+@app.post("/extract/layers")
+async def extract_layers(
+    request: Request,
+    page_index: int = Query(0, ge=0),
+    x_airio_correlation_id: Optional[str] = Header(default=None),
+) -> JSONResponse:
+    body = await request.body()
+    if not body:
+        raise HTTPException(400, "Empty request body — expected PDF bytes")
+    try:
+        doc = fitz.open(stream=body, filetype="pdf")
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(400, f"Invalid PDF: {exc}")
+
+    if page_index >= doc.page_count:
+        raise HTTPException(
+            400,
+            f"page_index {page_index} out of range (doc has {doc.page_count} pages)",
+        )
+
+    page = doc[page_index]
+    layers = _aggregate_layers(page)
+    # Glossary lookup per layer name (config seam, may return None for unknown / excluded)
+    for row in layers:
+        row["glossary_kind"] = glossary_mod.layer_kind(row["name"])
+
+    return JSONResponse({
+        "page_index": page_index,
+        "page_count": doc.page_count,
+        "layers": layers,
+    })
+
+
+# --- /intel/layer-proposals --------------------------------------------------
+
+
+@app.post("/intel/layer-proposals")
+async def intel_layer_proposals(
+    request: Request,
+    x_airio_correlation_id: Optional[str] = Header(default=None),
+) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(400, "Body must be valid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Body must be a JSON object")
+    names = body.get("layer_names")
+    if (not isinstance(names, list)
+            or not names
+            or not all(isinstance(n, str) and n for n in names)):
+        raise HTTPException(400, "layer_names must be a non-empty list of strings")
+
+    correlation_id = x_airio_correlation_id or "n/a"
+    intel_start = time.time()
+    try:
+        result = intel_mod.propose_layer_kinds(names)
+        validation_pass = True
+        error_msg: Optional[str] = None
+    except Exception as exc:  # noqa: BLE001 — fallback per ai-output-handling §2
+        validation_pass = False
+        error_msg = str(exc)
+        result = {
+            "proposals": {n: None for n in names},
+            "model": intel_mod.DEFAULT_MODEL,
+            "prompt_version": intel_mod.PROPOSALS_PROMPT_VERSION,
+            "transport": "fallback",
+            "input_token_count": 0,
+            "output_token_count": 0,
+        }
+    intel_ms = int((time.time() - intel_start) * 1000)
+
+    _log(
+        "intel_call",
+        route="/intel/layer-proposals",
+        correlation_id=correlation_id,
+        model=result.get("model"),
+        prompt_version=result.get("prompt_version"),
+        input_token_count=result.get("input_token_count", 0),
+        output_token_count=result.get("output_token_count", 0),
+        validation_pass=validation_pass,
+        duration_ms=intel_ms,
+        error=error_msg,
+    )
+
+    return JSONResponse({
+        "proposals": result["proposals"],
+        "model": result.get("model"),
+        "prompt_version": result.get("prompt_version"),
+        "validation_pass": validation_pass,
+    })
 
 
 @app.get("/healthz")

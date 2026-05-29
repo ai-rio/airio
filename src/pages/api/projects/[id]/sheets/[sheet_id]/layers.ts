@@ -73,8 +73,11 @@ export const GET: APIRoute = async ({ params, request }) => {
 			cacheHit = true;
 		} catch {
 			// Corrupt cache — fall through to container call.
+			// FORCE write here: existing layers_json is non-NULL but unparseable; the
+			// IfAbsent gate would refuse to overwrite and lock the corruption in
+			// forever (self-healing dead). The catch branch IS the rightful overwriter.
 			allLayers = await callContainer(sheetId, projectId, sheet.pageIndex ?? 0, correlationId);
-			await persistLayersJsonIfAbsent(db, sheetId, projectId, allLayers);
+			await persistLayersJsonForce(db, sheetId, projectId, allLayers);
 		}
 	} else {
 		try {
@@ -231,15 +234,11 @@ async function callContainer(
 	return result.layers;
 }
 
-// Race-safe write: two concurrent cold GETs will both fetch from container,
-// but the second writer's UPDATE here is gated on layers_json still being NULL.
-// "First writer wins" — second silently no-ops (its in-memory layers were valid
-// too; we discard them and let the cached version be served on the next GET).
-// Prevents (a) wasted 2× cold-start cost (already paid, but no point persisting
-// twice), and (b) audit-trail correlation_id drift where the persisted JSON
-// might be from a different container call than the response that returned to
-// the client. Acceptable race window: the in-flight container result for the
-// loser is discarded, but the request still returns the loser's result inline.
+// Race-safe write for the COLD-MISS path: two concurrent GETs on a never-cached
+// sheet will both fetch from container, but the second writer's UPDATE is gated
+// on layers_json still being NULL. "First writer wins" — second silently no-ops.
+// Prevents audit-trail correlation_id drift where the persisted JSON would be
+// from a different container call than what the client received.
 async function persistLayersJsonIfAbsent(
 	db: ReturnType<typeof getDb>,
 	sheetId: string,
@@ -256,4 +255,20 @@ async function persistLayersJsonIfAbsent(
 				isNull(sheets.layersJson),
 			),
 		);
+}
+
+// Unconditional write for the CORRUPT-CACHE path. Existing value is non-NULL
+// garbage; the IfAbsent gate would refuse to overwrite and lock in the corruption
+// forever. The corrupt-cache catch is the only caller — by being in that branch
+// we already know we're the rightful overwriter.
+async function persistLayersJsonForce(
+	db: ReturnType<typeof getDb>,
+	sheetId: string,
+	projectId: string,
+	layers: LayerInventoryItem[],
+): Promise<void> {
+	await db
+		.update(sheets)
+		.set({ layersJson: JSON.stringify(layers) })
+		.where(and(eq(sheets.id, sheetId), eq(sheets.projectId, projectId)));
 }

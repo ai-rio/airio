@@ -73,6 +73,10 @@ Dispatch rules:
 - Never dispatch `general-purpose` when a specialist exists
 - For Astro+API+DB spanning a single wire phase (e.g. S3 = page + endpoint + migration): split into 3 parallel agents, one per concern. Don't dispatch `fullstack-developer` — the airio module boundary IS the API/UI split.
 
+**QA audit loop — exit condition (codified 2026-05-29 in Phase 8):**
+
+The orchestrator loop is **dispatch → smoke gate → code-reviewer audit → fix → re-audit until clean → push**. ONE code-reviewer pass is insufficient; the loop exits only when a re-audit on the fix commit returns ZERO new blockers. Phase 7 baseline: 2 passes (initial audit caught 2 blockers + 3 should-fix; re-audit on the fix commit returned zero regressions → ship). Phase 8 violation: shipped fix commit `1070358` without re-audit; caught only because Carlos asked. Do not skip the re-audit pass. SHOULD-FIX items file as tasks and DO NOT block the loop; BLOCKERS do.
+
 ## 5. Module boundaries (codifying existing pattern)
 
 Already in place — keep it:

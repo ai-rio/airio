@@ -1,5 +1,6 @@
 ---
 import ProjectLayout from '../../../../layouts/ProjectLayout.astro';
+import PdfViewer from '../../../../components/PdfViewer.astro';
 import { loadProject } from '../../../../lib/projects';
 import { getDb } from '../../../../lib/db';
 import { sheets } from '../../../../../db/schema';
@@ -659,19 +660,17 @@ const projectName = project.name;
         <div class="sub-panel-body">
           <div class="escala-grid">
 
-            <!-- left: titleblock crop placeholder (real preview deferred to S5/S6) -->
-            <div class="titleblock-crop" aria-hidden="true">
-              <div class="tb-grid">
-                <div class="tb-cell"><strong>OBRA</strong>—</div>
-                <div class="tb-cell"><strong>PRANCHA</strong><span data-tb-pranchanum>—</span></div>
-                <div class="tb-cell"><strong>PROJ.</strong>—</div>
-                <div class="tb-cell"><strong>RESP.</strong>—</div>
-                <div class="tb-cell"><strong>DATA</strong>—</div>
-                <div class="tb-cell"><strong>REV.</strong>—</div>
-                <div class="tb-cell"><strong>ESC.</strong><span data-tb-esc>—</span></div>
-                <div class="tb-cell"><strong>PÁG.</strong><span data-tb-pag>—</span></div>
-              </div>
-            </div>
+            <!-- left: real PDF crop showing bottom-right titleblock (BR convention) -->
+            {sheetViews[0] && (
+              <PdfViewer
+                pdfUrl={`/api/projects/${projectId}/sheets/${sheetViews[0].id}/pdf`}
+                pageIndex={sheetViews[0].pageIndex}
+                mode="titleblock-crop"
+                scale={1.2}
+                class="titleblock-crop"
+                ariaLabel="Carimbo da prancha"
+              />
+            )}
 
             <!-- right: read-out — JS swaps content based on active sheet + last fetch -->
             <div class="escala-read">

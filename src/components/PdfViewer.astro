@@ -1,0 +1,275 @@
+---
+// PdfViewer — visual-first PDF preview component (mupdf-wasm).
+//
+// Renders one page of a sheet's PDF as an <img> blob. Module-level mupdf init
+// is shared across all instances on the page (~1s one-time cost).
+//
+// Props:
+//   pdfUrl        string  required  — typically /api/projects/[pid]/sheets/[sid]/pdf
+//   pageIndex     number  default 0
+//   mode          'full' | 'titleblock-crop'   default 'full'
+//                   - full              renders whole page, fit-to-width container
+//                   - titleblock-crop   renders bottom-right ~28% × 22% (BR convention)
+//   scale         number  default 1.5  — render-time scale before fit
+//   class         string  optional     — applied to wrapper
+//   ariaLabel     string  optional     — wrapper aria-label
+//
+// Behavior:
+//   - First render: shows skeleton, kicks off init+fetch+render, swaps to <img>
+//   - Sheet switches: caller updates data-pdf-url + dispatches a `pdfviewer:reload`
+//     CustomEvent on the wrapper. Component cancels in-flight render, re-renders.
+//   - Errors: surfaces a small inline message with retry button.
+//
+// Per project visual-first principle: the buyer pays to see the PDF, not just
+// its metadata. Wired into S3 Triagem (active-row preview) + S4 Preparação
+// (titleblock crop for scale verification).
+const {
+	pdfUrl,
+	pageIndex = 0,
+	mode = 'full',
+	scale = 1.5,
+	class: className = '',
+	ariaLabel,
+} = Astro.props as {
+	pdfUrl: string;
+	pageIndex?: number;
+	mode?: 'full' | 'titleblock-crop';
+	scale?: number;
+	class?: string;
+	ariaLabel?: string;
+};
+---
+
+<div
+	class:list={['pdf-viewer', `mode-${mode}`, className]}
+	data-pdf-url={pdfUrl}
+	data-page-index={pageIndex}
+	data-mode={mode}
+	data-scale={scale}
+	aria-label={ariaLabel ?? 'Pré-visualização do PDF'}
+>
+	<div class="pdf-skeleton" data-pdf-skeleton>
+		<span class="pdf-skeleton-text">Carregando PDF…</span>
+	</div>
+	<img class="pdf-img" data-pdf-img alt="" hidden />
+	<div class="pdf-error" data-pdf-error hidden>
+		<span class="pdf-error-msg" data-pdf-error-msg></span>
+		<button type="button" class="pdf-error-retry" data-pdf-retry>Tentar novamente</button>
+	</div>
+</div>
+
+<style>
+	.pdf-viewer {
+		position: relative;
+		width: 100%;
+		background: var(--color-bg-canvas, #f5f5f4);
+		border: 1px solid var(--color-border-default, #d4d4d4);
+		overflow: hidden;
+	}
+	.pdf-viewer.mode-full {
+		min-height: 240px;
+	}
+	.pdf-viewer.mode-titleblock-crop {
+		aspect-ratio: 5 / 3;
+		min-height: 180px;
+	}
+	.pdf-skeleton {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-fg-muted, #737373);
+		font: 400 12px/16px var(--font-mono, ui-monospace, monospace);
+		background:
+			repeating-linear-gradient(45deg, transparent 0 8px, rgba(0,0,0,0.02) 8px 16px);
+	}
+	.pdf-img {
+		display: block;
+		width: 100%;
+		height: auto;
+		max-width: 100%;
+	}
+	.pdf-viewer.mode-titleblock-crop .pdf-img {
+		object-fit: cover;
+		object-position: bottom right;
+		width: 100%;
+		height: 100%;
+	}
+	.pdf-error {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 12px;
+		color: var(--color-danger, #b91c1c);
+		font: 400 12px/16px var(--font-mono, ui-monospace, monospace);
+		text-align: center;
+	}
+	.pdf-error-retry {
+		font: 400 12px/16px var(--font-sans, system-ui, sans-serif);
+		padding: 4px 10px;
+		border: 1px solid var(--color-border-default, #d4d4d4);
+		background: var(--color-bg-surface, #fff);
+		cursor: pointer;
+	}
+	.pdf-error-retry:hover {
+		background: var(--color-bg-elevated, #fafaf9);
+	}
+</style>
+
+<script>
+	// Module-level mupdf init promise. Shared across every PdfViewer instance
+	// on the page so the ~1s wasm cold-start is paid once.
+	type MupdfMod = typeof import('mupdf');
+	let mupdfPromise: Promise<MupdfMod> | null = null;
+	function getMupdf(): Promise<MupdfMod> {
+		if (!mupdfPromise) {
+			// Load via runtime script-tag from /mupdf/ (assets copied to public/mupdf/).
+			// Bypasses Vite's deps optimizer entirely so the wasm sibling fetch resolves
+			// at /mupdf/mupdf-wasm.wasm (same dir as mupdf.js). `import('mupdf')` via
+			// Vite rewrites mupdf.js to a hashed deps path and breaks the wasm path.
+			mupdfPromise = new Promise((resolve, reject) => {
+				const tag = document.createElement('script');
+				tag.type = 'module';
+				const w = window as unknown as {
+					__airioMupdfResolve?: (m: MupdfMod) => void;
+					__airioMupdfReject?: (e: unknown) => void;
+				};
+				w.__airioMupdfResolve = resolve;
+				w.__airioMupdfReject = reject;
+				tag.textContent = `
+					import('/mupdf/mupdf.js')
+						.then((m) => window.__airioMupdfResolve(m))
+						.catch((e) => window.__airioMupdfReject(e));
+				`;
+				tag.onerror = (e) => reject(e);
+				document.head.appendChild(tag);
+			});
+		}
+		return mupdfPromise;
+	}
+
+	// Per-element state. Keyed by the wrapper DOM node so re-renders cancel
+	// the prior in-flight job cleanly.
+	const state = new WeakMap<HTMLElement, { gen: number; abort: AbortController | null }>();
+
+	function hide(el: HTMLElement | null): void {
+		if (el) el.setAttribute('hidden', '');
+	}
+	function show(el: HTMLElement | null): void {
+		if (el) el.removeAttribute('hidden');
+	}
+
+	async function renderViewer(wrapper: HTMLElement): Promise<void> {
+		const skeleton = wrapper.querySelector<HTMLElement>('[data-pdf-skeleton]');
+		const img = wrapper.querySelector<HTMLImageElement>('[data-pdf-img]');
+		const errorBox = wrapper.querySelector<HTMLElement>('[data-pdf-error]');
+		const errorMsg = wrapper.querySelector<HTMLElement>('[data-pdf-error-msg]');
+		if (!img || !skeleton || !errorBox || !errorMsg) return;
+
+		const pdfUrl = wrapper.getAttribute('data-pdf-url') || '';
+		const pageIndex = Number(wrapper.getAttribute('data-page-index') || '0');
+		const scale = Number(wrapper.getAttribute('data-scale') || '1.5');
+
+		if (!pdfUrl) {
+			show(errorBox);
+			errorMsg.textContent = 'URL do PDF ausente.';
+			return;
+		}
+
+		// Cancel any prior render for this wrapper. gen counter wins races.
+		const prior = state.get(wrapper);
+		if (prior?.abort) prior.abort.abort();
+		const gen = (prior?.gen ?? 0) + 1;
+		const abort = new AbortController();
+		state.set(wrapper, { gen, abort });
+
+		// Reset visible state for this render.
+		hide(errorBox);
+		show(skeleton);
+		hide(img);
+		if (img.src) {
+			try { URL.revokeObjectURL(img.src); } catch {}
+			img.removeAttribute('src');
+		}
+
+		try {
+			const [mupdf, pdfBytes] = await Promise.all([
+				getMupdf(),
+				fetch(pdfUrl, { signal: abort.signal }).then((r) => {
+					if (!r.ok) throw new Error(`HTTP ${r.status} fetching PDF`);
+					return r.arrayBuffer();
+				}),
+			]);
+
+			// Stale guard — caller may have swapped pdfUrl while we were fetching.
+			if (state.get(wrapper)?.gen !== gen) return;
+
+			const doc = mupdf.Document.openDocument(new Uint8Array(pdfBytes), 'application/pdf');
+			const pageCount = doc.countPages();
+			const safeIndex = Math.min(pageIndex, pageCount - 1);
+			const page = doc.loadPage(safeIndex);
+			const matrix = mupdf.Matrix.scale(scale, scale);
+			const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false);
+			const pngBytes = pixmap.asPNG();
+			// Free wasm memory ASAP — mupdf objects are reference-counted on the
+			// C side; the wrapper holds strong refs until destroy() is called.
+			pixmap.destroy();
+			page.destroy();
+			doc.destroy();
+
+			if (state.get(wrapper)?.gen !== gen) return;
+
+			const blob = new Blob([pngBytes as BlobPart], { type: 'image/png' });
+			const blobUrl = URL.createObjectURL(blob);
+			img.onload = () => {
+				if (state.get(wrapper)?.gen !== gen) {
+					URL.revokeObjectURL(blobUrl);
+					return;
+				}
+				hide(skeleton);
+				show(img);
+			};
+			img.src = blobUrl;
+		} catch (err: unknown) {
+			// Stale guard — late error from a cancelled render shouldn't surface.
+			if (state.get(wrapper)?.gen !== gen) return;
+			if (err instanceof DOMException && err.name === 'AbortError') return;
+			console.error('[PdfViewer]', err);
+			hide(skeleton);
+			show(errorBox);
+			errorMsg.textContent = err instanceof Error ? err.message : 'Falha ao carregar PDF';
+		}
+	}
+
+	function wire(wrapper: HTMLElement): void {
+		const retry = wrapper.querySelector<HTMLButtonElement>('[data-pdf-retry]');
+		if (retry) {
+			retry.addEventListener('click', () => {
+				renderViewer(wrapper);
+			});
+		}
+		// Caller can dispatch CustomEvent('pdfviewer:reload') on the wrapper
+		// after updating data-pdf-url / data-page-index attrs to swap content.
+		wrapper.addEventListener('pdfviewer:reload', () => {
+			renderViewer(wrapper);
+		});
+	}
+
+	function init(): void {
+		document.querySelectorAll<HTMLElement>('.pdf-viewer').forEach((w) => {
+			wire(w);
+			renderViewer(w);
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+</script>

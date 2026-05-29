@@ -1,0 +1,207 @@
+---
+// /spike/pdf?sid=<sheet_id>&pid=<project_id>
+//
+// Side-by-side comparison of pdfjs-dist vs mupdf for rendering page 1 of
+// a sheet's PDF. Both fetch from /api/projects/[pid]/sheets/[sid]/pdf.
+//
+// Measure (logged to console + on-page):
+//   - lib_load_ms      time from script start to module import resolved
+//   - pdf_fetch_ms     time to fetch PDF bytes from R2 proxy
+//   - render_ms        time from doc-open to canvas painted
+//   - total_ms         lib_load + fetch + render
+//   - bundle_kb        reported in the heading
+//
+// Visual-first principle: this page proves we can put the PDF in front of
+// the user. Pick the lib with the best size/perf/quality tradeoff for the
+// real Boticário / J&J PE-class plantas.
+
+const sid = Astro.url.searchParams.get('sid') ?? '';
+const pid = Astro.url.searchParams.get('pid') ?? '';
+const pdfUrl = sid && pid
+	? `/api/projects/${encodeURIComponent(pid)}/sheets/${encodeURIComponent(sid)}/pdf`
+	: '';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>airio · spike · pdf viewer</title>
+	<style>
+		* { box-sizing: border-box; }
+		body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #fafaf9; color: #1a1a1a; }
+		h1 { font-size: 18px; margin: 0 0 8px; }
+		.meta { font: 400 12px/16px ui-monospace, monospace; color: #525252; margin-bottom: 12px; }
+		.meta a { color: #ea580c; }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+		.panel { border: 1px solid #d4d4d4; background: #fff; }
+		.panel header { padding: 8px 12px; border-bottom: 1px solid #d4d4d4; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+		.panel header h2 { margin: 0; font-size: 14px; }
+		.panel header .stats { font: 400 11px/14px ui-monospace, monospace; color: #525252; }
+		.panel .canvas-wrap { padding: 8px; max-height: calc(100vh - 200px); overflow: auto; background: #f5f5f4; }
+		.panel canvas { display: block; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin: 0 auto; max-width: 100%; height: auto; }
+		.panel .error { padding: 16px; color: #b91c1c; font: 400 12px/16px ui-monospace, monospace; }
+		.no-pdf { padding: 32px; background: #fff; border: 1px dashed #d4d4d4; }
+	</style>
+</head>
+<body>
+	<h1>airio spike · PDF viewer A/B</h1>
+	<div class="meta">
+		sheet: <code>{sid || '(missing)'}</code> ·
+		project: <code>{pid || '(missing)'}</code> ·
+		src: {pdfUrl ? <a href={pdfUrl}>{pdfUrl}</a> : '(no sid/pid)'}
+	</div>
+
+	{!pdfUrl && (
+		<div class="no-pdf">
+			Pass <code>?pid=&lt;project_id&gt;&amp;sid=&lt;sheet_id&gt;</code> in URL.<br />
+			Example: <code>/spike/pdf?pid=6fb5fffb-88a7-4cc6-9a64-d27a237b294a&amp;sid=eb0c1a0b-49ea-4332-9796-292c546f7e50</code>
+		</div>
+	)}
+
+	{pdfUrl && (
+		<div class="grid">
+			<section class="panel" data-engine="pdfjs">
+				<header>
+					<h2>pdfjs-dist · 425 KB + 1.2 MB worker</h2>
+					<span class="stats" data-stats>loading…</span>
+				</header>
+				<div class="canvas-wrap"><canvas data-canvas></canvas></div>
+				<div class="error" data-error style="display:none"></div>
+			</section>
+
+			<section class="panel" data-engine="mupdf">
+				<header>
+					<h2>mupdf-wasm · 99 KB + 9.5 MB wasm (3.4 MB br)</h2>
+					<span class="stats" data-stats>loading…</span>
+				</header>
+				<div class="canvas-wrap"><canvas data-canvas></canvas></div>
+				<div class="error" data-error style="display:none"></div>
+			</section>
+		</div>
+	)}
+
+	{pdfUrl && (
+		<script type="module" define:vars={{ pdfUrl }}>
+			const PDF_URL = pdfUrl;
+			const DPR = window.devicePixelRatio || 1;
+
+			function setStats(panel, txt) {
+				panel.querySelector('[data-stats]').textContent = txt;
+			}
+			function setError(panel, err) {
+				const el = panel.querySelector('[data-error]');
+				el.textContent = String(err && err.stack || err && err.message || err);
+				el.style.display = 'block';
+			}
+
+			// ---- pdfjs ----------------------------------------------------------
+			(async () => {
+				const panel = document.querySelector('[data-engine="pdfjs"]');
+				try {
+					const t0 = performance.now();
+					const pdfjs = await import('/node_modules/pdfjs-dist/build/pdf.min.mjs');
+					pdfjs.GlobalWorkerOptions.workerSrc = '/node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
+					const tLib = performance.now();
+
+					const fetchStart = performance.now();
+					const pdfBytes = await fetch(PDF_URL).then((r) => r.arrayBuffer());
+					const tFetch = performance.now();
+
+					const doc = await pdfjs.getDocument({ data: pdfBytes }).promise;
+					const page = await doc.getPage(1);
+
+					const canvas = panel.querySelector('[data-canvas]');
+					const ctx = canvas.getContext('2d');
+					const viewport = page.getViewport({ scale: 1.5 * DPR });
+					canvas.width = viewport.width;
+					canvas.height = viewport.height;
+					canvas.style.width = (viewport.width / DPR) + 'px';
+					canvas.style.height = (viewport.height / DPR) + 'px';
+					await page.render({ canvasContext: ctx, viewport }).promise;
+					const tRender = performance.now();
+
+					setStats(
+						panel,
+						`lib ${(tLib - t0).toFixed(0)}ms · fetch ${(tFetch - fetchStart).toFixed(0)}ms · render ${(tRender - tFetch).toFixed(0)}ms · total ${(tRender - t0).toFixed(0)}ms · page ${page.view[2].toFixed(0)}×${page.view[3].toFixed(0)}pt`
+					);
+					console.log('[pdfjs]', {
+						lib_ms: tLib - t0,
+						fetch_ms: tFetch - fetchStart,
+						render_ms: tRender - tFetch,
+						total_ms: tRender - t0,
+						page_size_pt: [page.view[2], page.view[3]],
+					});
+				} catch (err) {
+					console.error('[pdfjs] error', err);
+					setError(panel, err);
+					setStats(panel, 'error');
+				}
+			})();
+
+			// ---- mupdf ---------------------------------------------------------
+			(async () => {
+				const panel = document.querySelector('[data-engine="mupdf"]');
+				try {
+					const t0 = performance.now();
+					const mupdf = await import('/node_modules/mupdf/dist/mupdf.js');
+					const tLib = performance.now();
+
+					const fetchStart = performance.now();
+					const pdfBytes = await fetch(PDF_URL).then((r) => r.arrayBuffer());
+					const tFetch = performance.now();
+
+					const doc = mupdf.Document.openDocument(new Uint8Array(pdfBytes), 'application/pdf');
+					const page = doc.loadPage(0);
+					const bounds = page.getBounds();
+					const pageW = bounds[2] - bounds[0];
+					const pageH = bounds[3] - bounds[1];
+
+					// scale 1.5 * DPR matches pdfjs side for fair comparison
+					const scale = 1.5 * DPR;
+					const matrix = mupdf.Matrix.scale(scale, scale);
+					const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false);
+					const pngBytes = pixmap.asPNG();
+
+					const canvas = panel.querySelector('[data-canvas]');
+					const ctx = canvas.getContext('2d');
+					const blob = new Blob([pngBytes], { type: 'image/png' });
+					const imgUrl = URL.createObjectURL(blob);
+					await new Promise((resolve, reject) => {
+						const img = new Image();
+						img.onload = () => {
+							canvas.width = img.width;
+							canvas.height = img.height;
+							canvas.style.width = (img.width / DPR) + 'px';
+							canvas.style.height = (img.height / DPR) + 'px';
+							ctx.drawImage(img, 0, 0);
+							URL.revokeObjectURL(imgUrl);
+							resolve();
+						};
+						img.onerror = reject;
+						img.src = imgUrl;
+					});
+					const tRender = performance.now();
+
+					setStats(
+						panel,
+						`lib ${(tLib - t0).toFixed(0)}ms · fetch ${(tFetch - fetchStart).toFixed(0)}ms · render ${(tRender - tFetch).toFixed(0)}ms · total ${(tRender - t0).toFixed(0)}ms · page ${pageW.toFixed(0)}×${pageH.toFixed(0)}pt`
+					);
+					console.log('[mupdf]', {
+						lib_ms: tLib - t0,
+						fetch_ms: tFetch - fetchStart,
+						render_ms: tRender - tFetch,
+						total_ms: tRender - t0,
+						page_size_pt: [pageW, pageH],
+					});
+				} catch (err) {
+					console.error('[mupdf] error', err);
+					setError(panel, err);
+					setStats(panel, 'error');
+				}
+			})();
+		</script>
+	)}
+</body>
+</html>

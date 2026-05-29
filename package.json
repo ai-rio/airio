@@ -24,6 +24,8 @@
     "@fontsource/iosevka": "^5.2.5",
     "astro": "^6.3.7",
     "drizzle-orm": "^0.45.2",
+    "mupdf": "^1.27.0",
+    "pdfjs-dist": "^5.7.284",
     "wrangler": "^4.94.0"
   },
   "overrides": {

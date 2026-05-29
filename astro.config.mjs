@@ -23,4 +23,13 @@ export default defineConfig({
       ? [{ configPath: './workers/estimator-container/wrangler.jsonc' }]
       : [],
   }),
+  vite: {
+    optimizeDeps: {
+      // mupdf-wasm sibling file (mupdf-wasm.wasm) is fetched relative to
+      // mupdf.js at runtime. Vite's deps optimizer copies mupdf.js to a hashed
+      // /node_modules/.vite/deps/ path which breaks the same-dir wasm fetch.
+      // Exclude lets the package resolve natively in dev.
+      exclude: ['mupdf'],
+    },
+  },
 });

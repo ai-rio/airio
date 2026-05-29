@@ -28,12 +28,29 @@ export type { LayerInventoryItem };
 // Electrical filter
 // ---------------------------------------------------------------------------
 
-// Matches: ELE_*, ELET*, LUZ- / LUZ<space>, *ELETRICA*, *ELÉTRICA*, *LUMIN*
-// Per oracle doc + J&J PE03_TER: produces exactly 24 of 99 layers.
-const ELECTRICAL_FILTER = /^(ELE_|ELET|LUZ[-\s])|ELETRICA|ELÉTRICA|LUMIN/i;
+// Filter rules (QA pass S2 fix, 2026-05-29):
+//   Prefix-anchored:  ELE_ ELE-     (BR elétrica convention, e.g. ELE_CALHA)
+//                     ELET_ ELET-   (alt elétrica prefix, e.g. ELET-DUTOS)
+//                     LUZ_ LUZ- "LUZ " (light/iluminação, all 3 separators)
+//                     ILUMIN         (iluminação)
+//                     LUMINOT        (luminotécnica — anywhere via case-insensitive)
+//   Substring:        MMM-ELETRIC MMM-LUMINOT
+//                     (covers LEGENDAS$0$MMM-ELETRICA-TOMADAS xref chains).
+//
+// Deliberately NOT matched (false-positive guards):
+//   LUMINANCE-* (annotation) — LUMINOT anchored at start blocks it
+//   ELETRODOMESTICOS (appliance) — ELE_/ELET_ requires separator
+//   A_I_ELE_82 (arquitetura w/ ELE infix) — prefix-anchored, not infix
+//   bare LUMIN / ELETRICA substrings (prior regex) — too greedy, removed
+//
+// Known false-negative: SENAC convention E-POWR-CNDT not matched. Add when
+// first non-J&J/non-Boticário dogfood file lands (per
+// project_estimator_eletrica_generalization memo).
+const ELECTRICAL_PREFIX = /^(ELE[_\-]|ELET[_\-]|LUZ[_\-\s]|ILUMIN|LUMINOT)/i;
+const ELECTRICAL_SUBSTRING = /MMM-(ELETRIC|LUMINOT)/i;
 
 export function filterElectrical(layers: LayerInventoryItem[]): LayerInventoryItem[] {
-	return layers.filter((l) => ELECTRICAL_FILTER.test(l.name));
+	return layers.filter((l) => ELECTRICAL_PREFIX.test(l.name) || ELECTRICAL_SUBSTRING.test(l.name));
 }
 
 // ---------------------------------------------------------------------------

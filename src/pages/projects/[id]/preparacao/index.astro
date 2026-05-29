@@ -1,6 +1,7 @@
 ---
 import ProjectLayout from '../../../../layouts/ProjectLayout.astro';
 import PdfViewer from '../../../../components/PdfViewer.astro';
+import ScaleInspectModal from '../../../../components/ScaleInspectModal.astro';
 import { loadProject } from '../../../../lib/projects';
 import { getDb } from '../../../../lib/db';
 import { sheets } from '../../../../../db/schema';
@@ -322,6 +323,30 @@ const projectName = project.name;
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-sm);
     overflow: hidden;
+  }
+  /* Click target wrapping titleblock-crop. PDF preview + inspect hint stacked. */
+  .titleblock-crop-trigger {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    width: 100%;
+    cursor: zoom-in;
+    display: grid;
+    gap: 4px;
+    text-align: left;
+  }
+  .titleblock-crop-trigger:hover .titleblock-crop {
+    border-color: var(--color-accent);
+  }
+  .titleblock-inspect-hint {
+    font: 400 11px/1.4 var(--font-mono, ui-monospace, monospace);
+    color: var(--color-fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .titleblock-crop-trigger:hover .titleblock-inspect-hint {
+    color: var(--color-accent);
   }
   .titleblock-crop .tb-grid {
     position: absolute; inset: 8px;
@@ -660,16 +685,28 @@ const projectName = project.name;
         <div class="sub-panel-body">
           <div class="escala-grid">
 
-            <!-- left: real PDF crop showing bottom-right titleblock (BR convention) -->
+            <!-- left: real PDF crop showing bottom-right titleblock (BR convention).
+                 Click → opens ScaleInspectModal for full-page zoom + pan + cross-sheet compare. -->
             {sheetViews[0] && (
-              <PdfViewer
-                pdfUrl={`/api/projects/${projectId}/sheets/${sheetViews[0].id}/pdf`}
-                pageIndex={sheetViews[0].pageIndex}
-                mode="titleblock-crop"
-                scale={1.2}
-                class="titleblock-crop"
-                ariaLabel="Carimbo da prancha"
-              />
+              <button
+                type="button"
+                class="titleblock-crop-trigger"
+                data-titleblock-trigger
+                data-sheet-id={sheetViews[0].id}
+                data-sheet-filename={sheetViews[0].filename}
+                data-sheet-page={sheetViews[0].pageIndex}
+                aria-label="Inspecionar prancha"
+              >
+                <PdfViewer
+                  pdfUrl={`/api/projects/${projectId}/sheets/${sheetViews[0].id}/pdf`}
+                  pageIndex={sheetViews[0].pageIndex}
+                  mode="titleblock-crop"
+                  scale={1.2}
+                  class="titleblock-crop"
+                  ariaLabel="Carimbo da prancha"
+                />
+                <span class="titleblock-inspect-hint">Inspecionar prancha →</span>
+              </button>
             )}
 
             <!-- right: read-out — JS swaps content based on active sheet + last fetch -->
@@ -944,6 +981,8 @@ const projectName = project.name;
 
 </div>
 
+<ScaleInspectModal projectId={projectId} sheets={sheetViews.map((s) => ({ id: s.id, filename: s.filename, pageIndex: s.pageIndex, kindShort: s.kindShort }))} />
+
 </ProjectLayout>
 
 <script is:inline define:vars={{ projectId }}>
@@ -1175,14 +1214,43 @@ const projectName = project.name;
           applyResultToRow(row, data);
           if (data && data.extraction && data.extraction.source === 'not_found') {
             els.fallback.style.display = '';
+            // Auto-open inspect modal — user needs to SEE the carimbo to figure
+            // out the scale before clicking "Definir manualmente".
+            openInspect(row);
           }
         } catch (err) {
           showError('Falha ao extrair: ' + (err && err.message ? err.message : 'erro desconhecido'));
+          // 5xx / network: same blind-user gap as not_found → open inspect.
+          openInspect(row);
         } finally {
           setBusy(false);
         }
         return;
       }
+    });
+
+    // ===== Inspect modal trigger =====
+    // Click on the titleblock-crop button OR auto-open from extract failure.
+    function openInspect(row) {
+      const r = row || activeRow();
+      if (!r) return;
+      const sheetId = r.getAttribute('data-sheet-id') || '';
+      const filename = r.getAttribute('data-sheet-filename') || '';
+      const pageIndex = Number(r.getAttribute('data-sheet-page') || '0');
+      document.dispatchEvent(new CustomEvent('scaleinspect:open', {
+        detail: { sheetId: sheetId, filename: filename, pageIndex: pageIndex },
+      }));
+    }
+    document.querySelectorAll('[data-titleblock-trigger]').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        const sheetId = btn.getAttribute('data-sheet-id') || '';
+        const filename = btn.getAttribute('data-sheet-filename') || '';
+        const pageIndex = Number(btn.getAttribute('data-sheet-page') || '0');
+        document.dispatchEvent(new CustomEvent('scaleinspect:open', {
+          detail: { sheetId: sheetId, filename: filename, pageIndex: pageIndex },
+        }));
+      });
     });
 
     // initial render: first row already has .is-active, render its panel.
